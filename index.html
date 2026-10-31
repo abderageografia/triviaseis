@@ -1372,6 +1372,81 @@ let imageCache=new Map(), questionImageTicket=0;
 let authPromise=null;
 let resumeEpoch=0;
 let serverTimeOffset=0, timeoutBusy=false;
+const ROOM_IDLE_MS=20*60*1000;
+const KNOWN_ROOMS_KEY='triviaOnlineKnownRooms';
+let knownRoomsBusy=false, expiringRoomCode='';
+const lastHumanActivity=r=>Number(r?.lastActiveAt || r?.updatedAt || r?.createdAt || 0);
+const isRoomInactive=r=>lastHumanActivity(r)>0 && serverNow()-lastHumanActivity(r)>=ROOM_IDLE_MS;
+function knownRooms(){
+ try{const o=JSON.parse(localStorage.getItem(KNOWN_ROOMS_KEY)||'{}');return o&&typeof o==='object'&&!Array.isArray(o)?o:{}}catch{return {}}
+}
+function rememberRoom(code,r){
+ if(!code)return;
+ const all=knownRooms(),time=lastHumanActivity(r)||Number(all[code])||serverNow();
+ all[code]=time;
+ try{localStorage.setItem(KNOWN_ROOMS_KEY,JSON.stringify(Object.fromEntries(
+  Object.entries(all).filter(([k,t])=>/^[A-Z2-9]{6}$/.test(k)&&Number(t)>0).sort((a,b)=>b[1]-a[1]).slice(0,24)
+ )))}catch{}
+}
+function forgetKnownRoom(code){
+ const all=knownRooms();if(!(code in all))return;delete all[code];
+ try{localStorage.setItem(KNOWN_ROOMS_KEY,JSON.stringify(all))}catch{}
+}
+// El borrado se confirma en Firebase. Una jugada nueva cancela el borrado.
+async function deleteInactiveRoom(code){
+ if(!connected||!uid||!code)return {state:'offline'};
+ const rr=ref(db,'rooms/'+code);
+ try{
+  const snap=await get(rr);
+  if(!snap.exists()){forgetKnownRoom(code);return {state:'gone'}}
+  const data=snap.val();
+  if(![data.hostUid,data.guestUid].includes(uid)){forgetKnownRoom(code);return {state:'notMember'}}
+  if(!isRoomInactive(data)){rememberRoom(code,data);return {state:'active',data}}
+  const result=await runTransaction(rr,current=>{
+   if(!current||![current.hostUid,current.guestUid].includes(uid)||!isRoomInactive(current))return;
+   return null;
+  },{applyLocally:false});
+  if(result.committed||!result.snapshot.exists()){forgetKnownRoom(code);return {state:'deleted'}}
+  const latest=result.snapshot.val();
+  rememberRoom(code,latest);
+  return {state:isRoomInactive(latest)?'failed':'active',data:latest};
+ }catch(e){
+  console.warn('Limpieza de sala inactiva:',e);
+  return {state:'failed'};
+ }
+}
+async function expireCurrentRoom(code){
+ if(!code||roomCode!==code||expiringRoomCode===code)return;
+ expiringRoomCode=code;
+ try{
+  const outcome=await deleteInactiveRoom(code);
+  if(roomCode!==code)return;
+  if(outcome.state==='active'){
+   room=outcome.data;lastRender='';showRoom();return;
+  }
+  if(outcome.state==='offline')return;
+  forgetOnlineRoom();renderHome();
+  message(outcome.state==='failed'?'La sala ha caducado tras 20 minutos sin jugar, pero Firebase no ha confirmado su borrado.':'La sala se ha eliminado tras 20 minutos sin actividad.');
+ }finally{if(expiringRoomCode===code)expiringRoomCode=''}
+}
+async function cleanupKnownRooms(){
+ if(knownRoomsBusy||!connected||!uid)return;
+ knownRoomsBusy=true;
+ try{
+  const saved=knownRooms();
+  for(const [code,stamp] of Object.entries(saved)){
+   if(!connected)break;
+   if(serverNow()-Number(stamp)<ROOM_IDLE_MS)continue;
+   if(code===roomCode){if(room&&isRoomInactive(room))await expireCurrentRoom(code);continue}
+   const outcome=await deleteInactiveRoom(code);
+   if(['gone','deleted','notMember'].includes(outcome.state))forgetKnownRoom(code);
+  }
+ }finally{knownRoomsBusy=false}
+}
+setInterval(()=>{
+ if(connected && roomCode && room && isRoomInactive(room) && !root.hidden)expireCurrentRoom(roomCode);
+ cleanupKnownRooms();
+},30000);
 const connectionAlert=document.getElementById('onlineConnectionAlert');
 // Pulsos intermitentes acompasados con los 1,6 segundos del giro online.
 const ONLINE_SPIN_HAPTIC=[24,42,24,50,24,62,24,78,25,98,26,120,28,150,30,185,35,225,40,240,65];
@@ -1413,7 +1488,7 @@ function expireQuestionState(r){
 async function expireOnlineClock(){
  if(timeoutBusy||pending||!connected||!roomCode)return;
  timeoutBusy=true;
- try{await txAt(roomCode,r=>expireQuestionState(r)?r:undefined)}catch(e){console.warn('Temporizador online:',e)}finally{timeoutBusy=false}
+ try{await txAt(roomCode,r=>expireQuestionState(r)?r:undefined,false)}catch(e){console.warn('Temporizador online:',e)}finally{timeoutBusy=false}
 }
 function refreshOnlineClock(){
  refreshVsClock();
@@ -1506,9 +1581,10 @@ onValue(ref(db,'.info/connected'),snap=>{
  statusEl.textContent=connected?'● Conectado a Firebase':'○ Sin conexión con Firebase';
  statusEl.style.color=connected?'#87e8db':'#ffc478';
  if(connected && connectionAlert.textContent.startsWith('Firebase Realtime Database no consigue'))networkNotice('');
+ if(connected && uid)cleanupKnownRooms();
 },e=>{connected=false;statusEl.textContent='⚠ Error de conexión';networkNotice('Firebase ha rechazado la conexión: '+String(e?.code||e?.message||'error'));});
 onValue(ref(db,'.info/serverTimeOffset'),snap=>{serverTimeOffset=Number(snap.val())||0;});
-onAuthStateChanged(auth,user=>{uid=user?.uid||'';if(uid&&!root.hidden)tryResume()});
+onAuthStateChanged(auth,user=>{uid=user?.uid||'';if(uid){cleanupKnownRooms();if(!root.hidden)tryResume()}});
 function basePage(content){view.innerHTML=content+(toast?`<p class="online-note" id="onlineToast" role="status">${esc(toast)}</p>`:'');}
 function renderHome(){
  const change=$('onlineSwitchRoom');if(change)change.hidden=true;
@@ -1543,7 +1619,10 @@ async function tryResume(){
   try{
    const snap=await get(ref(db,'rooms/'+prior.code));
    if(root.hidden||roomCode||epoch!==resumeEpoch)return;
-   if(snap.exists()&&[snap.val().hostUid,snap.val().guestUid].includes(uid)){enter(prior.code);return}
+   if(snap.exists()&&[snap.val().hostUid,snap.val().guestUid].includes(uid)){
+    if(isRoomInactive(snap.val())){await deleteInactiveRoom(prior.code);clearLocal();message('Tu anterior sala caducó por 20 minutos de inactividad.');return}
+    enter(prior.code);return
+   }
   }catch{}
   if(!root.hidden&&!roomCode&&epoch===resumeEpoch)clearLocal();
  }
@@ -1557,8 +1636,8 @@ async function createRoom(mode='roulette'){
    await waitRealtime();
    const name=nameFromInput();
    for(let i=0;i<4;i++){
-     const code=randomCode(),now=Date.now();
-     const fresh={hostUid:uid,hostName:name,createdAt:now,updatedAt:now,rev:0,status:'waiting',phase:'waiting',mode,turn:'host',cat:-1,qid:-1,used:{},players:{host:newPlayer(),guest:newPlayer()}};
+     const code=randomCode(),now=serverNow();
+     const fresh={hostUid:uid,hostName:name,createdAt:now,updatedAt:now,lastActiveAt:now,rev:0,status:'waiting',phase:'waiting',mode,turn:'host',cat:-1,qid:-1,used:{},players:{host:newPlayer(),guest:newPlayer()}};
    if(mode==='versus')Object.assign(fresh,{vsRound:0,vsMaxRounds:10,vsScores:{host:0,guest:0},vsStreaks:{host:0,guest:0},vsPowers:{host:{bets:2,hints:1},guest:{bets:2,hints:1}},vsPowerSchedule:vsNewPowerSchedule(),vsRematch:{host:false,guest:false},vsHistory:[]});
      try{await bounded(set(ref(db,'rooms/'+code),fresh),12000,'La base de datos no ha confirmado la creación de la sala.');enter(code);return}catch(e){if(i===3)throw e}
    }
@@ -1600,6 +1679,10 @@ async function joinRoom(){
      throw new Error('No se pudo confirmar tu plaza. Crea una sala nueva y vuelve a intentarlo.');
    }
    const v=initial.val();
+   if(isRoomInactive(v)){
+     await deleteInactiveRoom(code);
+     throw new Error('Esta sala ha caducado tras 20 minutos de inactividad. Crea otra partida.');
+   }
    if(v.status==='finished')throw new Error('La partida de esta sala ya ha terminado. Crea una nueva.');
    // El inicio no requiere una transacción de lectura-modificación-escritura.
    // En RTDB una transacción puede recibir null si la sala aún no está en caché
@@ -1611,7 +1694,8 @@ async function joinRoom(){
        guestName:name,
        status:'playing',
        phase:v.mode==='versus'?'vsLobby':'spin',
-       updatedAt:Date.now(),
+       updatedAt:serverNow(),
+       lastActiveAt:serverNow(),
        rev:Number(v.rev||0)+1
      }),12000,'Firebase no ha confirmado el inicio de la sala.');
    }else if(v.status!=='playing'){
@@ -1625,28 +1709,32 @@ async function joinRoom(){
  }catch(e){error(e)}finally{pending=false;working('join',false)}
 }
 
-async function txAt(code,fn){
+async function txAt(code,fn,humanAction=true){
  const rr=ref(db,'rooms/'+code);
  return runTransaction(rr,data=>{
-  if(!data)return;
+  if(!data||isRoomInactive(data))return;
   const previous=Number(data.rev||0);
   const changed=fn(data);
   if(!changed)return;
-  changed.rev=previous+1;changed.updatedAt=Date.now();return changed;
+  changed.rev=previous+1;changed.updatedAt=serverNow();
+  if(humanAction)changed.lastActiveAt=serverNow();
+  return changed;
  },{applyLocally:false});
 }
 async function tx(fn){if(!roomCode||!isReady())return null;pending=true;try{const r=await txAt(roomCode,fn);if(!r.committed)message('La jugada ha cambiado en el otro móvil. Prueba otra vez.');return r}catch(e){error(e);return null}finally{pending=false}}
 function enter(code){
  if(root.hidden)return;
  resumeEpoch++;
- if(unsubscribe)unsubscribe();roomCode=code;saveLocal();lastRender='';
+ if(unsubscribe)unsubscribe();roomCode=code;saveLocal();rememberRoom(code);lastRender='';
  const change=$('onlineSwitchRoom');if(change)change.hidden=false;
  history.replaceState(null,'',location.pathname+'?sala='+code+'&v=10'+location.hash);
  unsubscribe=onValue(ref(db,'rooms/'+code),snap=>{
   if(root.hidden||roomCode!==code)return;
-  if(!snap.exists()){forgetOnlineRoom();renderHome();message('La sala ya no existe.');return}
+  if(!snap.exists()){forgetKnownRoom(code);forgetOnlineRoom();renderHome();message('La sala ya no existe.');return}
   room=snap.val();role=room.hostUid===uid?'host':room.guestUid===uid?'guest':'';
   if(!role){forgetOnlineRoom();renderHome();message('No tienes acceso a esta sala.');return}
+  rememberRoom(code,room);
+  if(isRoomInactive(room)){expireCurrentRoom(code);return}
   showRoom();
  },error);
 }
@@ -1968,7 +2056,7 @@ async function tickVersus(){
    if(r.mode!=='versus')return;
    if(r.phase==='vsCountdown'&&serverNow()>=Number(r.vsStartAt)){r.phase='vsQuestion';return r}
    if(r.phase==='vsQuestion'&&serverNow()>=Number(r.vsDeadline)){if(vsSettle(r))return r}
-  });
+  },false);
  }catch(e){console.warn('Sincronización VS:',e)}
  finally{vsTickBusy=false}
 }
