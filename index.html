@@ -503,7 +503,7 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
 </section>
 <section id="game" class="hide"><div class="headerplayers" id="players"></div><div class="progress-title">Juega ahora</div><div class="turnname" id="turnLabel"></div><div id="powerStatus" class="power-status"></div><div class="wheel-area" id="wheelArea"><div class="pointer" aria-hidden="true"></div><div id="wheelHolder"></div><div id="wheelIcons" class="wheel-icons" aria-hidden="true"></div><div class="wheel-core"><b id="bigCount">0/6</b><span>QUESITOS</span></div></div><div class="spin-panel"><button class="btn spin" id="spin" type="button"><span class="spin-icon">↻</span> GIRAR RULETA</button><div class="spin-tools"><button id="safeSpin" class="ghost" type="button">🛡️ Giro protegido · <span id="safeCount">3</span></button></div><div id="lastCat" class="lastcat hide"></div><span class="sr-only" id="spinInfo" aria-live="polite">Pulsa para descubrir tu categoría</span></div><details class="game-more"><summary>Ver progreso por categorías</summary><div class="cat-chips" id="chips"></div><div class="question-counter" id="sessionCount"></div></details></section>
 <section id="finish" class="pane finish hide"><div class="trophy">🏆</div><h2 id="winTitle"></h2><p class="muted">¡Has completado las seis categorías!</p><div id="finalScore"></div><button id="playAgain" class="btn wide">VOLVER A JUGAR</button></section><footer>TRIVIA·SEIS · Juego local para dos jugadores</footer></div>
-<div id="questionModal" class="modal-bg hide"><div class="modal"><div class="question-head"><div id="catBadge" class="pill"></div><h2 id="qText" class="question"></h2><div id="geoHint" class="geo-hint hide" role="note"></div><div id="qMedia" class="q-media hide"></div></div><div class="answer-controls"><label class="label" for="answer">Tu respuesta</label><input class="field" id="answer" autocapitalize="sentences" autocomplete="off" autocorrect="off" placeholder="Escribe aquí…"><div class="joker-row" id="jokerRow"><button id="hintJoker" class="ghost" type="button">💡 Pista</button><button id="changeJoker" class="ghost" type="button">🔄 Cambiar</button></div><p class="joker-note" id="jokerNote" aria-live="polite"></p><button id="check" class="btn wide" style="margin-top:8px">COMPROBAR ✓</button><div id="feedback" class="feedback hide"></div><div id="cheeseReward" class="congrats hide"></div><button id="retryJoker" class="ghost wide hide" type="button">🃏 Reintentar con un comodín</button><button id="manualAccept" class="manual hide">Mi respuesta también era válida</button><button id="next" class="btn wide hide">CONTINUAR →</button></div></div></div>
+<div id="questionModal" class="modal-bg hide"><div class="modal"><div class="question-head"><div id="catBadge" class="pill"></div><h2 id="qText" class="question"></h2><div id="geoHint" class="geo-hint hide" role="note"></div><div id="qMedia" class="q-media hide"></div></div><div class="answer-controls"><label class="label" for="answer">Tu respuesta</label><input class="field" id="answer" autocapitalize="sentences" autocomplete="off" autocorrect="off" placeholder="Escribe aquí…"><div class="joker-row" id="jokerRow"><button id="hintJoker" class="ghost" type="button">💡 Pista</button><button id="changeJoker" class="ghost" type="button">🔄 Cambiar</button></div><p class="joker-note" id="jokerNote" aria-live="polite"></p><button id="check" class="btn wide" style="margin-top:8px">COMPROBAR ✓</button><div id="feedback" class="feedback hide"></div><div id="cheeseReward" class="congrats hide"></div><button id="retryJoker" class="ghost wide hide" type="button">🃏 Reintentar con un comodín</button><button id="next" class="btn wide hide">CONTINUAR →</button></div></div></div>
 
 <div id="categoryChoice" class="modal-bg hide" aria-modal="true" role="dialog" aria-labelledby="choiceTitle">
  <div class="modal choice-modal rare-choice">
@@ -590,7 +590,7 @@ const SESSION_STORE='triviaseis_game_6000_v9_historia_global';
 const LEGACY_STORE='triviaseis_complete_6000_v8_literatura';
 const LEGACY_SESSION='triviaseis_game_6000_v8_literatura';
 const HISTORY_MIGRATION_MAP={"0":247,"2":702,"5":68,"8":292,"10":625,"11":342,"14":300,"17":983,"19":419,"20":956,"21":663,"22":799,"25":183,"26":954,"27":202,"28":203,"32":826,"33":933,"34":327,"35":263,"36":827,"37":144,"38":117,"39":379,"41":830,"42":490,"44":818,"45":792,"47":276,"48":661,"50":164,"51":579,"53":31,"54":503,"55":802,"56":297,"57":178,"58":137,"59":797,"60":357,"64":669,"65":25,"66":612,"67":173,"70":72,"72":621,"74":722,"77":510,"79":401,"80":918,"81":839,"83":43,"86":456,"87":524,"88":17,"89":592,"90":321,"91":197,"92":126,"95":104,"96":900,"97":302,"98":999,"100":334,"101":270,"102":358,"103":291,"104":152,"106":192,"107":993,"110":27,"111":141,"112":837,"113":796,"116":418,"117":770,"118":376,"119":715,"121":616,"123":919,"124":600,"125":324,"128":588,"129":56,"130":515,"131":482,"132":564,"133":130,"135":875,"139":737,"142":444,"145":121,"148":347,"151":603,"154":705,"155":604,"156":750,"159":996,"161":915,"163":200,"164":466,"166":215,"167":618,"169":709,"172":971,"175":79,"177":404,"179":879,"180":78,"184":958,"185":498,"186":742,"187":228,"188":713,"189":899,"190":678,"191":995,"192":779,"193":866,"194":731,"195":719,"198":670,"199":220,"200":373,"201":488,"202":769,"204":821,"209":437,"210":460,"212":42,"213":676,"214":455,"215":341,"216":397,"219":836,"221":884,"222":351,"225":273,"226":461,"227":296,"230":602,"231":186,"233":442,"234":813,"235":862,"236":509,"238":753,"239":891,"242":743,"243":435,"245":265,"246":420,"247":256,"249":759,"250":70,"251":619,"253":62,"256":362,"259":942,"260":945,"261":279,"262":369,"265":525,"268":303,"269":308,"270":935,"272":394,"275":480,"278":751,"279":172,"282":355,"283":64,"284":903,"285":952,"287":831,"288":163,"289":272,"290":863,"291":614,"292":333,"295":634,"299":411,"300":320,"301":112,"302":180,"303":511,"305":122,"306":930,"308":470,"309":240,"310":237,"311":290,"313":212,"314":86,"318":544,"319":59,"321":902,"322":596,"327":230,"329":275,"330":901,"331":457,"334":761,"337":684,"338":824,"339":288,"340":14,"341":487,"342":179,"345":767,"346":925,"348":849,"349":725,"351":989,"352":49,"353":697,"355":613,"357":325,"359":985,"364":176,"365":969,"368":615,"370":755,"372":5,"375":21,"376":142,"377":888,"378":422,"381":199,"383":608,"384":858,"389":906,"390":609,"391":893,"392":201,"393":575,"395":479,"398":82,"399":454,"400":777,"401":193,"403":150,"405":667,"406":685,"408":964,"409":698,"412":67,"413":988,"414":587,"416":162,"417":239,"419":756,"421":23,"422":748,"423":307,"424":20,"425":671,"427":410,"430":730,"431":213,"433":631,"434":714,"436":44,"437":984,"438":843,"441":778,"444":760,"447":338,"449":138,"450":84,"453":677,"455":712,"457":413,"458":195,"460":384,"461":372,"463":710,"464":977,"465":227,"466":547,"467":316,"468":517,"469":249,"470":89,"471":190,"472":546,"473":928,"477":814,"479":129,"480":665,"481":505,"483":668,"484":250,"485":255,"486":205,"488":370,"489":22,"490":982,"493":981,"495":283,"496":154,"497":877,"499":139,"503":584,"504":551,"505":704,"506":557,"507":19,"509":963,"510":69,"511":156,"512":749,"513":828,"515":861,"516":467,"517":345,"518":364,"519":474,"520":961,"522":590,"525":576,"526":610,"527":211,"528":693,"530":569,"534":966,"535":910,"536":765,"537":168,"538":994,"540":234,"541":561,"542":808,"545":383,"552":656,"553":706,"554":312,"555":926,"556":563,"559":489,"561":493,"562":143,"563":46,"565":261,"570":134,"572":829,"574":415,"576":955,"577":223,"579":967,"584":45,"585":61,"587":865,"588":595,"589":346,"590":115,"591":30,"593":896,"594":944,"595":153,"596":116,"598":396,"599":992,"602":103,"603":784,"605":54,"606":845,"608":63,"609":736,"610":177,"611":158,"612":155,"614":8,"615":859,"616":114,"617":102,"618":815,"619":800,"620":768,"621":913,"622":810,"623":304,"624":776,"627":848,"629":644,"630":641,"636":523,"639":161,"640":471,"641":191,"644":807,"645":527,"646":507,"647":973,"648":285,"649":108,"651":350,"652":407,"654":738,"655":128,"656":934,"657":941,"658":522,"659":560,"661":207,"662":601,"666":323,"669":889,"670":947,"671":119,"672":911,"677":306,"682":381,"683":366,"684":135,"686":225,"687":794,"689":159,"691":885,"692":650,"695":9,"696":581,"697":867,"700":554,"703":543,"704":838,"706":459,"710":850,"711":88,"713":630,"714":806,"715":997,"716":390,"717":111,"718":335,"720":936,"722":254,"723":313,"724":835,"727":147,"728":133,"731":447,"733":718,"734":41,"737":514,"739":105,"742":957,"743":148,"744":606,"745":540,"747":408,"754":3,"755":842,"756":834,"758":218,"759":388,"762":943,"765":907,"767":39,"769":990,"771":244,"776":978,"778":18,"779":585,"780":2,"782":586,"785":512,"786":432,"787":93,"788":773,"790":399,"791":58,"792":912,"793":315,"794":449,"795":226,"796":672,"799":801,"802":75,"808":851,"809":71,"810":257,"811":140,"812":243,"813":385,"817":475,"819":301,"820":675,"822":852,"825":991,"826":701,"829":880,"832":708,"834":92,"835":682,"836":118,"837":462,"838":752,"844":516,"845":365,"846":691,"848":528,"849":895,"851":76,"852":194,"853":330,"854":711,"855":774,"857":542,"858":931,"859":758,"860":555,"861":740,"862":763,"863":339,"864":439,"865":732,"866":136,"867":856,"868":739,"869":762,"870":970,"872":914,"873":328,"874":809,"875":898,"876":485,"877":171,"878":735,"879":816,"880":185,"881":666,"882":892,"883":744,"884":371,"886":679,"887":392,"888":538,"889":660,"890":535,"891":123,"893":568,"894":607,"895":206,"898":968,"899":949,"900":550,"901":110,"902":409,"903":348,"904":703,"905":689,"906":674,"907":521,"908":124,"909":747,"910":812,"914":382,"915":846,"916":99,"917":635,"918":235,"919":840,"920":430,"921":558,"922":692,"923":681,"924":882,"926":870,"928":262,"929":741,"930":38,"931":298,"932":278,"933":258,"935":789,"936":531,"937":248,"938":98,"939":811,"940":311,"941":294,"942":539,"943":309,"944":274,"945":844,"947":337,"948":577,"949":855,"950":95,"951":66,"952":33,"953":937,"954":570,"955":950,"956":787,"957":987,"958":127,"959":452,"960":583,"961":694,"962":591,"963":938,"964":340,"965":820,"966":786,"967":728,"968":980,"969":946,"970":453,"971":165,"973":876,"974":280,"975":252,"976":391,"977":783,"978":545,"979":428,"980":12,"981":271,"982":639,"983":860,"984":37,"985":51,"986":377,"987":780,"988":904,"989":746,"991":305,"992":434,"993":874,"994":695,"995":231,"996":501,"997":314,"998":976,"999":869};
-let used=new Set(),players=[],turn=0,stage='setup',selectedCategory=-1,qIndex=-1,rotation=0,lastCorrect=false,manualOverride=false,askedThisSession=0,challenge=null,lastSpecialAt=-100,hintShown=false;
+let used=new Set(),players=[],turn=0,stage='setup',selectedCategory=-1,qIndex=-1,rotation=0,lastCorrect=false,askedThisSession=0,challenge=null,lastSpecialAt=-100,hintShown=false;
 let duel=null,finalRound=null,lastDuelAt=-100;
 try{
  let fresh=localStorage.getItem(STORE);
@@ -1062,7 +1062,7 @@ function renderDuel(){
   $('duelResults').classList.remove('hide');
   const hits=d.accepted.map(Boolean),both=hits[0]&&hits[1];
   const left=hits.map(x=>x?(both?1:2):0);
-  $('duelResults').innerHTML=players.map((p,i)=>`<div class="duel-result ${hits[i]?'ok':'no'}"><strong>${hits[i]?'✓':'✕'} ${escapeHTML(p.name)} ${hits[i]?'ACIERTO':'FALLO'}</strong><small>Escribió: ${escapeHTML(d.answers[i])}</small>${!hits[i]?`<button type="button" class="manual" data-duelaccept="${i}">Mi respuesta también era válida</button>`:''}</div>`).join('')+
+  $('duelResults').innerHTML=players.map((p,i)=>`<div class="duel-result ${hits[i]?'ok':'no'}"><strong>${hits[i]?'✓':'✕'} ${escapeHTML(p.name)} ${hits[i]?'ACIERTO':'FALLO'}</strong><small>Escribió: ${escapeHTML(d.answers[i])}</small></div>`).join('')+
   `<div class="duel-payout">${left.map((num,i)=>escapeHTML(players[i].name)+': '+(num?('+'+num+' '+(num===1?'sección':'secciones')):'sin premio')).join(' · ')}</div>`;
   act.textContent='APLICAR RESULTADO →';
  }
@@ -1107,11 +1107,6 @@ function completeDuel(){
 }
 $('duelAction').addEventListener('click',stepDuel);
 $('duelAnswer').addEventListener('keydown',e=>{if(e.key==='Enter'&&duel?.step==='answer')stepDuel()});
-$('duelResults').addEventListener('click',e=>{
- const btn=e.target.closest('[data-duelaccept]');if(!btn||!duel||duel.step!=='result')return;
- duel.accepted[Number(btn.dataset.duelaccept)]=true;haptic(12);renderDuel();
-});
-
 // Gran final: el otro jugador elige entre dos categorías para una pregunta difícil.
 function enterGrandFinal(){
  const contender=turn;
@@ -1167,7 +1162,7 @@ function chooseQuestion(changing=false){
  renderQuestionMedia(q);$('answer').value='';$('answer').disabled=false;
  $('check').classList.remove('hide');$('next').classList.add('hide');
  $('feedback').className='feedback hide';$('cheeseReward').classList.add('hide');
- $('manualAccept').classList.add('hide');$('retryJoker').classList.add('hide');
+ $('retryJoker').classList.add('hide');
  $('jokerNote').textContent=finalRound?'👑 Sin comodines. Acertar significa ganar la partida.':changing?(selectedTopic?'🔄 Nueva pregunta del tema «'+selectedTopic.name+'».':'🔄 Nueva pregunta, misma categoría.'):' ';
  hintShown=false;
  $('questionModal').classList.remove('hide');stage='question';
@@ -1300,8 +1295,7 @@ function applyCorrect(){
  saveGame();
 }
 
-function evaluate(){if(stage!=='question')return;if(!$('answer').value.trim()){ $('answer').focus();return}$('answer').blur();haptic(14);lastCorrect=match($('answer').value,BANK[qIndex]);manualOverride=false;$('answer').disabled=true;$('check').classList.add('hide');$('next').classList.remove('hide');if(lastCorrect){haptic([25,35,55]);applyCorrect()}else{haptic([95,50,90])}$('questionModal').classList.toggle('answered-right',!!lastCorrect);$('questionModal').classList.toggle('answered-wrong',!lastCorrect);let f=$('feedback');f.className='feedback '+(lastCorrect?'ok':'no');f.innerHTML=(lastCorrect?'✓ ¡CORRECTO!':'✕ INCORRECTO')+`<span>Respuesta: ${escapeHTML(BANK[qIndex][3])}</span>`;if(!lastCorrect){$('manualAccept').classList.remove('hide');$('retryJoker').classList.toggle('hide',!!finalRound||players[turn].jokers<=0);if(challenge){$('jokerNote').textContent='⚠ Si continúas, perderás '+challenge.loss+' quesito'+(challenge.loss===1?'':'s')+'. Puedes corregir o reintentar.'}}else{$('manualAccept').classList.add('hide');$('retryJoker').classList.add('hide')};draw(true);stage='review';jokerUi();$('next').disabled=false;fitModalToViewport()}
-function acceptManually(){if(stage!=='review'||lastCorrect)return;lastCorrect=true;manualOverride=true;haptic([30,45,55]);applyCorrect();$('questionModal').classList.add('answered-right');$('questionModal').classList.remove('answered-wrong');$('feedback').className='feedback ok';$('feedback').innerHTML='✓ RESPUESTA ACEPTADA<span>Se ha contado como correcta.</span>';$('manualAccept').classList.add('hide');$('retryJoker').classList.add('hide');draw(true)}
+function evaluate(){if(stage!=='question')return;if(!$('answer').value.trim()){ $('answer').focus();return}$('answer').blur();haptic(14);lastCorrect=match($('answer').value,BANK[qIndex]);$('answer').disabled=true;$('check').classList.add('hide');$('next').classList.remove('hide');if(lastCorrect){haptic([25,35,55]);applyCorrect()}else{haptic([95,50,90])}$('questionModal').classList.toggle('answered-right',!!lastCorrect);$('questionModal').classList.toggle('answered-wrong',!lastCorrect);let f=$('feedback');f.className='feedback '+(lastCorrect?'ok':'no');f.innerHTML=(lastCorrect?'✓ ¡CORRECTO!':'✕ INCORRECTO')+`<span>Respuesta: ${escapeHTML(BANK[qIndex][3])}</span>`;if(!lastCorrect){$('retryJoker').classList.toggle('hide',!!finalRound||players[turn].jokers<=0);if(challenge){$('jokerNote').textContent='⚠ Si continúas, perderás '+challenge.loss+' quesito'+(challenge.loss===1?'':'s')+'. Puedes corregir o reintentar.'}}else{$('retryJoker').classList.add('hide')};draw(true);stage='review';jokerUi();$('next').disabled=false;fitModalToViewport()}
 function continueGame(){
  if(stage!=='review')return;
  selectedTopic=null;
@@ -1335,7 +1329,7 @@ function continueGame(){
 function handoff(){if(stage!=='handoff')return;stopSpinHaptics();haptic(20);$('handoff').classList.add('hide');$('handoffDescription').textContent='Pasa el móvil al siguiente jugador.';stage='ready';// El avance de cada jugador se muestra en su ruleta, sin desplazar la posición previa del puntero.
  rotation=0;$('lastCat').classList.add('hide');draw();saveGame();window.scrollTo(0,0)}
 function showStart(){if(stage==='spinning')return;stopSpinHaptics();closeQuestionLayout();if(stage!=='setup'&&stage!=='finished' && !confirm('¿Empezar una partida nueva? Se conserva el historial de preguntas.'))return;try{localStorage.removeItem(SESSION_STORE)}catch{}stage='setup';$('game').classList.add('hide');$('finish').classList.add('hide');$('questionModal').classList.add('hide');$('handoff').classList.add('hide');$('categoryChoice').classList.add('hide');$('topicChoice').classList.add('hide');selectedTopic=null;$('setup').classList.remove('hide');$('bonusOffer').classList.add('hide');$('duelModal').classList.add('hide');$('finalPickModal').classList.add('hide');$('questionModal').classList.remove('final-question');$('jokerRow').classList.remove('hide');duel=null;finalRound=null;challenge=null;setupCounters()}
-$('start').addEventListener('click',newGame);$('spin').addEventListener('click',()=>spin(false));$('safeSpin').addEventListener('click',()=>spin(true));$('hintJoker').addEventListener('click',giveHint);$('changeJoker').addEventListener('click',switchQuestion);$('retryJoker').addEventListener('click',retryAnswer);$('bonusAccept').addEventListener('click',acceptBonus);$('bonusDecline').addEventListener('click',declineBonus);$('check').addEventListener('click',evaluate);$('answer').addEventListener('focus',()=>{requestAnimationFrame(fitModalToViewport)});$('answer').addEventListener('keydown',e=>{if(e.key==='Enter'&&stage==='question')evaluate()});$('manualAccept').addEventListener('click',acceptManually);$('next').addEventListener('click',continueGame);$('handoffGo').addEventListener('click',handoff);$('newgame').addEventListener('click',showStart);$('playAgain').addEventListener('click',showStart);$('resetHistory').addEventListener('click',()=>{if(confirm('¿Volver a permitir todas las preguntas? Esta acción borra tu historial.')){used.clear();persist();setupCounters()}});
+$('start').addEventListener('click',newGame);$('spin').addEventListener('click',()=>spin(false));$('safeSpin').addEventListener('click',()=>spin(true));$('hintJoker').addEventListener('click',giveHint);$('changeJoker').addEventListener('click',switchQuestion);$('retryJoker').addEventListener('click',retryAnswer);$('bonusAccept').addEventListener('click',acceptBonus);$('bonusDecline').addEventListener('click',declineBonus);$('check').addEventListener('click',evaluate);$('answer').addEventListener('focus',()=>{requestAnimationFrame(fitModalToViewport)});$('answer').addEventListener('keydown',e=>{if(e.key==='Enter'&&stage==='question')evaluate()});$('next').addEventListener('click',continueGame);$('handoffGo').addEventListener('click',handoff);$('newgame').addEventListener('click',showStart);$('playAgain').addEventListener('click',showStart);$('resetHistory').addEventListener('click',()=>{if(confirm('¿Volver a permitir todas las preguntas? Esta acción borra tu historial.')){used.clear();persist();setupCounters()}});
 setupCounters();restoreGame();
 
 
@@ -1717,14 +1711,14 @@ function showRoom(){
   const result=r.result||{correct:false,answer:''},finale=r.phase==='finalReview';
   html+=`<div class="online-card"><div class="online-special">${finale?'👑 GRAN FINAL':'RESULTADO DE LA PREGUNTA'}</div>${qBlock(r)}<div class="online-feedback ${result.correct?'ok':'no'}">${result.correct?'✓ ¡CORRECTO!':result.expired?'⌛ TIEMPO AGOTADO':'✕ INCORRECTO'}<small>${result.correct?'La respuesta se contará como válida.':'Respuesta correcta: '+esc(BANK[r.qid][3])}</small></div>
   <p class="online-note">${esc(nameOf(r.turn))} respondió: «${esc(result.answer)}».</p>
-  ${active?`${!result.correct&&!result.expired?'<button data-action="manual" class="online-btn ghost small">Mi respuesta también era válida</button><button data-action="retry" class="online-btn ghost small" '+(me.jokers<=0||finale?'disabled':'')+'>🃏 Reintentar con comodín</button>':''}<button data-action="continue" class="online-btn">CONTINUAR →</button>`:'<p class="online-note">Esperando a que continúe tu rival…</p>'}</div>`;
+  ${active?`${!result.correct&&!result.expired?'<button data-action="retry" class="online-btn ghost small" '+(me.jokers<=0||finale?'disabled':'')+'>🃏 Reintentar con comodín</button>':''}<button data-action="continue" class="online-btn">CONTINUAR →</button>`:'<p class="online-note">Esperando a que continúe tu rival…</p>'}</div>`;
  }else if(r.phase==='duel'){
   const answer=r.duelAnswers?.[role],both=r.duelAnswers?.host&&r.duelAnswers?.guest;
   html+=`<div class="online-card"><div class="online-special">⚔️ DUELO SORPRESA</div><h2 class="online-heading">Los dos respondéis</h2>${qBlock(r)}
   ${answer?'<p class="online-note">Tu respuesta está enviada. Esperando al rival…</p>':`<form id="onlineDuelForm"><label class="online-label" for="onlineAnswer">Tu respuesta (no se mostrará hasta que ambos contestéis)</label><input id="onlineAnswer" class="online-field" required autocomplete="off" autocorrect="off"><button class="online-btn" type="submit">ENVIAR RESPUESTA</button></form>`}</div>`;
  }else if(r.phase==='duelReview'){
   const d=r.duelAnswers||{},correct=r.duelCorrect||{};
-  html+=`<div class="online-card"><div class="online-special">⚔️ RESULTADO DEL DUELO</div><h2 class="online-heading">${esc(BANK[r.qid][2])}</h2><div class="online-feedback ${correct[role]?'ok':'no'}">${correct.host&&correct.guest?'¡EMPATE!':correct.host?'Gana '+esc(r.hostName):correct.guest?'Gana '+esc(r.guestName):'Nadie acertó'}<small>Respuesta: ${esc(BANK[r.qid][3])}</small></div><p class="online-note">${esc(r.hostName)}: ${esc(d.host)} ${correct.host?'✓':'✕'}</p><p class="online-note">${esc(r.guestName)}: ${esc(d.guest)} ${correct.guest?'✓':'✕'}</p><button class="online-btn ghost small" data-action="duelManual" ${correct[role]||r.duelExpired?.[role]?'disabled':''}>Mi respuesta también era válida</button>${active?'<button class="online-btn" data-action="duelContinue">CONTINUAR →</button>':'<p class="online-note">Esperando a quien inició el duelo…</p>'}</div>`;
+  html+=`<div class="online-card"><div class="online-special">⚔️ RESULTADO DEL DUELO</div><h2 class="online-heading">${esc(BANK[r.qid][2])}</h2><div class="online-feedback ${correct[role]?'ok':'no'}">${correct.host&&correct.guest?'¡EMPATE!':correct.host?'Gana '+esc(r.hostName):correct.guest?'Gana '+esc(r.guestName):'Nadie acertó'}<small>Respuesta: ${esc(BANK[r.qid][3])}</small></div><p class="online-note">${esc(r.hostName)}: ${esc(d.host)} ${correct.host?'✓':'✕'}</p><p class="online-note">${esc(r.guestName)}: ${esc(d.guest)} ${correct.guest?'✓':'✕'}</p>${active?'<button class="online-btn" data-action="duelContinue">CONTINUAR →</button>':'<p class="online-note">Esperando a quien inició el duelo…</p>'}</div>`;
  }else if(r.phase==='finalPick'){
   const finalist=r.finalist||other(r.turn);
   html+=`<div class="online-card"><div class="online-special">👑 GRAN FINAL</div><h2 class="online-heading">${esc(nameOf(finalist))} está a una pregunta de ganar</h2><p class="online-note">El rival elige una de estas dos categorías para la pregunta difícil.</p>
@@ -1819,7 +1813,7 @@ function showVsRoom(r){
   html+='<div class="vs-mode-card"><div class="vs-round-badge">RESULTADO · RONDA '+r.vsRound+'</div>'+vsBonusBanner(r)+
   '<h2 class="online-question">'+esc(BANK[r.qid]?.[2]||'Pregunta')+'</h2><p class="vs-subtitle">Respuesta correcta: <b style="color:#ffe29a">'+esc(BANK[r.qid]?.[3]||'')+'</b></p>'+
   '<div class="vs-result-row">'+vsResultCell(r,'host')+vsResultCell(r,'guest')+'</div>'+
-  (!mine?.correct&&mine?.text&&mine.text!=='Tiempo agotado'?'<button data-action="vsManual" class="online-btn ghost small">Mi respuesta también era válida</button>':'')+
+  
   (r.vsRound>=vsTotal(r)&&tie?'<p class="vs-ready-state">⚡ ¡EMPATE! La siguiente será de MUERTE SÚBITA.</p>':'')+
   (ready?'<p class="vs-ready-state">✅ Listo. Esperando al rival…</p>':'<button class="online-btn" data-action="vsReady">LISTO PARA LA SIGUIENTE →</button>')+
   '<p class="vs-legend">La siguiente ronda empieza cuando ambos estéis preparados.</p></div>';
@@ -1942,22 +1936,6 @@ async function vsSubmit(text){
    bet:r.vsBoost?.[role]===true,hint:r.vsHints?.[role]===true
   };
   if(r.vsAnswers.host&&r.vsAnswers.guest)vsSettle(r);
-  return r;
- });
-}
-async function vsManual(){
- await tx(r=>{
-  if(r.mode!=='versus'||r.phase!=='vsReview')return;
-  const a=r.vsAnswers?.[role];
-  if(!a||a.correct||!a.text||a.text==='Tiempo agotado')return;
-  const previous=Number(r.vsGains?.[role]||0);
-  a.correct=true;a.manual=true;
-  const updated=vsGain(r,role,a,r.vsPriorStreaks?.[role]||0);
-  r.vsGains[role]=updated;
-  r.vsScores[role]=Math.max(0,Number(r.vsScores[role]||0)+updated-previous);
-  r.vsStreaks[role]=Number(r.vsPriorStreaks?.[role]||0)+1;
-  const history=r.vsHistory?.[r.vsHistory.length-1];
-  if(history?.gains)history.gains[role]=updated;
   return r;
  });
 }
@@ -2095,7 +2073,6 @@ async function handleJoker(type){await tx(r=>{
   const id=sampleFrom(r,r.cat);if(id<0)return;p.jokers--;r.qid=id;(r.used ??= {})[id]=true;r.phase='question';r.hint=false;r.result=null;startQuestionClock(r);return r;
  }
 })}
-async function manual(){await tx(r=>{if(r.turn!==role||!['review','finalReview'].includes(r.phase)||!r.result||r.result.correct||r.result.expired)return;r.result.correct=true;r.result.manual=true;return r})}
 async function imageFailed(){await tx(r=>{if(r.turn!==role||!['question','finalQuestion'].includes(r.phase))return;const id=sampleFrom(r,r.cat);if(id<0)return;r.qid=id;(r.used ??= {})[id]=true;r.hint=false;startQuestionClock(r);return r})}
 async function continueQuestion(){await tx(r=>{
  if(r.turn!==role||!['review','finalReview'].includes(r.phase))return;
@@ -2112,7 +2089,6 @@ async function continueQuestion(){await tx(r=>{
  }
  r.result=null;r.bonus=null;r.topic='';r.qid=-1;return r;
 })}
-async function duelManual(){await tx(r=>{if(r.phase!=='duelReview'||!r.duelAnswers?.[role]||r.duelCorrect?.[role]||r.duelExpired?.[role])return;r.duelCorrect[role]=true;return r})}
 async function duelContinue(){await tx(r=>{
  if(r.turn!==role||r.phase!=='duelReview')return;
  const c=r.duelCorrect||{};
@@ -2144,7 +2120,6 @@ view.addEventListener('click',async e=>{
  if(action==='vsRematch')return vsRematch();
  if(action==='vsBet')return vsPower('bet');
  if(action==='vsHint')return vsPower('hint');
- if(action==='vsManual')return vsManual();
  if(action==='vsReady')return vsReady();
  if(action==='spin')return doSpin(false);
  if(action==='protected')return doSpin(true);
@@ -2152,10 +2127,8 @@ view.addEventListener('click',async e=>{
  if(action==='acceptBonus')return bonusChoice(true);
  if(action==='declineBonus')return bonusChoice(false);
  if(action==='hint'||action==='change'||action==='retry')return handleJoker(action);
- if(action==='manual')return manual();
  if(action==='imageFail')return imageFailed();
  if(action==='continue')return continueQuestion();
- if(action==='duelManual')return duelManual();
  if(action==='duelContinue')return duelContinue();
  if(action==='finalPick')return finalPick(idx);
  if(action==='new')return switchOnlineRoom(false);
