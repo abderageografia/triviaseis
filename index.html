@@ -659,10 +659,10 @@ function pulseDuringSpin(now,t){
  // conforme baja la velocidad, la distancia entre pulsos crece hasta
  // ~450 ms. El mismo reloj requestAnimationFrame gobierna ambas cosas:
  // no se crean intervalos ni vibraciones en cola.
- const interval=85+420*t*t;
+ const interval=100+420*t*t;
  if(now-lastSpinHapticAt>=interval){
   lastSpinHapticAt=now;
-  haptic(5);
+  haptic(14);
  }
 }
 // Desactivar la opción o salir de la pestaña corta inmediatamente la vibración.
@@ -1324,6 +1324,16 @@ let uid='',roomCode='',room=null,role='',unsubscribe=null,connected=false,pendin
 let imageCache=new Map(), questionImageTicket=0;
 let authPromise=null;
 const connectionAlert=document.getElementById('onlineConnectionAlert');
+// Pulsos intermitentes acompasados con los 1,6 segundos del giro online.
+const ONLINE_SPIN_HAPTIC=[24,42,24,50,24,62,24,78,25,98,26,120,28,150,30,185,35,225,40,240,65];
+function onlineVibrate(pattern){
+ try{return typeof navigator.vibrate==='function'&&!document.hidden&&navigator.vibrate(pattern)!==false}catch(e){return false}
+}
+function testOnlineVibration(){
+ if(typeof navigator.vibrate!=='function'){message('Este navegador no admite vibración. Abre el juego en Chrome para Android.');return}
+ const accepted=onlineVibrate([110,70,150]);
+ message(accepted?'Vibración de prueba enviada. Si no la notas, revisa los ajustes de vibración y respuesta táctil de Android.':'No se ha podido activar la vibración. Revisa los ajustes del móvil y abre el juego en Chrome.');
+}
 function networkNotice(t){
  connectionAlert.hidden=!t;connectionAlert.textContent=t||'';
 }
@@ -1512,7 +1522,7 @@ async function txAt(code,fn){
 async function tx(fn){if(!roomCode||!isReady())return;pending=true;try{const r=await txAt(roomCode,fn);if(!r.committed)message('La jugada ha cambiado en el otro móvil. Prueba otra vez.')}catch(e){error(e)}finally{pending=false}}
 function enter(code){
  if(unsubscribe)unsubscribe();roomCode=code;saveLocal();lastRender='';
- history.replaceState(null,'',location.pathname+'?sala='+code+'&v=7'+location.hash);
+ history.replaceState(null,'',location.pathname+'?sala='+code+'&v=8'+location.hash);
  unsubscribe=onValue(ref(db,'rooms/'+code),snap=>{
   if(!snap.exists()){message('La sala ya no existe.');clearLocal();room=null;renderHome();return}
   room=snap.val();role=room.hostUid===uid?'host':room.guestUid===uid?'guest':'';
@@ -1533,7 +1543,7 @@ function spinGraphic(p,r){
  const em=emojis.map((e,i)=>{const a=(-60+i*60)*Math.PI/180;return `<span class="emoji" style="left:${50+33*Math.cos(a)}%;top:${50+33*Math.sin(a)}%;border-color:${colors[i]}">${e}</span>`}).join('');
  return `<div class="online-wheel"><div class="pin"></div><div class="disc" id="onlineDisc"><svg viewBox="0 0 400 400" width="100%" height="100%" aria-hidden="true"><circle cx="200" cy="200" r="196" fill="#091229"/>${paths.join('')}</svg></div><div class="wheel-emojis">${em}</div><div class="center"><b>${complete(p)}/6</b><small>QUESITOS</small></div></div>`;
 }
-function roomHeader(r){return `<div class="online-card" style="padding:12px"><div class="online-flex"><span class="online-kicker">SALA ${esc(roomCode)}</span><button class="online-exit" data-action="share">Compartir código</button></div>${scoreboard(r)}</div>`;}
+function roomHeader(r){return `<div class="online-card" style="padding:12px"><div class="online-flex"><span class="online-kicker">SALA ${esc(roomCode)}</span><button class="online-exit" data-action="share">Compartir código</button></div>${scoreboard(r)}<div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="online-exit" data-action="testVibration" type="button">📳 Probar vibración</button></div></div>`;}
 function normalStatus(r){return `<p class="online-note" style="text-align:center">${esc(nameOf(r.turn))} tiene el turno ${r.turn===role?'(tú)':'(tu rival)'}.</p>`}
 function qMedia(meta){
  if(!meta)return '';
@@ -1634,7 +1644,7 @@ function loseCheeses(p,n){let cs=[...Array(6).keys()].filter(i=>p.done[i]===3);f
 async function doSpin(protectedSpin=false){
  if(!isActor()||room.phase!=='spin')return;
  const disc=$('onlineDisc');spinLock=true;if(disc){disc.style.transform='rotate(1500deg)'}
- if(navigator.vibrate)navigator.vibrate(8);
+ onlineVibrate(ONLINE_SPIN_HAPTIC);
  try{await tx(r=>{
   if(r.phase!=='spin'||r.turn!==role)return;
   const me=r.players[role];let choices=[0,1,2,3,4,5];
@@ -1719,6 +1729,7 @@ view.addEventListener('click',async e=>{
   history.replaceState(null,'',location.pathname+location.hash);
   renderHome();return;
  }
+ if(action==='testVibration')return testOnlineVibration();
  if(action==='share'){
   const link=location.href;
   try{if(navigator.share)await navigator.share({title:'TRIVIA·SEIS',text:'Entra en mi sala '+roomCode,url:link});else{await navigator.clipboard.writeText(link);message('Enlace copiado.')}}catch{}return
