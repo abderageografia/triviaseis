@@ -1359,10 +1359,14 @@ const safeName=v=>String(v||'').trim().replace(/[<>]/g,'').slice(0,24)||'Jugador
 function saveLocal(){localStorage.setItem('triviaOnlineSession',JSON.stringify({code:roomCode,uid}));}
 function clearLocal(){localStorage.removeItem('triviaOnlineSession')}
 function message(t){toast=t;let n=$('onlineToast');if(!n){n=document.createElement('p');n.id='onlineToast';n.className='online-note online-error-notice';n.setAttribute('role','status');view.appendChild(n)}n.textContent=t}
+function isPermissionDenied(e){
+ const detail=String(e?.code||'')+' '+String(e?.message||'');
+ return /permission[ _-]?denied|permission denied|PERMISSION_DENIED|database\/permission/i.test(detail);
+}
 function error(e){
  console.warn('TRIVIA-SEIS Firebase:',e);
  const code=String(e?.code||'').toLowerCase();
- const detail=code.includes('permission-denied')||code.includes('permission_denied')?'Firebase ha denegado el acceso a esta sala: comprueba las reglas.':code.includes('auth/operation-not-allowed')?'Activa Authentication → Sign-in method → Anonymous.':String(e?.message||'Comprueba la conexión e inténtalo de nuevo.');
+ const detail=isPermissionDenied(e)?'Firebase ha denegado el acceso a esta sala: comprueba las reglas.':code.includes('auth/operation-not-allowed')?'Activa Authentication → Sign-in method → Anonymous.':String(e?.message||'Comprueba la conexión e inténtalo de nuevo.');
  const text='No se pudo conectar. '+detail;
  networkNotice(text);message(text);
 }
@@ -1444,40 +1448,49 @@ async function joinRoom(){
    await authReady();
    await waitRealtime();
    const r=ref(db,'rooms/'+code);
-   let snap=null;
-   try{snap=await bounded(get(r),10000,'Firebase no ha respondido al buscar la sala.')}catch(e){
-     // Antes de inscribirse, las reglas privadas impiden leer una sala ajena.
-     if(!String(e?.code||'').toLowerCase().includes('permission'))throw e;
+
+   // IMPORTANTE: las reglas privadas no permiten leer una sala ANTES de entrar.
+   // Por eso primero solicitamos la plaza libre (guestUid), que tiene permiso
+   // específico en las reglas, y después leemos el resto de la sala.
+   try{
+     await bounded(set(ref(db,'rooms/'+code+'/guestUid'),uid),12000,
+       'Firebase no ha confirmado la reserva de la segunda plaza.');
+   }catch(e){
+     let existing=null;
+     try{existing=await bounded(get(r),4000,'No se ha podido comprobar la sala.')}catch{}
+     // Si ya pertenece a la sala, una segunda inscripción no es necesaria.
+     if(existing?.exists() && existing.val().hostUid===uid){enter(code);return}
+     if(existing?.exists() && existing.val().guestUid===uid){/* continúa */}
+     else if(existing?.exists() && existing.val().guestUid && existing.val().guestUid!==uid){
+       throw new Error('Esta sala ya está ocupada por dos jugadores. Crea otra sala.');
+     }else if(isPermissionDenied(e)){
+       throw new Error('Firebase ha rechazado la entrada. La sala puede no existir, estar ocupada o tener reglas de acceso diferentes a las previstas. Comprueba que el código sea de una sala NUEVA.');
+     }else throw e;
    }
-   if(snap?.exists()&&[snap.val().hostUid,snap.val().guestUid].includes(uid)){
-     if(snap.val().guestUid===uid&&snap.val().status==='waiting'){
-       await bounded(set(ref(db,'rooms/'+code+'/guestName'),name),10000,'No se ha podido guardar tu nombre.');
-       await bounded(txAt(code,d=>{if(d?.status==='waiting'&&d.guestUid===uid){d.status='playing';d.phase='spin'}return d}),12000,'La sala no ha confirmado el comienzo de la partida.');
-     }
-     enter(code);return;
+
+   // Desde ahora el invitado ya tiene lectura y escritura en su propia sala.
+   const initial=await bounded(get(r),10000,'Firebase no ha respondido al consultar la sala tras entrar.');
+   if(!initial.exists()||initial.val().guestUid!==uid){
+     throw new Error('No se pudo confirmar tu plaza. Crea una sala nueva y vuelve a intentarlo.');
    }
-   // La plaza libre puede reservarse sin permiso de lectura previo.
-   try{await bounded(set(ref(db,'rooms/'+code+'/guestUid'),uid),12000,'Firebase no ha confirmado tu incorporación a la sala.')}catch(e){
-     let again=null;try{again=await bounded(get(r),5000,'No se puede leer la sala.')}catch{}
-     if(!again?.exists()||again.val().guestUid!==uid){
-       const reason=String(e?.code||'').toLowerCase().includes('permission')
-         ?'Firebase no autoriza entrar en la sala. Comprueba que el código sea de una sala recién creada y que estén publicadas las reglas correctas.'
-         :'La segunda plaza no se ha podido reservar. Comprueba la conexión e inténtalo de nuevo.';
-       throw new Error(reason);
-     }
-   }
-   await bounded(set(ref(db,'rooms/'+code+'/guestName'),name),10000,'La conexión se ha interrumpido al guardar tu nombre.');
+   const v=initial.val();
+   if(v.status==='finished')throw new Error('La partida de esta sala ya ha terminado. Crea una nueva.');
+   await bounded(set(ref(db,'rooms/'+code+'/guestName'),name),10000,
+     'No se ha podido guardar el nombre del segundo jugador.');
    const result=await bounded(txAt(code,d=>{
      if(!d||d.guestUid!==uid)return;
      if(d.status==='waiting'&&d.guestName){d.status='playing';d.phase='spin'}
      return d;
-   }),12000,'No se pudo iniciar la partida en Firebase.');
-   if(!result.committed)throw new Error('El servidor no confirmó el inicio. Prueba a unirte de nuevo.');
-   const after=await bounded(get(r),10000,'La sala no ha confirmado el estado de la partida.');
-   if(!after.exists()||after.val().guestUid!==uid||after.val().status!=='playing')throw new Error('Te has unido, pero la partida no ha empezado. Pulsa «Unirme» de nuevo.');
+   }),12000,'La sala no ha confirmado el inicio de la partida.');
+   if(!result.committed)throw new Error('No se ha podido iniciar la partida. Pulsa «Unirme» otra vez.');
+   const after=await bounded(get(r),10000,'La sala no ha confirmado que haya empezado.');
+   if(!after.exists()||after.val().guestUid!==uid||after.val().status!=='playing'){
+      throw new Error('Te has unido, pero la partida aún no ha empezado. Prueba a entrar de nuevo.');
+   }
    enter(code);
  }catch(e){error(e)}finally{pending=false;working('join',false)}
 }
+
 async function txAt(code,fn){
  const rr=ref(db,'rooms/'+code);
  return runTransaction(rr,data=>{
