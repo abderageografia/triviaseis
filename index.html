@@ -448,6 +448,35 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
 
 .online-invitation{background:#203b4b;border:2px solid #61d9db;border-radius:16px;padding:12px;color:#c9f7fa;text-align:center;margin:14px 0;font-size:15px}.online-invitation strong{font-size:24px;letter-spacing:3px;color:#ffe18a;display:block;margin-top:3px}.online-separator{font-size:12px;color:#b9c7e6;text-align:center;margin:19px 0 10px}.online-error-notice{border:1px solid #ff7893;background:#4e1d2b;padding:12px!important;border-radius:12px;color:#fff!important;font-weight:650}
 
+
+/* Modo VS simultáneo */
+.vs-mode-card{background:linear-gradient(145deg,#28345c,#101b33);border:1px solid #677daa;border-radius:19px;padding:15px;margin:12px 0}
+.vs-title{font-size:clamp(24px,7vw,34px);font-weight:1000;letter-spacing:.2px;text-align:center;margin:7px 0;color:#f2e7ff}
+.vs-subtitle{text-align:center;font-size:13px;color:#bdcbef;margin:5px 0 12px}
+.vs-scoreboard{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}
+.vs-player{background:#15243f;border:1px solid #6478a1;border-radius:16px;padding:12px;min-width:0;text-align:center}
+.vs-player.self{border-color:#a9e8e2;box-shadow:0 0 0 1px #a9e8e233}
+.vs-player .vs-name{font-size:13px;color:#c6d6f2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vs-player .vs-points{font-size:clamp(27px,8vw,40px);font-weight:1000;color:#ffe39a;line-height:1.15;margin:4px 0;font-variant-numeric:tabular-nums}
+.vs-player .vs-streak{font-size:11px;color:#a9e8e2}
+.vs-round-badge{text-align:center;color:#aee6f1;font-weight:950;font-size:14px;letter-spacing:1px;margin-bottom:9px}
+.vs-special{padding:10px;border:1px solid #e4bd67;border-radius:12px;background:#503823;color:#ffe6ac;font-size:13px;font-weight:900;text-align:center;margin:10px 0}
+.vs-clock{font-variant-numeric:tabular-nums;text-align:center;font-size:40px;font-weight:1000;color:#ffe39a;margin:8px 0}
+.vs-clock.danger{color:#ff8b9a}
+.vs-clock-label{font-size:12px;text-align:center;color:#b4c9e9;font-weight:800}
+.vs-power-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.vs-power{border:1px solid #7a85b7;background:#273557;border-radius:14px;color:#eef2ff;padding:13px 9px;font-size:12px;font-weight:900;min-height:70px}
+.vs-power.active{background:#5b345c;border-color:#ffb9db;color:white}
+.vs-power:disabled{opacity:.45}
+.vs-result-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}
+.vs-result-player{background:#162641;border:1px solid #566c95;border-radius:14px;padding:12px;min-width:0}
+.vs-result-player strong{display:block;font-size:20px;color:#ffe29b;margin:5px 0}
+.vs-result-player .vs-answer-text{font-size:13px;word-break:break-word;color:#dbe6fa}
+.vs-result-player .vs-correct{color:#69ecc0}
+.vs-result-player .vs-wrong{color:#ff9eb1}
+.vs-legend{color:#c0cbed;font-size:12px;line-height:1.5;text-align:center}
+.vs-ready-state{text-align:center;color:#9fe4dc;font-size:13px;font-weight:900;margin:12px 0}
+
 .online-connection-alert{font-size:13px;line-height:1.38;margin:8px 0;padding:10px 12px;border:1px solid #fbbf78;background:#4d351d;color:#fff5d3;border-radius:12px;font-weight:650}
 .online-btn.online-busy{opacity:.80;box-shadow:0 2px 0 #332876}
 </style></head><body><div class="app"><header><h1>TRIVIA<span class="yellow">·</span>SEIS</h1><button id="newgame" class="topbtn" type="button">↻ Nueva partida</button></header>
@@ -1455,7 +1484,10 @@ function renderHome(){
  ${invited?`<p class="online-invitation">Código de invitación: <strong>${esc(invited)}</strong></p>`:'<p class="online-note" style="text-align:center">¿Te han enviado un código? Introdúcelo aquí:</p>'}
  <label class="online-label" for="myRoomCode">Código de seis caracteres</label><input class="online-field" id="myRoomCode" maxlength="6" autocapitalize="characters" spellcheck="false" placeholder="ABC234" value="${esc(invited)}">
  <button class="online-btn" data-action="join">${invited?'✓ UNIRME A ESTA SALA':'UNIRME A LA PARTIDA →'}</button>
- <div class="online-separator">O crea una sala nueva para invitar a otra persona</div><button class="online-btn ghost" data-action="create">✦ Crear sala nueva</button>
+ <div class="online-separator">ELIGE CÓMO QUIERES JUGAR</div>
+  <button class="online-btn ghost" data-action="create">🎡 MODO RULETA · Por turnos</button>
+  <button class="online-btn secondary" data-action="createVersus">⚔️ MODO VS · Los dos a la vez</button>
+  <p class="online-note" style="text-align:center">En VS: 10 rondas, puntos por rapidez, rachas, apuestas y muerte súbita.</p>
  <p class="online-note">Para jugar los dos, solo el primer móvil debe crear la sala. El segundo tiene que unirse con el código.</p></div>`);
 }
 async function authReady(){
@@ -1478,19 +1510,20 @@ async function tryResume(){
  }
 }
 function nameFromInput(){myName=safeName($('myOnlineName')?.value||myName);localStorage.setItem('triviaOnlineName',myName);return myName}
-async function createRoom(){
+async function createRoom(mode='roulette'){
  if(pending)return;
- pending=true;toast='';networkNotice('');working('create',true);
+ pending=true;toast='';networkNotice('');working(mode==='versus'?'createVersus':'create',true);
  try{
    await authReady();
    await waitRealtime();
    const name=nameFromInput();
    for(let i=0;i<4;i++){
      const code=randomCode(),now=Date.now();
-     const fresh={hostUid:uid,hostName:name,createdAt:now,updatedAt:now,rev:0,status:'waiting',phase:'waiting',turn:'host',cat:-1,qid:-1,used:{},players:{host:newPlayer(),guest:newPlayer()}};
+     const fresh={hostUid:uid,hostName:name,createdAt:now,updatedAt:now,rev:0,status:'waiting',phase:'waiting',mode,turn:'host',cat:-1,qid:-1,used:{},players:{host:newPlayer(),guest:newPlayer()}};
+   if(mode==='versus')Object.assign(fresh,{vsRound:0,vsMaxRounds:10,vsScores:{host:0,guest:0},vsStreaks:{host:0,guest:0},vsPowers:{host:{bets:2,hints:1},guest:{bets:2,hints:1}},vsHistory:[]});
      try{await bounded(set(ref(db,'rooms/'+code),fresh),12000,'La base de datos no ha confirmado la creación de la sala.');enter(code);return}catch(e){if(i===3)throw e}
    }
- }catch(e){error(e)}finally{pending=false;working('create',false)}
+ }catch(e){error(e)}finally{pending=false;working(mode==='versus'?'createVersus':'create',false)}
 }
 async function joinRoom(){
  if(pending)return;
@@ -1538,7 +1571,7 @@ async function joinRoom(){
      await bounded(update(r,{
        guestName:name,
        status:'playing',
-       phase:'spin',
+       phase:v.mode==='versus'?'vsLobby':'spin',
        updatedAt:Date.now(),
        rev:Number(v.rev||0)+1
      }),12000,'Firebase no ha confirmado el inicio de la sala.');
@@ -1614,6 +1647,7 @@ function showRoom(){
   lastRender=currentVisibleKey(r);basePage(`<div class="online-card"><div class="online-kicker">${role==='host'?'SALA CREADA':'SALA LOCALIZADA'}</div><h2 class="online-heading">${role==='host'?'Esperando al rival…':'Esperando a que se complete la unión…'}</h2><span class="online-code">${esc(roomCode)}</span>${role==='host'?'<button class="online-btn secondary" data-action="share">🔗 Compartir invitación</button>':''}<p class="online-note">${role==='host'?'Solo tú debes crear la sala. El segundo móvil tiene que pulsar «Unirme a la partida» e introducir este mismo código.':'Ya tienes una plaza en esta sala. Si no empieza, prueba a entrar otra vez con el mismo código.'}</p><button class="online-btn ghost" data-action="switchRoom">↩ Cambiar sala / unirme con un código</button></div>`);return
  }
  const key=currentVisibleKey(r);if(key===lastRender)return;lastRender=key;
+ if(r.mode==='versus'){showVsRoom(r);return;}
  let html=roomHeader(r),me=r.players[role],active=isActor();
  if(r.phase==='spin'){
   html+=`<div class="online-card" style="text-align:center"><div class="online-kicker">JUEGA AHORA</div><h2 class="online-heading">${esc(nameOf(r.turn))}</h2>${spinGraphic(r.players[r.turn],r)}
@@ -1782,7 +1816,8 @@ async function finalPick(idx){await tx(r=>{if(r.phase!=='finalPick'||r.turn!==ro
 view.addEventListener('click',async e=>{
  const btn=e.target.closest('[data-action]');if(!btn||btn.disabled)return;
  const action=btn.dataset.action; const idx=Number(btn.dataset.pick);
- if(action==='create')return createRoom();
+ if(action==='create')return createRoom('roulette');
+ if(action==='createVersus')return createRoom('versus');
  if(action==='join')return joinRoom();
  if(action==='switchRoom'){
   if(unsubscribe){unsubscribe();unsubscribe=null;}
