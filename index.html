@@ -1397,6 +1397,7 @@ async function expireOnlineClock(){
  try{await txAt(roomCode,r=>expireQuestionState(r)?r:undefined)}catch(e){console.warn('Temporizador online:',e)}finally{timeoutBusy=false}
 }
 function refreshOnlineClock(){
+ refreshVsClock();
  if(root.hidden||!room||!['question','finalQuestion','duel'].includes(room.phase)||!Number(room.deadline))return;
  const left=Number(room.deadline)-serverNow(),remaining=Math.max(0,Math.ceil(left/1000));
  const timer=$('onlineTimer'),label=$('onlineCountdown'),bar=$('onlineTimerBar');
@@ -1636,7 +1637,7 @@ async function attachMedia(){
  try{let src=imageCache.get(lang+'|'+title);if(!src){const res=await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);if(!res.ok)throw new Error('imagen');const data=await res.json();src=data.originalimage?.source||data.thumbnail?.source;if(!src)throw new Error('imagen');imageCache.set(lang+'|'+title,src)}
   if(ticket!==questionImageTicket||!slot.isConnected)return;
   slot.innerHTML=`<img class="online-photo" alt="Imagen de la pregunta"/>`;slot.querySelector('img').src=src;
- }catch{if(ticket===questionImageTicket&&slot.isConnected){slot.innerHTML='<p class="online-note">Esta imagen no se ha cargado. Puedes cambiar la pregunta gratis.</p><button class="online-btn ghost small" data-action="imageFail">Cambiar sin gastar comodín</button>'}}
+ }catch{if(ticket===questionImageTicket&&slot.isConnected){slot.innerHTML=room?.mode==='versus'?'<p class="online-note">La imagen no se ha cargado. Puedes responder con el texto disponible.</p>':'<p class="online-note">Esta imagen no se ha cargado. Puedes cambiar la pregunta gratis.</p><button class="online-btn ghost small" data-action="imageFail">Cambiar sin gastar comodín</button>'}}
 }
 function currentVisibleKey(r){const answers=r.duelAnswers?Object.keys(r.duelAnswers).join('|'):'';return [r.rev,r.status,r.phase,r.turn,r.qid,role,answers].join(':')}
 function showRoom(){
@@ -1687,6 +1688,205 @@ function showRoom(){
  }else {html+='<div class="online-card"><p>Sincronizando la partida…</p></div>'}
  basePage(html);attachMedia();
 }
+
+const VS_TOTAL=10;
+let vsTickBusy=false;
+const vsWho=['host','guest'];
+const vsName=who=>who==='host'?(room?.hostName||'Jugador 1'):(room?.guestName||'Jugador 2');
+const vsMultiplier=r=>r.vsRound===10?3:(r.vsRound>10||r.vsRound%4===0?2:1);
+const vsAnswered=(r,who)=>!!r.vsAnswers?.[who];
+function vsScoreboard(r){
+ return '<div class="vs-scoreboard">'+vsWho.map(w=>'<div class="vs-player '+(w===role?'self':'')+'"><div class="vs-name">'+esc(vsName(w))+(w===role?' · TÚ':'')+'</div><div class="vs-points">'+Number(r.vsScores?.[w]||0)+'</div><div class="vs-streak">🔥 Racha: '+Number(r.vsStreaks?.[w]||0)+' · '+(r.phase==='vsQuestion'?(vsAnswered(r,w)?'✅ Enviada':'✍️ Respondiendo'):'PUNTOS')+'</div></div>').join('')+'</div>';
+}
+function vsHeader(r){
+ return '<div class="online-card" style="padding:12px"><div class="online-flex"><span class="online-kicker">⚔️ VS · SALA '+esc(roomCode)+'</span><button class="online-exit" data-action="share">Compartir código</button></div>'+vsScoreboard(r)+'<div class="vs-round-badge">'+(r.vsRound?'RONDA '+r.vsRound+(r.vsRound>VS_TOTAL?' · MUERTE SÚBITA':' / '+VS_TOTAL):'DUELO SIMULTÁNEO')+'</div></div>';
+}
+function vsBonusBanner(r){
+ const m=vsMultiplier(r);
+ return m>1?'<div class="vs-special">⚡ '+(r.vsRound>VS_TOTAL?'MUERTE SÚBITA · ':'RONDA ESPECIAL · ')+'PUNTOS x'+m+'</div>':'';
+}
+function vsQuestionContent(r){
+ const q=BANK[r.qid];
+ if(!q)return '<p class="online-note">Preparando pregunta…</p>';
+ return '<div class="online-special" style="color:'+colors[r.cat]+'">'+emojis[r.cat]+' '+esc(labels[r.cat]).toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+'</div><h2 class="online-question">'+esc(q[2])+'</h2>'+(q[8]?.continent?'<div class="online-special">🌍 CONTINENTE: '+esc(q[8].continent)+'</div>':'')+qMedia(q[8]);
+}
+function vsClockHTML(r){
+ const time=Math.max(0,Math.ceil((Number(r.vsDeadline||0)-serverNow())/1000));
+ return '<div class="vs-clock-label">⏳ TIEMPO PARA RESPONDER</div><div id="vsClock" class="vs-clock '+(time<=10?'danger':'')+'">'+time+' s</div><div class="online-timer-track" style="height:7px;border-radius:9px;background:#344362;overflow:hidden"><div id="vsTimeBar" class="online-timer-bar" style="height:100%;width:'+Math.max(0,Math.min(100,100*(Number(r.vsDeadline)-serverNow())/(Number(r.vsSeconds||40)*1000)))+'%;background:#76ddce"></div></div>';
+}
+function vsResultCell(r,w){
+ const a=r.vsAnswers?.[w],good=!!a?.correct;
+ const answer=a?.text||'Tiempo agotado';
+ const points=Number(r.vsGains?.[w]||0);
+ return '<div class="vs-result-player"><div style="font-size:12px;color:#c2cfee">'+esc(vsName(w))+'</div><strong class="'+(good?'vs-correct':'vs-wrong')+'">'+(good?'✓ ACERTÓ':'✕ FALLÓ')+'</strong><div class="vs-answer-text">'+esc(answer)+'</div><strong>'+(points>=0?'+':'')+points+' pts</strong></div>';
+}
+function showVsRoom(r){
+ const field=$('vsAnswer');
+ const typed=field?.value||'',focused=field&&document.activeElement===field;
+ let html=vsHeader(r);
+ if(r.phase==='vsLobby'){
+  html+='<div class="vs-mode-card"><div class="vs-title">⚔️ DUELO DE SABERES</div><p class="vs-subtitle">Misma pregunta, mismo momento. Diez rondas para decidir quién gana.</p><div class="vs-legend">✅ Acertar rápido da más puntos · 🔥 Las rachas suman · ⚡ Rondas 4 y 8 x2, ronda 10 x3 · 🎲 Dos apuestas x2 con penalización si fallas · 💡 Una pista por jugador (cuesta 35 puntos si aciertas) · 🏆 Desempate por muerte súbita</div>'+ (role==='host'?'<button class="online-btn" data-action="vsStart">EMPEZAR EL DUELO →</button>':'<p class="vs-ready-state">Esperando a que el anfitrión empiece…</p>')+'</div>';
+ }else if(r.phase==='vsCountdown'){
+  const remains=Math.max(0,Math.ceil((Number(r.vsStartAt)-serverNow())/1000));
+  html+='<div class="vs-mode-card"><div class="vs-title">'+emojis[r.cat]+' '+esc(labels[r.cat])+'</div>'+vsBonusBanner(r)+'<p class="vs-subtitle">Los dos recibiréis la misma pregunta</p><div id="vsIntroCountdown" class="vs-clock">'+remains+'</div><div class="vs-clock-label">PREPARADOS…</div></div>';
+ }else if(r.phase==='vsQuestion'){
+  const answered=vsAnswered(r,role);
+  const power=r.vsPowers?.[role]||{bets:0,hints:0};
+  const bet=r.vsBoost?.[role]===true,hint=r.vsHints?.[role]===true;
+  const q=BANK[r.qid]||[];
+  html+='<div class="vs-mode-card">'+vsBonusBanner(r)+vsClockHTML(r)+vsQuestionContent(r)+
+  (answered?'<div class="online-feedback ok">✅ RESPUESTA ENVIADA<small>Tu respuesta está guardada. '+(vsAnswered(r,other(role))?'Los dos habéis respondido.':'Esperando al otro jugador o al final de la cuenta atrás.')+'</small></div>':
+   '<form id="vsAnswerForm"><label class="online-label" for="vsAnswer">Tu respuesta (oculta hasta el resultado)</label><input class="online-field" id="vsAnswer" type="text" autocomplete="off" autocorrect="off" autocapitalize="sentences" maxlength="120" placeholder="Escribe tu respuesta…" required><button class="online-btn" type="submit">ENVIAR RESPUESTA →</button></form>'+
+   '<div class="vs-power-grid"><button class="vs-power '+(bet?'active':'')+'" data-action="vsBet" '+(bet||!power.bets?'disabled':'')+'>🎲 APUESTA x2<br><small>'+Number(power.bets||0)+' disponibles · -75 si fallas</small></button><button class="vs-power '+(hint?'active':'')+'" data-action="vsHint" '+(hint||!power.hints?'disabled':'')+'>💡 PISTA<br><small>'+Number(power.hints||0)+' disponibles · -35 pts</small></button></div>'+
+   (bet?'<p class="vs-ready-state">🎲 Apuesta activada: x2 si aciertas, -75 si fallas.</p>':'')+
+   (hint?'<p class="vs-ready-state">💡 La respuesta empieza por «'+esc(String(q[3]||'').slice(0,2))+'…»</p>':'')
+  )+'</div>';
+ }else if(r.phase==='vsReview'){
+  const mine=r.vsAnswers?.[role],ready=r.vsReady?.[role]===true;
+  const tie=Number(r.vsScores?.host||0)===Number(r.vsScores?.guest||0);
+  html+='<div class="vs-mode-card"><div class="vs-round-badge">RESULTADO · RONDA '+r.vsRound+'</div>'+vsBonusBanner(r)+
+  '<h2 class="online-question">'+esc(BANK[r.qid]?.[2]||'Pregunta')+'</h2><p class="vs-subtitle">Respuesta correcta: <b style="color:#ffe29a">'+esc(BANK[r.qid]?.[3]||'')+'</b></p>'+
+  '<div class="vs-result-row">'+vsResultCell(r,'host')+vsResultCell(r,'guest')+'</div>'+
+  (!mine?.correct&&mine?.text&&mine.text!=='Tiempo agotado'?'<button data-action="vsManual" class="online-btn ghost small">Mi respuesta también era válida</button>':'')+
+  (r.vsRound>=VS_TOTAL&&tie?'<p class="vs-ready-state">⚡ ¡EMPATE! La siguiente será de MUERTE SÚBITA.</p>':'')+
+  (ready?'<p class="vs-ready-state">✅ Listo. Esperando al rival…</p>':'<button class="online-btn" data-action="vsReady">LISTO PARA LA SIGUIENTE →</button>')+
+  '<p class="vs-legend">La siguiente ronda empieza cuando ambos estéis preparados.</p></div>';
+ }else if(r.phase==='vsFinished'){
+  const host=Number(r.vsScores?.host||0),guest=Number(r.vsScores?.guest||0);
+  const winner=host===guest?null:host>guest?'host':'guest';
+  html+='<div class="vs-mode-card" style="text-align:center"><div style="font-size:65px">🏆</div><h2 class="vs-title">'+(winner?'¡GANA '+esc(vsName(winner)).toUpperCase()+'!':'¡EMPATE!')+'</h2><p class="vs-subtitle">Final tras '+r.vsRound+' rondas</p>'+vsScoreboard(r)+'<p class="vs-legend">Puedes crear otra sala y volver a desafiar al mismo rival.</p><button class="online-btn" data-action="new">NUEVA PARTIDA →</button></div>';
+ }else html+='<div class="online-card">Preparando duelo…</div>';
+ basePage(html);
+ const next=$('vsAnswer');
+ if(next){next.value=typed;if(focused)next.focus()}
+ attachMedia();
+}
+function vsPickRound(r){
+ const round=Number(r.vsRound||0)+1;
+ const options=[0,1,2,3,4,5].filter(c=>c!==r.cat);
+ const cat=options[Math.floor(Math.random()*options.length)];
+ const wantsHard=round===VS_TOTAL||round>VS_TOTAL;
+ let id=sampleFrom(r,cat,wantsHard?'dificil':'both');
+ if(id<0)id=sampleFrom(r,cat);
+ if(id<0)return false;
+ r.vsRound=round;r.cat=cat;r.qid=id;
+ (r.used??={})[id]=true;
+ r.vsSeconds=wantsHard||BANK[id][1]==='dificil'?55:40;
+ r.vsStartAt=serverNow()+3500;
+ r.vsDeadline=r.vsStartAt+1000*r.vsSeconds;
+ r.vsAnswers={};r.vsBoost={host:false,guest:false};r.vsHints={host:false,guest:false};r.vsReady={host:false,guest:false};
+ r.vsGains={host:0,guest:0};
+ r.phase='vsCountdown';
+ return true;
+}
+function vsGain(r,w,answer,streak){
+ if(!answer?.correct)return answer?.bet?-75:0;
+ const seconds=Math.max(0,Math.min(Number(r.vsSeconds)||40,Math.floor((Number(r.vsDeadline)-Number(answer.at||0))/1000)));
+ const base=100+Math.min(90,seconds*2)+Math.min(4,Number(streak||0))*25;
+ const gained=base*vsMultiplier(r)*(answer.bet?2:1)-(answer.hint?35:0);
+ return Math.max(0,gained);
+}
+function vsSettle(r){
+ if(r.phase!=='vsQuestion')return false;
+ r.vsGains={host:0,guest:0};
+ r.vsPriorStreaks={host:Number(r.vsStreaks?.host||0),guest:Number(r.vsStreaks?.guest||0)};
+ for(const who of vsWho){
+  const ans=r.vsAnswers?.[who]||null;
+  const gain=vsGain(r,who,ans,r.vsPriorStreaks[who]);
+  r.vsGains[who]=gain;
+  (r.vsScores??={host:0,guest:0})[who]=Math.max(0,Number(r.vsScores?.[who]||0)+gain);
+  (r.vsStreaks??={host:0,guest:0})[who]=ans?.correct?r.vsPriorStreaks[who]+1:0;
+ }
+ (r.vsHistory??=[]).push({round:r.vsRound,qid:r.qid,gains:{...r.vsGains}});
+ r.vsReady={host:false,guest:false};
+ r.phase='vsReview';
+ return true;
+}
+async function vsStart(){
+ await tx(r=>{if(r.mode!=='versus'||r.phase!=='vsLobby'||role!=='host')return;if(vsPickRound(r))return r});
+}
+async function vsPower(which){
+ await tx(r=>{
+  if(r.mode!=='versus'||r.phase!=='vsQuestion'||serverNow()>Number(r.vsDeadline)||vsAnswered(r,role))return;
+  const powers=r.vsPowers?.[role];if(!powers)return;
+  if(which==='bet'&&powers.bets>0&&!r.vsBoost?.[role]){
+   powers.bets--;(r.vsBoost??={})[role]=true;return r;
+  }
+  if(which==='hint'&&powers.hints>0&&!r.vsHints?.[role]){
+   powers.hints--;(r.vsHints??={})[role]=true;return r;
+  }
+ });
+}
+async function vsSubmit(text){
+ if(!text.trim())return;
+ onlineVibrate(18);
+ await tx(r=>{
+  if(r.mode!=='versus'||r.phase!=='vsQuestion'||r.vsAnswers?.[role])return;
+  if(serverNow()>Number(r.vsDeadline)){vsSettle(r);return r;}
+  (r.vsAnswers??={})[role]={
+   text:text.trim().slice(0,120),at:serverNow(),correct:!!window.TRIVIA_MATCH(text,BANK[r.qid]),
+   bet:r.vsBoost?.[role]===true,hint:r.vsHints?.[role]===true
+  };
+  if(r.vsAnswers.host&&r.vsAnswers.guest)vsSettle(r);
+  return r;
+ });
+}
+async function vsManual(){
+ await tx(r=>{
+  if(r.mode!=='versus'||r.phase!=='vsReview')return;
+  const a=r.vsAnswers?.[role];
+  if(!a||a.correct||!a.text||a.text==='Tiempo agotado')return;
+  const previous=Number(r.vsGains?.[role]||0);
+  a.correct=true;a.manual=true;
+  const updated=vsGain(r,role,a,r.vsPriorStreaks?.[role]||0);
+  r.vsGains[role]=updated;
+  r.vsScores[role]=Math.max(0,Number(r.vsScores[role]||0)+updated-previous);
+  r.vsStreaks[role]=Number(r.vsPriorStreaks?.[role]||0)+1;
+  const history=r.vsHistory?.[r.vsHistory.length-1];
+  if(history?.gains)history.gains[role]=updated;
+  return r;
+ });
+}
+async function vsReady(){
+ await tx(r=>{
+  if(r.mode!=='versus'||r.phase!=='vsReview'||r.vsReady?.[role])return;
+  (r.vsReady??={})[role]=true;
+  if(r.vsReady.host&&r.vsReady.guest){
+   const a=Number(r.vsScores?.host||0),b=Number(r.vsScores?.guest||0);
+   if(r.vsRound>=VS_TOTAL&&a!==b){r.phase='vsFinished';r.status='finished';r.winner=a>b?'host':'guest'}
+   else vsPickRound(r);
+  }
+  return r;
+ });
+}
+async function tickVersus(){
+ if(vsTickBusy||pending||!connected||!roomCode)return;
+ vsTickBusy=true;
+ try{
+  await txAt(roomCode,r=>{
+   if(r.mode!=='versus')return;
+   if(r.phase==='vsCountdown'&&serverNow()>=Number(r.vsStartAt)){r.phase='vsQuestion';return r}
+   if(r.phase==='vsQuestion'&&serverNow()>=Number(r.vsDeadline)){if(vsSettle(r))return r}
+  });
+ }catch(e){console.warn('Sincronización VS:',e)}
+ finally{vsTickBusy=false}
+}
+function refreshVsClock(){
+ if(root.hidden||room?.mode!=='versus')return;
+ if(room.phase==='vsCountdown'){
+  const secs=Math.max(0,Math.ceil((Number(room.vsStartAt)-serverNow())/1000));
+  const el=$('vsIntroCountdown');if(el)el.textContent=secs;
+  if(secs===0)tickVersus();
+ }else if(room.phase==='vsQuestion'){
+  const remainingMs=Number(room.vsDeadline)-serverNow();
+  const secs=Math.max(0,Math.ceil(remainingMs/1000));
+  const clock=$('vsClock'),bar=$('vsTimeBar');
+  if(clock){clock.textContent=secs+' s';clock.classList.toggle('danger',secs<=10)}
+  if(bar)bar.style.width=Math.max(0,Math.min(100,100*remainingMs/(Number(room.vsSeconds)||40)/1000))+'%';
+  if(remainingMs<=0)tickVersus();
+ }
+}
+
 function sampleFrom(r,cat,level='both',filter=null){
  let ids=byCat[cat].filter(id=>!r.used?.[id] && (!filter||filter(BANK[id])));
  if(level!=='both'){const filtered=ids.filter(id=>BANK[id][1]===level);if(filtered.length)ids=filtered}
@@ -1830,6 +2030,11 @@ view.addEventListener('click',async e=>{
   const link=location.href;
   try{if(navigator.share)await navigator.share({title:'TRIVIA·SEIS',text:'Entra en mi sala '+roomCode,url:link});else{await navigator.clipboard.writeText(link);message('Enlace copiado.')}}catch{}return
  }
+ if(action==='vsStart')return vsStart();
+ if(action==='vsBet')return vsPower('bet');
+ if(action==='vsHint')return vsPower('hint');
+ if(action==='vsManual')return vsManual();
+ if(action==='vsReady')return vsReady();
  if(action==='spin')return doSpin(false);
  if(action==='protected')return doSpin(true);
  if(action==='pick')return chooseOption(idx);
@@ -1845,10 +2050,10 @@ view.addEventListener('click',async e=>{
  if(action==='new'){if(unsubscribe)unsubscribe();unsubscribe=null;room=null;roomCode='';role='';clearLocal();history.replaceState(null,'',location.pathname+location.hash);renderHome();return}
 });
 view.addEventListener('submit',async e=>{
- if(e.target.id!=='onlineAnswerForm'&&e.target.id!=='onlineDuelForm')return;e.preventDefault();
+ if(e.target.id!=='onlineAnswerForm'&&e.target.id!=='onlineDuelForm'&&e.target.id!=='vsAnswerForm')return;e.preventDefault();
  const text=e.target.querySelector('input')?.value||'';
  const submit=e.target.querySelector('button');if(submit)submit.disabled=true;
- try{await answer(text,e.target.id==='onlineDuelForm')}finally{if(submit&&submit.isConnected)submit.disabled=false}
+ try{if(e.target.id==='vsAnswerForm')await vsSubmit(text);else await answer(text,e.target.id==='onlineDuelForm')}finally{if(submit&&submit.isConnected)submit.disabled=false}
 });
 if(new URL(location.href).searchParams.has('sala'))openOnline();
 </script>
