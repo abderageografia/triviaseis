@@ -1367,7 +1367,7 @@ function error(e){
  console.warn('TRIVIA-SEIS Firebase:',e);
  const code=String(e?.code||'').toLowerCase();
  const detail=isPermissionDenied(e)?'Firebase ha denegado el acceso a esta sala: comprueba las reglas.':code.includes('auth/operation-not-allowed')?'Activa Authentication → Sign-in method → Anonymous.':String(e?.message||'Comprueba la conexión e inténtalo de nuevo.');
- const text='No se pudo conectar. '+detail;
+ const text=(e instanceof TypeError || e instanceof ReferenceError?'Error interno de la partida. ':'No se pudo conectar. ')+detail;
  networkNotice(text);message(text);
 }
 
@@ -1625,7 +1625,7 @@ function startQuestion(r,cat,topic=''){
  const f=topic?tags[cat].find(([s])=>s===topic)?.[1]:null;
  let id=sampleFrom(r,cat,r.bonus?.accepted?'dificil':'both',f?(q=>f.test(q[2]+' '+(q[6]||''))):null);
  if(id<0)id=sampleFrom(r,cat,'both');if(id<0)return false;
- r.qid=id;r.cat=cat;r.topic=topic;r.used[id]=true;r.phase='question';r.hint=false;r.result=null;
+ r.qid=id;r.cat=cat;r.topic=topic;(r.used ??= {})[id]=true;r.phase='question';r.hint=false;r.result=null;
  return true;
 }
 function startFinalPick(r,finalist){r.phase='finalPick';r.finalist=finalist;r.turn=other(finalist);r.options=[...Array(6).keys()].sort(()=>Math.random()-.5).slice(0,2)}
@@ -1643,7 +1643,7 @@ async function doSpin(protectedSpin=false){
   const roll=protectedSpin?1:Math.random();
   if(roll<.035){r.phase='choiceCategory';r.options=[cat,...[0,1,2,3,4,5].filter(i=>i!==cat)].sort(()=>Math.random()-.5).slice(0,2);return r}
   if(roll<.085){const opts=topicChoices(r,cat);if(opts){r.phase='choiceTopic';r.options=opts;return r}}
-  if(roll<.13){const id=sampleFrom(r,cat);if(id>=0){r.qid=id;r.used[id]=true;r.phase='duel';r.duelAnswers={};r.duelCorrect={};return r}}
+  if(roll<.13){const id=sampleFrom(r,cat);if(id>=0){r.qid=id;(r.used ??= {})[id]=true;r.phase='duel';r.duelAnswers={};r.duelCorrect={};return r}}
   if(roll<.17&&complete(me)>0){r.bonus={count:Math.random()<.65?2:3,loss:1,accepted:false};r.bonus.loss=r.bonus.count===2?1:2;r.phase='bonusChoice';return r}
   startQuestion(r,cat);return r;
  });}finally{setTimeout(()=>{spinLock=false;lastRender='';if(room)showRoom()},1650)}
@@ -1673,11 +1673,11 @@ async function handleJoker(type){await tx(r=>{
  const p=r.players[role];if(p.jokers<1)return;
  if(type==='hint'&&r.phase==='question'&&!r.hint){p.jokers--;r.hint=true;return r}
  if((type==='change'&&r.phase==='question')||(type==='retry'&&r.phase==='review'&&!r.result?.correct)){
-  const id=sampleFrom(r,r.cat);if(id<0)return;p.jokers--;r.qid=id;r.used[id]=true;r.phase='question';r.hint=false;r.result=null;return r;
+  const id=sampleFrom(r,r.cat);if(id<0)return;p.jokers--;r.qid=id;(r.used ??= {})[id]=true;r.phase='question';r.hint=false;r.result=null;return r;
  }
 })}
 async function manual(){await tx(r=>{if(r.turn!==role||!['review','finalReview'].includes(r.phase)||!r.result||r.result.correct)return;r.result.correct=true;r.result.manual=true;return r})}
-async function imageFailed(){await tx(r=>{if(r.turn!==role||!['question','finalQuestion'].includes(r.phase))return;const id=sampleFrom(r,r.cat);if(id<0)return;r.qid=id;r.used[id]=true;r.hint=false;return r})}
+async function imageFailed(){await tx(r=>{if(r.turn!==role||!['question','finalQuestion'].includes(r.phase))return;const id=sampleFrom(r,r.cat);if(id<0)return;r.qid=id;(r.used ??= {})[id]=true;r.hint=false;return r})}
 async function continueQuestion(){await tx(r=>{
  if(r.turn!==role||!['review','finalReview'].includes(r.phase))return;
  const final=r.phase==='finalReview',p=r.players[role];
@@ -1706,7 +1706,7 @@ async function duelContinue(){await tx(r=>{
 })}
 async function finalPick(idx){await tx(r=>{if(r.phase!=='finalPick'||r.turn!==role||!r.options||idx<0||idx>=r.options.length)return;
  const cat=r.options[idx],id=sampleFrom(r,cat,'dificil');if(id<0)return;
- r.qid=id;r.used[id]=true;r.cat=cat;r.turn=r.finalist;r.phase='finalQuestion';r.result=null;return r;
+ r.qid=id;(r.used ??= {})[id]=true;r.cat=cat;r.turn=r.finalist;r.phase='finalQuestion';r.result=null;return r;
 })}
 view.addEventListener('click',async e=>{
  const btn=e.target.closest('[data-action]');if(!btn||btn.disabled)return;
