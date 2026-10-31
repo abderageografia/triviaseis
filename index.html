@@ -435,7 +435,7 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
 .online-choices{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .online-choice{border:2px solid var(--cc,#a99cff);background:#22314f;border-radius:15px;color:white;padding:17px 6px;font-weight:850;font-size:15px;min-height:105px;box-shadow:0 0 19px color-mix(in srgb,var(--cc,#a99cff) 25%,transparent)}
 .online-choice .big{font-size:32px;display:block;margin-bottom:5px}
-.online-question{font-size:clamp(19px,5.8vw,25px);line-height:1.3;margin:18px 0;text-align:center;font-weight:900;overflow-wrap:break-word}
+.online-timer{margin:12px 0 15px;padding:12px 13px;border:1px solid #62749b;border-radius:15px;background:#15213d;display:grid;grid-template-columns:1fr auto;gap:7px 12px;align-items:center}.online-timer span{font-size:12px;letter-spacing:.8px;font-weight:850;color:#bccdf0}.online-timer strong{font-size:28px;font-variant-numeric:tabular-nums;color:#ffe29a}.online-timer .online-timer-track{grid-column:1/-1;height:7px;border-radius:99px;background:#344362;overflow:hidden}.online-timer .online-timer-bar{height:100%;width:100%;background:#76ddce;border-radius:99px;transition:width .2s linear}.online-timer.danger{border-color:#f9899e;background:#492436}.online-timer.danger strong{color:#ff9eb1}.online-timer.danger .online-timer-bar{background:#f9899e}.online-question{font-size:clamp(19px,5.8vw,25px);line-height:1.3;margin:18px 0;text-align:center;font-weight:900;overflow-wrap:break-word}
 .online-feedback{padding:14px;border-radius:17px;text-align:center;font-size:21px;font-weight:1000;border:2px solid;margin:13px 0}.online-feedback.ok{background:#126246;border-color:#66f0b2}.online-feedback.no{background:#902238;border-color:#fa8299}.online-feedback small{display:block;font-size:14px;line-height:1.35;margin-top:8px}
 .online-special{font-size:12px;font-weight:850;color:#ffdf86;letter-spacing:1px;margin:10px 0}
 .online-status{font-size:12px;color:#8fe4e3;text-align:right}
@@ -1323,6 +1323,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 let uid='',roomCode='',room=null,role='',unsubscribe=null,connected=false,pending=false,lastRender='',myName=localStorage.getItem('triviaOnlineName')||'Jugador',toast='',spinLock=false;
 let imageCache=new Map(), questionImageTicket=0;
 let authPromise=null;
+let serverTimeOffset=0, timeoutBusy=false;
 const connectionAlert=document.getElementById('onlineConnectionAlert');
 // Pulsos intermitentes acompasados con los 1,6 segundos del giro online.
 const ONLINE_SPIN_HAPTIC=[24,42,24,50,24,62,24,78,25,98,26,120,28,150,30,185,35,225,40,240,65];
@@ -1334,6 +1335,47 @@ function testOnlineVibration(){
  const accepted=onlineVibrate([110,70,150]);
  message(accepted?'Vibración de prueba enviada. Si no la notas, revisa los ajustes de vibración y respuesta táctil de Android.':'No se ha podido activar la vibración. Revisa los ajustes del móvil y abre el juego en Chrome.');
 }
+const serverNow=()=>Date.now()+serverTimeOffset;
+function startQuestionClock(r){
+ const seconds=r.phase==='duel'?40:(r.phase==='finalQuestion'||BANK[r.qid]?.[1]==='dificil'?60:45);
+ r.timerSeconds=seconds;
+ r.deadline=serverNow()+seconds*1000;
+}
+function clockHTML(r){
+ if(!Number(r.deadline)||!['question','finalQuestion','duel'].includes(r.phase))return '';
+ const remaining=Math.max(0,Math.ceil((Number(r.deadline)-serverNow())/1000));
+ const pct=Math.max(0,Math.min(100,100*(Number(r.deadline)-serverNow())/(Number(r.timerSeconds||45)*1000)));
+ return `<div class="online-timer ${remaining<=10?'danger':''}" id="onlineTimer" role="timer"><span>⏳ TIEMPO RESTANTE</span><strong id="onlineCountdown">${remaining} s</strong><div class="online-timer-track"><div class="online-timer-bar" id="onlineTimerBar" style="width:${pct}%"></div></div></div>`;
+}
+function expireQuestionState(r){
+ if(!Number(r.deadline)||serverNow()<Number(r.deadline))return false;
+ if(r.phase==='duel'){
+  const answers=r.duelAnswers||{};
+  r.duelCorrect={host:!!answers.host&&window.TRIVIA_MATCH(answers.host,BANK[r.qid]),guest:!!answers.guest&&window.TRIVIA_MATCH(answers.guest,BANK[r.qid])};
+  r.duelAnswers={host:answers.host||'Tiempo agotado',guest:answers.guest||'Tiempo agotado'};
+  r.phase='duelReview';
+ }else if(r.phase==='question'||r.phase==='finalQuestion'){
+  r.result={answer:'Tiempo agotado',correct:false,expired:true};
+  r.phase=r.phase==='finalQuestion'?'finalReview':'review';
+ }else return false;
+ r.deadline=null;
+ return true;
+}
+async function expireOnlineClock(){
+ if(timeoutBusy||pending||!connected||!roomCode)return;
+ timeoutBusy=true;
+ try{await txAt(roomCode,r=>expireQuestionState(r)?r:undefined)}catch(e){console.warn('Temporizador online:',e)}finally{timeoutBusy=false}
+}
+function refreshOnlineClock(){
+ if(root.hidden||!room||!['question','finalQuestion','duel'].includes(room.phase)||!Number(room.deadline))return;
+ const left=Number(room.deadline)-serverNow(),remaining=Math.max(0,Math.ceil(left/1000));
+ const timer=$('onlineTimer'),label=$('onlineCountdown'),bar=$('onlineTimerBar');
+ if(label)label.textContent=remaining+' s';
+ if(timer)timer.classList.toggle('danger',remaining<=10);
+ if(bar)bar.style.width=Math.max(0,Math.min(100,100*left/(Number(room.timerSeconds||45)*1000)))+'%';
+ if(left<=0)expireOnlineClock();
+}
+setInterval(refreshOnlineClock,250);
 function networkNotice(t){
  connectionAlert.hidden=!t;connectionAlert.textContent=t||'';
 }
@@ -1402,6 +1444,7 @@ onValue(ref(db,'.info/connected'),snap=>{
  statusEl.style.color=connected?'#87e8db':'#ffc478';
  if(connected && connectionAlert.textContent.startsWith('Firebase Realtime Database no consigue'))networkNotice('');
 },e=>{connected=false;statusEl.textContent='⚠ Error de conexión';networkNotice('Firebase ha rechazado la conexión: '+String(e?.code||e?.message||'error'));});
+onValue(ref(db,'.info/serverTimeOffset'),snap=>{serverTimeOffset=Number(snap.val())||0;});
 onAuthStateChanged(auth,user=>{uid=user?.uid||'';if(uid&&!root.hidden)tryResume()});
 function basePage(content){view.innerHTML=content+(toast?`<p class="online-note" id="onlineToast" role="status">${esc(toast)}</p>`:'');}
 function renderHome(){
@@ -1519,7 +1562,7 @@ async function txAt(code,fn){
   changed.rev=previous+1;changed.updatedAt=Date.now();return changed;
  },{applyLocally:false});
 }
-async function tx(fn){if(!roomCode||!isReady())return;pending=true;try{const r=await txAt(roomCode,fn);if(!r.committed)message('La jugada ha cambiado en el otro móvil. Prueba otra vez.')}catch(e){error(e)}finally{pending=false}}
+async function tx(fn){if(!roomCode||!isReady())return null;pending=true;try{const r=await txAt(roomCode,fn);if(!r.committed)message('La jugada ha cambiado en el otro móvil. Prueba otra vez.');return r}catch(e){error(e);return null}finally{pending=false}}
 function enter(code){
  if(unsubscribe)unsubscribe();roomCode=code;saveLocal();lastRender='';
  history.replaceState(null,'',location.pathname+'?sala='+code+'&v=8'+location.hash);
@@ -1541,7 +1584,7 @@ function spinGraphic(p,r){
   paths.push(`<path d="M ${A.join(' ')} A 187 187 0 0 1 ${B.join(' ')} L ${C.join(' ')} A 68 68 0 0 0 ${D.join(' ')} Z" fill="${colors[i]}" opacity="${j<(p?.done?.[i]||0)?1:.28}" stroke="#0d162d" stroke-width="2"/>`)
  }
  const em=emojis.map((e,i)=>{const a=(-60+i*60)*Math.PI/180;return `<span class="emoji" style="left:${50+33*Math.cos(a)}%;top:${50+33*Math.sin(a)}%;border-color:${colors[i]}">${e}</span>`}).join('');
- return `<div class="online-wheel"><div class="pin"></div><div class="disc" id="onlineDisc"><svg viewBox="0 0 400 400" width="100%" height="100%" aria-hidden="true"><circle cx="200" cy="200" r="196" fill="#091229"/>${paths.join('')}</svg></div><div class="wheel-emojis">${em}</div><div class="center"><b>${complete(p)}/6</b><small>QUESITOS</small></div></div>`;
+ return `<div class="online-wheel"><div class="pin"></div><div class="disc" id="onlineDisc"><svg viewBox="0 0 400 400" width="100%" height="100%" aria-hidden="true"><circle cx="200" cy="200" r="196" fill="#091229"/>${paths.join('')}</svg><div class="wheel-emojis">${em}</div></div><div class="center"><b>${complete(p)}/6</b><small>QUESITOS</small></div></div>`;
 }
 function roomHeader(r){return `<div class="online-card" style="padding:12px"><div class="online-flex"><span class="online-kicker">SALA ${esc(roomCode)}</span><button class="online-exit" data-action="share">Compartir código</button></div>${scoreboard(r)}<div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="online-exit" data-action="testVibration" type="button">📳 Probar vibración</button></div></div>`;}
 function normalStatus(r){return `<p class="online-note" style="text-align:center">${esc(nameOf(r.turn))} tiene el turno ${r.turn===role?'(tú)':'(tu rival)'}.</p>`}
@@ -1551,7 +1594,7 @@ function qMedia(meta){
  return `<div id="onlineMediaSlot" class="online-media" data-wiki="${esc(meta.wiki||'')}" data-lang="${esc(meta.lang||'es')}">
  ${source?`<img class="online-photo" src="${esc(source)}" alt="Imagen de la pregunta" loading="eager"/>`:'<p class="online-note">Cargando imagen de la pregunta…</p>'}</div>`;
 }
-function qBlock(r){const q=BANK[r.qid];return `<div class="online-special" style="color:${colors[r.cat]}">${emojis[r.cat]} ${labels[r.cat].toUpperCase()} · ${q[1]==='dificil'?'DIFÍCIL':'MEDIA'}${r.topic?' · '+esc(r.topic):''}${r.bonus?.accepted?' · ⚡ RIESGO':''}</div><h2 class="online-question">${esc(q[2])}</h2>${q[8]?.continent?`<div class="online-special">🌍 CONTINENTE: ${esc(q[8].continent)}</div>`:''}${qMedia(q[8])}`}
+function qBlock(r){const q=BANK[r.qid];return `<div class="online-special" style="color:${colors[r.cat]}">${emojis[r.cat]} ${labels[r.cat].toUpperCase()} · ${q[1]==='dificil'?'DIFÍCIL':'MEDIA'}${r.topic?' · '+esc(r.topic):''}${r.bonus?.accepted?' · ⚡ RIESGO':''}</div>${clockHTML(r)}<h2 class="online-question">${esc(q[2])}</h2>${q[8]?.continent?`<div class="online-special">🌍 CONTINENTE: ${esc(q[8].continent)}</div>`:''}${qMedia(q[8])}`}
 async function attachMedia(){
  const slot=$('onlineMediaSlot');if(!slot||slot.querySelector('img'))return;
  const ticket=++questionImageTicket;
@@ -1635,17 +1678,18 @@ function startQuestion(r,cat,topic=''){
  const f=topic?tags[cat].find(([s])=>s===topic)?.[1]:null;
  let id=sampleFrom(r,cat,r.bonus?.accepted?'dificil':'both',f?(q=>f.test(q[2]+' '+(q[6]||''))):null);
  if(id<0)id=sampleFrom(r,cat,'both');if(id<0)return false;
- r.qid=id;r.cat=cat;r.topic=topic;(r.used ??= {})[id]=true;r.phase='question';r.hint=false;r.result=null;
+ r.qid=id;r.cat=cat;r.topic=topic;(r.used ??= {})[id]=true;r.phase='question';r.hint=false;r.result=null;startQuestionClock(r);
  return true;
 }
 function startFinalPick(r,finalist){r.phase='finalPick';r.finalist=finalist;r.turn=other(finalist);r.options=[...Array(6).keys()].sort(()=>Math.random()-.5).slice(0,2)}
 function awardCheeses(p,n,cat){let cs=[cat,...[...Array(6).keys()].filter(i=>i!==cat)].filter(c=>p.done[c]<3);for(const c of cs.slice(0,n))p.done[c]=3}
 function loseCheeses(p,n){let cs=[...Array(6).keys()].filter(i=>p.done[i]===3);for(const c of cs.sort(()=>Math.random()-.5).slice(0,n))p.done[c]=0}
 async function doSpin(protectedSpin=false){
- if(!isActor()||room.phase!=='spin')return;
- const disc=$('onlineDisc');spinLock=true;if(disc){disc.style.transform='rotate(1500deg)'}
+ if(!isActor()||room.phase!=='spin'||spinLock)return;
+ const disc=$('onlineDisc');spinLock=true;
  onlineVibrate(ONLINE_SPIN_HAPTIC);
- try{await tx(r=>{
+ try{
+  const result=await tx(r=>{
   if(r.phase!=='spin'||r.turn!==role)return;
   const me=r.players[role];let choices=[0,1,2,3,4,5];
   if(protectedSpin){if(me.shields<1)return;me.shields--;choices=choices.filter(i=>me.done[i]<3&&i!==me.lastCat);if(!choices.length)choices=[0,1,2,3,4,5].filter(i=>me.done[i]<3)}
@@ -1653,10 +1697,23 @@ async function doSpin(protectedSpin=false){
   const roll=protectedSpin?1:Math.random();
   if(roll<.035){r.phase='choiceCategory';r.options=[cat,...[0,1,2,3,4,5].filter(i=>i!==cat)].sort(()=>Math.random()-.5).slice(0,2);return r}
   if(roll<.085){const opts=topicChoices(r,cat);if(opts){r.phase='choiceTopic';r.options=opts;return r}}
-  if(roll<.13){const id=sampleFrom(r,cat);if(id>=0){r.qid=id;(r.used ??= {})[id]=true;r.phase='duel';r.duelAnswers={};r.duelCorrect={};return r}}
+  if(roll<.13){const id=sampleFrom(r,cat);if(id>=0){r.qid=id;(r.used ??= {})[id]=true;r.phase='duel';r.duelAnswers={};r.duelCorrect={};startQuestionClock(r);return r}}
   if(roll<.17&&complete(me)>0){r.bonus={count:Math.random()<.65?2:3,loss:1,accepted:false};r.bonus.loss=r.bonus.count===2?1:2;r.phase='bonusChoice';return r}
   startQuestion(r,cat);return r;
- });}finally{setTimeout(()=>{spinLock=false;lastRender='';if(room)showRoom()},1650)}
+ });
+  if(!result?.committed)return;
+  const cat=Number(result.snapshot.val()?.cat);
+  if(!Number.isInteger(cat)||cat<0||cat>5)return;
+  const duration=1750+Math.floor(Math.random()*450);
+  const turns=4+Math.floor(Math.random()*3);
+  const deviation=(Math.random()-.5)*20;
+  const target=(360-(cat*60+30+deviation)+720)%360;
+  if(disc&&disc.isConnected){
+   disc.style.transition='transform '+duration+'ms cubic-bezier(.13,.7,.16,1)';
+   disc.style.transform='rotate('+(turns*360+target)+'deg)';
+   await new Promise(resolve=>setTimeout(resolve,duration+80));
+  }
+ }finally{spinLock=false;lastRender='';if(room)showRoom()}
 }
 async function chooseOption(idx){await tx(r=>{
  if(r.turn!==role||!Array.isArray(r.options)||idx<0||idx>=r.options.length)return;
@@ -1667,15 +1724,17 @@ async function chooseOption(idx){await tx(r=>{
 })}
 async function bonusChoice(accept){await tx(r=>{if(r.phase!=='bonusChoice'||r.turn!==role)return;r.bonus.accepted=accept;startQuestion(r,r.cat);return r})}
 async function answer(text,duel=false){if(!text.trim())return;
+ onlineVibrate(18);
  await tx(r=>{
+  if(expireQuestionState(r))return r;
   if(duel){if(r.phase!=='duel'||r.duelAnswers?.[role])return;
    r.duelAnswers=r.duelAnswers||{};r.duelAnswers[role]=text.trim().slice(0,120);
-   if(r.duelAnswers.host&&r.duelAnswers.guest){r.duelCorrect={host:window.TRIVIA_MATCH(r.duelAnswers.host,BANK[r.qid]),guest:window.TRIVIA_MATCH(r.duelAnswers.guest,BANK[r.qid])};r.phase='duelReview'}
+   if(r.duelAnswers.host&&r.duelAnswers.guest){r.duelCorrect={host:window.TRIVIA_MATCH(r.duelAnswers.host,BANK[r.qid]),guest:window.TRIVIA_MATCH(r.duelAnswers.guest,BANK[r.qid])};r.phase='duelReview';r.deadline=null}
    return r;
   }
   if(r.turn!==role||!['question','finalQuestion'].includes(r.phase))return;
   r.result={answer:text.trim().slice(0,120),correct:window.TRIVIA_MATCH(text,BANK[r.qid])};
-  r.phase=r.phase==='finalQuestion'?'finalReview':'review';return r;
+  r.phase=r.phase==='finalQuestion'?'finalReview':'review';r.deadline=null;return r;
  });
 }
 async function handleJoker(type){await tx(r=>{
@@ -1683,11 +1742,11 @@ async function handleJoker(type){await tx(r=>{
  const p=r.players[role];if(p.jokers<1)return;
  if(type==='hint'&&r.phase==='question'&&!r.hint){p.jokers--;r.hint=true;return r}
  if((type==='change'&&r.phase==='question')||(type==='retry'&&r.phase==='review'&&!r.result?.correct)){
-  const id=sampleFrom(r,r.cat);if(id<0)return;p.jokers--;r.qid=id;(r.used ??= {})[id]=true;r.phase='question';r.hint=false;r.result=null;return r;
+  const id=sampleFrom(r,r.cat);if(id<0)return;p.jokers--;r.qid=id;(r.used ??= {})[id]=true;r.phase='question';r.hint=false;r.result=null;startQuestionClock(r);return r;
  }
 })}
 async function manual(){await tx(r=>{if(r.turn!==role||!['review','finalReview'].includes(r.phase)||!r.result||r.result.correct)return;r.result.correct=true;r.result.manual=true;return r})}
-async function imageFailed(){await tx(r=>{if(r.turn!==role||!['question','finalQuestion'].includes(r.phase))return;const id=sampleFrom(r,r.cat);if(id<0)return;r.qid=id;(r.used ??= {})[id]=true;r.hint=false;return r})}
+async function imageFailed(){await tx(r=>{if(r.turn!==role||!['question','finalQuestion'].includes(r.phase))return;const id=sampleFrom(r,r.cat);if(id<0)return;r.qid=id;(r.used ??= {})[id]=true;r.hint=false;startQuestionClock(r);return r})}
 async function continueQuestion(){await tx(r=>{
  if(r.turn!==role||!['review','finalReview'].includes(r.phase))return;
  const final=r.phase==='finalReview',p=r.players[role];
@@ -1716,7 +1775,7 @@ async function duelContinue(){await tx(r=>{
 })}
 async function finalPick(idx){await tx(r=>{if(r.phase!=='finalPick'||r.turn!==role||!r.options||idx<0||idx>=r.options.length)return;
  const cat=r.options[idx],id=sampleFrom(r,cat,'dificil');if(id<0)return;
- r.qid=id;(r.used ??= {})[id]=true;r.cat=cat;r.turn=r.finalist;r.phase='finalQuestion';r.result=null;return r;
+ r.qid=id;(r.used ??= {})[id]=true;r.cat=cat;r.turn=r.finalist;r.phase='finalQuestion';r.result=null;startQuestionClock(r);return r;
 })}
 view.addEventListener('click',async e=>{
  const btn=e.target.closest('[data-action]');if(!btn||btn.disabled)return;
