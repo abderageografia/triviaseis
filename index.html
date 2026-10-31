@@ -464,7 +464,7 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
 .vs-clock{font-variant-numeric:tabular-nums;text-align:center;font-size:40px;font-weight:1000;color:#ffe39a;margin:8px 0}
 .vs-clock.danger{color:#ff8b9a}
 .vs-clock-label{font-size:12px;text-align:center;color:#b4c9e9;font-weight:800}
-.vs-power-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.vs-power-grid{display:grid;grid-template-columns:1fr;gap:9px}
 .vs-power{border:1px solid #7a85b7;background:#273557;border-radius:14px;color:#eef2ff;padding:13px 9px;font-size:12px;font-weight:900;min-height:70px}
 .vs-power.active{background:#5b345c;border-color:#ffb9db;color:white}
 .vs-power:disabled{opacity:.45}
@@ -1541,7 +1541,7 @@ async function createRoom(mode='roulette'){
    for(let i=0;i<4;i++){
      const code=randomCode(),now=Date.now();
      const fresh={hostUid:uid,hostName:name,createdAt:now,updatedAt:now,rev:0,status:'waiting',phase:'waiting',mode,turn:'host',cat:-1,qid:-1,used:{},players:{host:newPlayer(),guest:newPlayer()}};
-   if(mode==='versus')Object.assign(fresh,{vsRound:0,vsMaxRounds:10,vsScores:{host:0,guest:0},vsStreaks:{host:0,guest:0},vsPowers:{host:{bets:2,hints:1},guest:{bets:2,hints:1}},vsHistory:[]});
+   if(mode==='versus')Object.assign(fresh,{vsRound:0,vsMaxRounds:10,vsScores:{host:0,guest:0},vsStreaks:{host:0,guest:0},vsPowers:{host:{bets:2,hints:1},guest:{bets:2,hints:1}},vsPowerSchedule:vsNewPowerSchedule(),vsRematch:{host:false,guest:false},vsHistory:[]});
      try{await bounded(set(ref(db,'rooms/'+code),fresh),12000,'La base de datos no ha confirmado la creación de la sala.');enter(code);return}catch(e){if(i===3)throw e}
    }
  }catch(e){error(e)}finally{pending=false;working(mode==='versus'?'createVersus':'create',false)}
@@ -1715,6 +1715,21 @@ function showRoom(){
 
 const VS_TOTAL=10;
 let vsTickBusy=false;
+// Las tres ventajas aparecen en las mismas rondas para los dos jugadores.
+// No se solapan con los multiplicadores fijos de las rondas 4, 8 y 10.
+function vsNewPowerSchedule(){
+ const rounds=[1,2,3,5,6,7,9];
+ for(let i=rounds.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[rounds[i],rounds[j]]=[rounds[j],rounds[i]]}
+ return {[rounds[0]]:'bet',[rounds[1]]:'bet',[rounds[2]]:'hint'};
+}
+const vsPowerKind=r=>r.vsPowerSchedule?.[r.vsRound]||'';
+function vsPowerBanner(r){
+ const kind=vsPowerKind(r);
+ if(kind==='bet')return '<div class="vs-special">🎲 RONDA DE APUESTAS · Los dos podéis apostar x2; si falláis, -75 puntos.</div>';
+ if(kind==='hint')return '<div class="vs-special">💡 RONDA CON PISTA · Los dos podéis ver las dos primeras letras; cuesta 35 puntos si acertáis.</div>';
+ return '';
+}
+
 const vsWho=['host','guest'];
 const vsName=who=>who==='host'?(room?.hostName||'Jugador 1'):(room?.guestName||'Jugador 2');
 const vsMultiplier=r=>r.vsRound===10?3:(r.vsRound>10||r.vsRound%4===0?2:1);
@@ -1749,19 +1764,21 @@ function showVsRoom(r){
  const typed=field?.value||'',focused=field&&document.activeElement===field;
  let html=vsHeader(r);
  if(r.phase==='vsLobby'){
-  html+='<div class="vs-mode-card"><div class="vs-title">⚔️ DUELO DE SABERES</div><p class="vs-subtitle">Misma pregunta, mismo momento. Diez rondas para decidir quién gana.</p><div class="vs-legend">✅ Acertar rápido da más puntos · 🔥 Las rachas suman · ⚡ Rondas 4 y 8 x2, ronda 10 x3 · 🎲 Dos apuestas x2 con penalización si fallas · 💡 Una pista por jugador (cuesta 35 puntos si aciertas) · 🏆 Desempate por muerte súbita</div>'+ (role==='host'?'<button class="online-btn" data-action="vsStart">EMPEZAR EL DUELO →</button>':'<p class="vs-ready-state">Esperando a que el anfitrión empiece…</p>')+'</div>';
+  html+='<div class="vs-mode-card"><div class="vs-title">⚔️ DUELO DE SABERES</div><p class="vs-subtitle">Misma pregunta, mismo momento. Diez rondas para decidir quién gana.</p><div class="vs-legend">✅ Acertar rápido da más puntos · 🔥 Las rachas suman · ⚡ Rondas 4 y 8 x2, ronda 10 x3 · 🎲 Dos rondas aleatorias de apuestas x2 · 💡 Una ronda aleatoria con pista · 🎯 Las ventajas aparecen para ambos en las mismas rondas · 🏆 Desempate por muerte súbita</div>'+ (role==='host'?'<button class="online-btn" data-action="vsStart">EMPEZAR EL DUELO →</button>':'<p class="vs-ready-state">Esperando a que el anfitrión empiece…</p>')+'</div>';
  }else if(r.phase==='vsCountdown'){
   const remains=Math.max(0,Math.ceil((Number(r.vsStartAt)-serverNow())/1000));
-  html+='<div class="vs-mode-card"><div class="vs-title">'+emojis[r.cat]+' '+esc(labels[r.cat])+'</div>'+vsBonusBanner(r)+'<p class="vs-subtitle">Los dos recibiréis la misma pregunta</p><div id="vsIntroCountdown" class="vs-clock">'+remains+'</div><div class="vs-clock-label">PREPARADOS…</div></div>';
+  html+='<div class="vs-mode-card"><div class="vs-title">'+emojis[r.cat]+' '+esc(labels[r.cat])+'</div>'+vsBonusBanner(r)+vsPowerBanner(r)+'<p class="vs-subtitle">Los dos recibiréis la misma pregunta</p><div id="vsIntroCountdown" class="vs-clock">'+remains+'</div><div class="vs-clock-label">PREPARADOS…</div></div>';
  }else if(r.phase==='vsQuestion'){
   const answered=vsAnswered(r,role);
-  const power=r.vsPowers?.[role]||{bets:0,hints:0};
+  const power=r.vsPowers?.[role]||{bets:0,hints:0},kind=vsPowerKind(r);
   const bet=r.vsBoost?.[role]===true,hint=r.vsHints?.[role]===true;
   const q=BANK[r.qid]||[];
-  html+='<div class="vs-mode-card">'+vsBonusBanner(r)+vsClockHTML(r)+vsQuestionContent(r)+
+  const powerButton=kind==='bet'?'<button class="vs-power '+(bet?'active':'')+'" data-action="vsBet" '+(bet||!power.bets?'disabled':'')+'>🎲 '+(bet?'APUESTA ACTIVADA':'APOSTAR x2')+'<br><small>'+Number(power.bets||0)+' disponibles · -75 si fallas</small></button>':
+    kind==='hint'?'<button class="vs-power '+(hint?'active':'')+'" data-action="vsHint" '+(hint||!power.hints?'disabled':'')+'>💡 '+(hint?'PISTA UTILIZADA':'REVELAR PISTA')+'<br><small>'+Number(power.hints||0)+' disponibles · -35 puntos si aciertas</small></button>':'';
+  html+='<div class="vs-mode-card">'+vsBonusBanner(r)+vsPowerBanner(r)+vsClockHTML(r)+vsQuestionContent(r)+
   (answered?'<div class="online-feedback ok">✅ RESPUESTA ENVIADA<small>Tu respuesta está guardada. '+(vsAnswered(r,other(role))?'Los dos habéis respondido.':'Esperando al otro jugador o al final de la cuenta atrás.')+'</small></div>':
    '<form id="vsAnswerForm"><label class="online-label" for="vsAnswer">Tu respuesta (oculta hasta el resultado)</label><input class="online-field" id="vsAnswer" type="text" autocomplete="off" autocorrect="off" autocapitalize="sentences" maxlength="120" placeholder="Escribe tu respuesta…" required><button class="online-btn" type="submit">ENVIAR RESPUESTA →</button></form>'+
-   '<div class="vs-power-grid"><button class="vs-power '+(bet?'active':'')+'" data-action="vsBet" '+(bet||!power.bets?'disabled':'')+'>🎲 APUESTA x2<br><small>'+Number(power.bets||0)+' disponibles · -75 si fallas</small></button><button class="vs-power '+(hint?'active':'')+'" data-action="vsHint" '+(hint||!power.hints?'disabled':'')+'>💡 PISTA<br><small>'+Number(power.hints||0)+' disponibles · -35 pts</small></button></div>'+
+   (powerButton?'<div class="vs-power-grid">'+powerButton+'</div>':'')+
    (bet?'<p class="vs-ready-state">🎲 Apuesta activada: x2 si aciertas, -75 si fallas.</p>':'')+
    (hint?'<p class="vs-ready-state">💡 La respuesta empieza por «'+esc(String(q[3]||'').slice(0,2))+'…»</p>':'')
   )+'</div>';
@@ -1778,7 +1795,13 @@ function showVsRoom(r){
  }else if(r.phase==='vsFinished'){
   const host=Number(r.vsScores?.host||0),guest=Number(r.vsScores?.guest||0);
   const winner=host===guest?null:host>guest?'host':'guest';
-  html+='<div class="vs-mode-card" style="text-align:center"><div style="font-size:65px">🏆</div><h2 class="vs-title">'+(winner?'¡GANA '+esc(vsName(winner)).toUpperCase()+'!':'¡EMPATE!')+'</h2><p class="vs-subtitle">Final tras '+r.vsRound+' rondas</p>'+vsScoreboard(r)+'<p class="vs-legend">Puedes crear otra sala y volver a desafiar al mismo rival.</p><button class="online-btn" data-action="new">NUEVA PARTIDA →</button></div>';
+  const mine=r.vsRematch?.[role]===true,rival=r.vsRematch?.[other(role)]===true;
+  html+='<div class="vs-mode-card" style="text-align:center"><div style="font-size:65px">🏆</div><h2 class="vs-title">'+(winner?'¡GANA '+esc(vsName(winner)).toUpperCase()+'!':'¡EMPATE!')+'</h2><p class="vs-subtitle">Final tras '+r.vsRound+' rondas</p>'+vsScoreboard(r)+
+  '<p class="vs-legend">Podéis jugar otra partida de diez rondas desde cero sin cambiar de sala ni volver a compartir el código.</p>'+
+  (mine?'<p class="vs-ready-state">✅ Revancha solicitada. Esperando al otro jugador…</p>':
+   (rival?'<p class="vs-ready-state">⚔️ Tu rival quiere la revancha.</p>':'')+
+   '<button class="online-btn" data-action="vsRematch">🔄 '+(rival?'ACEPTAR REVANCHA':'REPETIR PARTIDA')+' · MISMA SALA</button>')+
+  '</div>';
  }else html+='<div class="online-card">Preparando duelo…</div>';
  basePage(html);
  const next=$('vsAnswer');
@@ -1786,6 +1809,7 @@ function showVsRoom(r){
  attachMedia();
 }
 function vsPickRound(r){
+ if(!r.vsPowerSchedule)r.vsPowerSchedule=vsNewPowerSchedule();
  const round=Number(r.vsRound||0)+1;
  const options=[0,1,2,3,4,5].filter(c=>c!==r.cat);
  const cat=options[Math.floor(Math.random()*options.length)];
@@ -1796,7 +1820,7 @@ function vsPickRound(r){
  r.vsRound=round;r.cat=cat;r.qid=id;
  (r.used??={})[id]=true;
  r.vsSeconds=wantsHard||BANK[id][1]==='dificil'?55:40;
- r.vsStartAt=serverNow()+3500;
+ r.vsStartAt=serverNow()+4500;
  r.vsDeadline=r.vsStartAt+1000*r.vsSeconds;
  r.vsAnswers={};r.vsBoost={host:false,guest:false};r.vsHints={host:false,guest:false};r.vsReady={host:false,guest:false};
  r.vsGains={host:0,guest:0};
@@ -1829,14 +1853,34 @@ function vsSettle(r){
 async function vsStart(){
  await tx(r=>{if(r.mode!=='versus'||r.phase!=='vsLobby'||role!=='host')return;if(vsPickRound(r))return r});
 }
+function vsResetMatch(r){
+ // Solo se reinician las rondas; se conservan nombres, usuarios y código.
+ r.status='playing';r.phase='vsLobby';r.winner=null;r.cat=-1;r.qid=-1;r.used={};
+ r.vsRound=0;r.vsMaxRounds=VS_TOTAL;r.vsScores={host:0,guest:0};r.vsStreaks={host:0,guest:0};
+ r.vsPowers={host:{bets:2,hints:1},guest:{bets:2,hints:1}};
+ r.vsPowerSchedule=vsNewPowerSchedule();r.vsHistory=[];r.vsRematch={host:false,guest:false};
+ r.vsReady={host:false,guest:false};r.vsAnswers={};
+ r.vsBoost={host:false,guest:false};r.vsHints={host:false,guest:false};
+ r.vsGains={host:0,guest:0};r.vsPriorStreaks={host:0,guest:0};
+ r.vsStartAt=null;r.vsDeadline=null;r.vsSeconds=null;
+ return vsPickRound(r);
+}
+async function vsRematch(){
+ await tx(r=>{
+  if(r.mode!=='versus'||r.phase!=='vsFinished'||!['host','guest'].includes(role))return;
+  (r.vsRematch??={host:false,guest:false})[role]=true;
+  if(r.vsRematch.host&&r.vsRematch.guest)vsResetMatch(r);
+  return r;
+ });
+}
 async function vsPower(which){
  await tx(r=>{
   if(r.mode!=='versus'||r.phase!=='vsQuestion'||serverNow()>Number(r.vsDeadline)||vsAnswered(r,role))return;
   const powers=r.vsPowers?.[role];if(!powers)return;
-  if(which==='bet'&&powers.bets>0&&!r.vsBoost?.[role]){
+  if(which==='bet'&&vsPowerKind(r)==='bet'&&powers.bets>0&&!r.vsBoost?.[role]){
    powers.bets--;(r.vsBoost??={})[role]=true;return r;
   }
-  if(which==='hint'&&powers.hints>0&&!r.vsHints?.[role]){
+  if(which==='hint'&&vsPowerKind(r)==='hint'&&powers.hints>0&&!r.vsHints?.[role]){
    powers.hints--;(r.vsHints??={})[role]=true;return r;
   }
  });
@@ -2050,6 +2094,7 @@ view.addEventListener('click',async e=>{
   try{if(navigator.share)await navigator.share({title:'TRIVIA·SEIS',text:'Entra en mi sala '+roomCode,url:link});else{await navigator.clipboard.writeText(link);message('Enlace copiado.')}}catch{}return
  }
  if(action==='vsStart')return vsStart();
+ if(action==='vsRematch')return vsRematch();
  if(action==='vsBet')return vsPower('bet');
  if(action==='vsHint')return vsPower('hint');
  if(action==='vsManual')return vsManual();
