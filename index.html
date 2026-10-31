@@ -1600,7 +1600,7 @@ async function txAt(code,fn){
 async function tx(fn){if(!roomCode||!isReady())return null;pending=true;try{const r=await txAt(roomCode,fn);if(!r.committed)message('La jugada ha cambiado en el otro móvil. Prueba otra vez.');return r}catch(e){error(e);return null}finally{pending=false}}
 function enter(code){
  if(unsubscribe)unsubscribe();roomCode=code;saveLocal();lastRender='';
- history.replaceState(null,'',location.pathname+'?sala='+code+'&v=8'+location.hash);
+ history.replaceState(null,'',location.pathname+'?sala='+code+'&v=9'+location.hash);
  unsubscribe=onValue(ref(db,'rooms/'+code),snap=>{
   if(!snap.exists()){message('La sala ya no existe.');clearLocal();room=null;renderHome();return}
   room=snap.val();role=room.hostUid===uid?'host':room.guestUid===uid?'guest':'';
