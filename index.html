@@ -1475,14 +1475,22 @@ async function joinRoom(){
    }
    const v=initial.val();
    if(v.status==='finished')throw new Error('La partida de esta sala ya ha terminado. Crea una nueva.');
-   await bounded(set(ref(db,'rooms/'+code+'/guestName'),name),10000,
-     'No se ha podido guardar el nombre del segundo jugador.');
-   const result=await bounded(txAt(code,d=>{
-     if(!d||d.guestUid!==uid)return;
-     if(d.status==='waiting'&&d.guestName){d.status='playing';d.phase='spin'}
-     return d;
-   }),12000,'La sala no ha confirmado el inicio de la partida.');
-   if(!result.committed)throw new Error('No se ha podido iniciar la partida. Pulsa «Unirme» otra vez.');
+   // El inicio no requiere una transacción de lectura-modificación-escritura.
+   // En RTDB una transacción puede recibir null si la sala aún no está en caché
+   // y un retorno undefined la cancela, aunque la sala exista en el servidor.
+   // Una actualización multiatributo es suficiente: solo el invitado cuya
+   // guestUid coincide con auth.uid puede modificar este nodo (reglas Firebase).
+   if(v.status==='waiting'){
+     await bounded(update(r,{
+       guestName:name,
+       status:'playing',
+       phase:'spin',
+       updatedAt:Date.now(),
+       rev:Number(v.rev||0)+1
+     }),12000,'Firebase no ha confirmado el inicio de la sala.');
+   }else if(v.status!=='playing'){
+     throw new Error('La sala no está disponible para empezar. Crea una partida nueva.');
+   }
    const after=await bounded(get(r),10000,'La sala no ha confirmado que haya empezado.');
    if(!after.exists()||after.val().guestUid!==uid||after.val().status!=='playing'){
       throw new Error('Te has unido, pero la partida aún no ha empezado. Prueba a entrar de nuevo.');
