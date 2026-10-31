@@ -1321,7 +1321,7 @@ window.TRIVIA_MATCH = match;
 </script>
 
 <div id="onlineRoot" class="online-root" hidden aria-live="polite">
-  <div class="online-toolbar"><div class="online-logo">🌐 TRIVIA<span>·</span>SEIS <small style="font-size:11px;color:#9ce6e9">ONLINE</small></div><button id="onlineExit" class="online-exit" type="button">Salir</button></div>
+  <div class="online-toolbar"><div class="online-logo">🌐 TRIVIA<span>·</span>SEIS <small style="font-size:11px;color:#9ce6e9">ONLINE</small></div><div style="display:flex;gap:6px"><button id="onlineSwitchRoom" class="online-exit" type="button" hidden>Otra sala</button><button id="onlineExit" class="online-exit" type="button">Salir</button></div></div>
   <div class="online-status" id="onlineConnectivity">Conectando…</div>
   <div id="onlineConnectionAlert" class="online-connection-alert" role="status" hidden></div>
   <div id="onlineView"><div class="online-card"><h2 class="online-heading">Preparando conexión…</h2></div></div>
@@ -1352,6 +1352,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 let uid='',roomCode='',room=null,role='',unsubscribe=null,connected=false,pending=false,lastRender='',myName=localStorage.getItem('triviaOnlineName')||'Jugador',toast='',spinLock=false;
 let imageCache=new Map(), questionImageTicket=0;
 let authPromise=null;
+let resumeEpoch=0;
 let serverTimeOffset=0, timeoutBusy=false;
 const connectionAlert=document.getElementById('onlineConnectionAlert');
 // Pulsos intermitentes acompasados con los 1,6 segundos del giro online.
@@ -1455,7 +1456,19 @@ function error(e){
 }
 
 function openOnline(){root.hidden=false;document.body.style.overflow='hidden';fitOnline();renderHome();if(uid)tryResume();else authReady().catch(error)}
-function closeOnline(){if(unsubscribe){unsubscribe();unsubscribe=null;}roomCode='';room=null;role='';lastRender='';root.hidden=true;document.body.style.overflow='';history.replaceState(null,'',location.pathname+location.hash)}
+function forgetOnlineRoom(){
+ resumeEpoch++; // Evita reentradas tras una comprobación asíncrona antigua.
+ if(unsubscribe){unsubscribe();unsubscribe=null;}
+ clearLocal();roomCode='';room=null;role='';lastRender='';toast='';spinLock=false;questionImageTicket++;
+ const change=$('onlineSwitchRoom');if(change)change.hidden=true;
+ const url=new URL(location.href);url.searchParams.delete('sala');url.searchParams.delete('v');
+ history.replaceState(null,'',url.pathname+url.search+url.hash);
+}
+function switchOnlineRoom(confirmLeave=true){
+ if(confirmLeave&&roomCode&&!confirm('¿Abandonar esta sala? La partida seguirá guardada y podrás volver con el mismo código.'))return;
+ forgetOnlineRoom();renderHome();
+}
+function closeOnline(){forgetOnlineRoom();root.hidden=true;document.body.style.overflow=''}
 function fitOnline(){
  const vp=window.visualViewport;
  root.style.top=(vp?Math.round(vp.offsetTop):0)+'px';
@@ -1468,7 +1481,8 @@ window.visualViewport?.addEventListener('scroll',fitOnline);
 window.addEventListener('resize',fitOnline);
 view.addEventListener('focusin',e=>{if(e.target.matches('input'))requestAnimationFrame(()=>e.target.scrollIntoView({block:'center',behavior:'smooth'}))});
 $('onlineLaunch').addEventListener('click',openOnline);
-$('onlineExit').addEventListener('click',()=>{if(roomCode&&!confirm('¿Salir de la sala? La partida seguirá guardada y podrás volver con el mismo código.'))return;closeOnline()});
+$('onlineExit').addEventListener('click',()=>{if(roomCode&&!confirm('¿Salir de la partida? No volverás a entrar automáticamente. Podrás regresar con el código de la sala.'))return;closeOnline()});
+$('onlineSwitchRoom').addEventListener('click',()=>switchOnlineRoom());
 onValue(ref(db,'.info/connected'),snap=>{
  connected=!!snap.val();
  statusEl.textContent=connected?'● Conectado a Firebase':'○ Sin conexión con Firebase';
@@ -1479,6 +1493,7 @@ onValue(ref(db,'.info/serverTimeOffset'),snap=>{serverTimeOffset=Number(snap.val
 onAuthStateChanged(auth,user=>{uid=user?.uid||'';if(uid&&!root.hidden)tryResume()});
 function basePage(content){view.innerHTML=content+(toast?`<p class="online-note" id="onlineToast" role="status">${esc(toast)}</p>`:'');}
 function renderHome(){
+ const change=$('onlineSwitchRoom');if(change)change.hidden=true;
  lastRender='home';const invited=normCode(new URL(location.href).searchParams.get('sala'));
  basePage(`<div class="online-card"><div class="online-kicker">⚔️ DUELO EN TIEMPO REAL</div><h2 class="online-heading">${invited?'¡Te han invitado a jugar!':'Dos jugadores.<br>Dos móviles.'}</h2>
  <label class="online-label" for="myOnlineName">Tu nombre</label><input class="online-field" id="myOnlineName" maxlength="24" autocomplete="nickname" value="${esc(myName)}">
@@ -1498,16 +1513,21 @@ async function authReady(){
  uid=res.user.uid;return res.user;
 }
 async function tryResume(){
- if(roomCode)return;
+ if(root.hidden||roomCode)return;
+ const epoch=resumeEpoch;
  const fromUrl=normCode(new URL(location.href).searchParams.get('sala'));
  if(fromUrl && !sessionStorage.getItem('triviaAsked'+fromUrl)){
   const input=$('myRoomCode');if(input)input.value=fromUrl;
  }
- const prior=JSON.parse(localStorage.getItem('triviaOnlineSession')||'null');
+ let prior=null;try{prior=JSON.parse(localStorage.getItem('triviaOnlineSession')||'null')}catch{clearLocal()}
  if(fromUrl&&prior?.code&&fromUrl!==prior.code){clearLocal();return}
  if(prior&&prior.uid===uid&&prior.code){
-  try{const snap=await get(ref(db,'rooms/'+prior.code));if(snap.exists()&&[snap.val().hostUid,snap.val().guestUid].includes(uid)){enter(prior.code);return}}catch{}
-  clearLocal();
+  try{
+   const snap=await get(ref(db,'rooms/'+prior.code));
+   if(root.hidden||roomCode||epoch!==resumeEpoch)return;
+   if(snap.exists()&&[snap.val().hostUid,snap.val().guestUid].includes(uid)){enter(prior.code);return}
+  }catch{}
+  if(!root.hidden&&!roomCode&&epoch===resumeEpoch)clearLocal();
  }
 }
 function nameFromInput(){myName=safeName($('myOnlineName')?.value||myName);localStorage.setItem('triviaOnlineName',myName);return myName}
@@ -1599,12 +1619,16 @@ async function txAt(code,fn){
 }
 async function tx(fn){if(!roomCode||!isReady())return null;pending=true;try{const r=await txAt(roomCode,fn);if(!r.committed)message('La jugada ha cambiado en el otro móvil. Prueba otra vez.');return r}catch(e){error(e);return null}finally{pending=false}}
 function enter(code){
+ if(root.hidden)return;
+ resumeEpoch++;
  if(unsubscribe)unsubscribe();roomCode=code;saveLocal();lastRender='';
- history.replaceState(null,'',location.pathname+'?sala='+code+'&v=9'+location.hash);
+ const change=$('onlineSwitchRoom');if(change)change.hidden=false;
+ history.replaceState(null,'',location.pathname+'?sala='+code+'&v=10'+location.hash);
  unsubscribe=onValue(ref(db,'rooms/'+code),snap=>{
-  if(!snap.exists()){message('La sala ya no existe.');clearLocal();room=null;renderHome();return}
+  if(root.hidden||roomCode!==code)return;
+  if(!snap.exists()){forgetOnlineRoom();renderHome();message('La sala ya no existe.');return}
   room=snap.val();role=room.hostUid===uid?'host':room.guestUid===uid?'guest':'';
-  if(!role){message('No tienes acceso a esta sala.');renderHome();return}
+  if(!role){forgetOnlineRoom();renderHome();message('No tienes acceso a esta sala.');return}
   showRoom();
  },error);
 }
@@ -2019,12 +2043,7 @@ view.addEventListener('click',async e=>{
  if(action==='create')return createRoom('roulette');
  if(action==='createVersus')return createRoom('versus');
  if(action==='join')return joinRoom();
- if(action==='switchRoom'){
-  if(unsubscribe){unsubscribe();unsubscribe=null;}
-  clearLocal();roomCode='';room=null;role='';lastRender='';toast='';
-  history.replaceState(null,'',location.pathname+location.hash);
-  renderHome();return;
- }
+ if(action==='switchRoom')return switchOnlineRoom();
  if(action==='testVibration')return testOnlineVibration();
  if(action==='share'){
   const link=location.href;
@@ -2047,7 +2066,7 @@ view.addEventListener('click',async e=>{
  if(action==='duelManual')return duelManual();
  if(action==='duelContinue')return duelContinue();
  if(action==='finalPick')return finalPick(idx);
- if(action==='new'){if(unsubscribe)unsubscribe();unsubscribe=null;room=null;roomCode='';role='';clearLocal();history.replaceState(null,'',location.pathname+location.hash);renderHome();return}
+ if(action==='new')return switchOnlineRoom(false);
 });
 view.addEventListener('submit',async e=>{
  if(e.target.id!=='onlineAnswerForm'&&e.target.id!=='onlineDuelForm'&&e.target.id!=='vsAnswerForm')return;e.preventDefault();
