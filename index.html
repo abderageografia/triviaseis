@@ -445,6 +445,11 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
 @media(max-height:650px){.online-wheel{width:min(65vw,270px);height:min(65vw,270px);margin:7px auto 10px}.online-card{padding:13px}.online-heading{margin:8px 0}}
 @media(prefers-reduced-motion:reduce){.online-wheel .disc{transition:none}}
 
+
+.online-invitation{background:#203b4b;border:2px solid #61d9db;border-radius:16px;padding:12px;color:#c9f7fa;text-align:center;margin:14px 0;font-size:15px}.online-invitation strong{font-size:24px;letter-spacing:3px;color:#ffe18a;display:block;margin-top:3px}.online-separator{font-size:12px;color:#b9c7e6;text-align:center;margin:19px 0 10px}.online-error-notice{border:1px solid #ff7893;background:#4e1d2b;padding:12px!important;border-radius:12px;color:#fff!important;font-weight:650}
+
+.online-connection-alert{font-size:13px;line-height:1.38;margin:8px 0;padding:10px 12px;border:1px solid #fbbf78;background:#4d351d;color:#fff5d3;border-radius:12px;font-weight:650}
+.online-btn.online-busy{opacity:.80;box-shadow:0 2px 0 #332876}
 </style></head><body><div class="app"><header><h1>TRIVIA<span class="yellow">·</span>SEIS</h1><button id="newgame" class="topbtn" type="button">↻ Nueva partida</button></header>
 <section id="setup" class="pane setup-compact">
   <div class="setup-brand"><span class="setup-kicker">🎯 DUELO DE TRIVIAL</span><span class="setup-total">6.263 preguntas</span></div>
@@ -1289,6 +1294,7 @@ window.TRIVIA_MATCH = match;
 <div id="onlineRoot" class="online-root" hidden aria-live="polite">
   <div class="online-toolbar"><div class="online-logo">🌐 TRIVIA<span>·</span>SEIS <small style="font-size:11px;color:#9ce6e9">ONLINE</small></div><button id="onlineExit" class="online-exit" type="button">Salir</button></div>
   <div class="online-status" id="onlineConnectivity">Conectando…</div>
+  <div id="onlineConnectionAlert" class="online-connection-alert" role="status" hidden></div>
   <div id="onlineView"><div class="online-card"><h2 class="online-heading">Preparando conexión…</h2></div></div>
 </div>
 
@@ -1316,6 +1322,30 @@ const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let uid='',roomCode='',room=null,role='',unsubscribe=null,connected=false,pending=false,lastRender='',myName=localStorage.getItem('triviaOnlineName')||'Jugador',toast='',spinLock=false;
 let imageCache=new Map(), questionImageTicket=0;
+let authPromise=null;
+const connectionAlert=document.getElementById('onlineConnectionAlert');
+function networkNotice(t){
+ connectionAlert.hidden=!t;connectionAlert.textContent=t||'';
+}
+function working(action,yes){
+ const b=view.querySelector(`[data-action="${action}"]`);
+ if(!b)return;
+ if(yes){if(!b.dataset.startLabel)b.dataset.startLabel=b.textContent;b.textContent='⏳ Conectando con Firebase…';b.classList.add('online-busy');b.disabled=true}
+ else{b.textContent=b.dataset.startLabel||b.textContent;b.classList.remove('online-busy');b.disabled=false}
+}
+function bounded(p,ms,errorText){
+ let timer;return Promise.race([Promise.resolve(p),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(errorText)),ms)})]).finally(()=>clearTimeout(timer));
+}
+async function waitRealtime(){
+ if(connected)return;
+ if(!navigator.onLine)throw new Error('Este móvil aparece sin conexión a Internet. Prueba otra red.');
+ await bounded(new Promise((resolve,reject)=>{
+   let stop=null,finished=false;
+   const done=(err)=>{if(finished)return;finished=true;stop?.();err?reject(err):resolve()};
+   stop=onValue(ref(db,'.info/connected'),snap=>{if(snap.val()===true)done()},e=>done(e));
+ }),9000,'Firebase Realtime Database no consigue conectarse desde este móvil. Abre el enlace en Chrome normal, comprueba la red y vuelve a intentarlo.');
+}
+
 const statusEl=$('onlineConnectivity');
 const randomCode=()=>{const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',values=new Uint32Array(6);crypto.getRandomValues(values);return [...values].map(v=>alphabet[v%alphabet.length]).join('')};
 const other=x=>x==='host'?'guest':'host';
@@ -1328,8 +1358,15 @@ const isReady=()=>connected && !pending;
 const safeName=v=>String(v||'').trim().replace(/[<>]/g,'').slice(0,24)||'Jugador';
 function saveLocal(){localStorage.setItem('triviaOnlineSession',JSON.stringify({code:roomCode,uid}));}
 function clearLocal(){localStorage.removeItem('triviaOnlineSession')}
-function message(t){toast=t;const n=$('onlineToast');if(n)n.textContent=t}
-function error(e){console.warn(e);message('No se pudo completar la acción. '+(e?.code==='PERMISSION_DENIED'?'Revisa las reglas de Firebase y el acceso anónimo.':(e?.message||'Comprueba tu conexión.')))}
+function message(t){toast=t;let n=$('onlineToast');if(!n){n=document.createElement('p');n.id='onlineToast';n.className='online-note online-error-notice';n.setAttribute('role','status');view.appendChild(n)}n.textContent=t}
+function error(e){
+ console.warn('TRIVIA-SEIS Firebase:',e);
+ const code=String(e?.code||'').toLowerCase();
+ const detail=code.includes('permission-denied')||code.includes('permission_denied')?'Firebase ha denegado el acceso a esta sala: comprueba las reglas.':code.includes('auth/operation-not-allowed')?'Activa Authentication → Sign-in method → Anonymous.':String(e?.message||'Comprueba la conexión e inténtalo de nuevo.');
+ const text='No se pudo conectar. '+detail;
+ networkNotice(text);message(text);
+}
+
 function openOnline(){root.hidden=false;document.body.style.overflow='hidden';fitOnline();renderHome();if(uid)tryResume();else authReady().catch(error)}
 function closeOnline(){if(unsubscribe){unsubscribe();unsubscribe=null;}roomCode='';room=null;role='';lastRender='';root.hidden=true;document.body.style.overflow='';history.replaceState(null,'',location.pathname+location.hash)}
 function fitOnline(){
@@ -1345,19 +1382,30 @@ window.addEventListener('resize',fitOnline);
 view.addEventListener('focusin',e=>{if(e.target.matches('input'))requestAnimationFrame(()=>e.target.scrollIntoView({block:'center',behavior:'smooth'}))});
 $('onlineLaunch').addEventListener('click',openOnline);
 $('onlineExit').addEventListener('click',()=>{if(roomCode&&!confirm('¿Salir de la sala? La partida seguirá guardada y podrás volver con el mismo código.'))return;closeOnline()});
-onValue(ref(db,'.info/connected'),snap=>{connected=!!snap.val();statusEl.textContent=connected?'● Conectado a Firebase':'○ Sin conexión · esperando';statusEl.style.color=connected?'#87e8db':'#ffc478';});
+onValue(ref(db,'.info/connected'),snap=>{
+ connected=!!snap.val();
+ statusEl.textContent=connected?'● Conectado a Firebase':'○ Sin conexión con Firebase';
+ statusEl.style.color=connected?'#87e8db':'#ffc478';
+ if(connected && connectionAlert.textContent.startsWith('Firebase Realtime Database no consigue'))networkNotice('');
+},e=>{connected=false;statusEl.textContent='⚠ Error de conexión';networkNotice('Firebase ha rechazado la conexión: '+String(e?.code||e?.message||'error'));});
 onAuthStateChanged(auth,user=>{uid=user?.uid||'';if(uid&&!root.hidden)tryResume()});
 function basePage(content){view.innerHTML=content+(toast?`<p class="online-note" id="onlineToast" role="status">${esc(toast)}</p>`:'');}
 function renderHome(){
- lastRender='home';
- basePage(`<div class="online-card"><div class="online-kicker">⚔️ DUELO EN TIEMPO REAL</div><h2 class="online-heading">Dos jugadores.<br>Dos móviles.</h2>
+ lastRender='home';const invited=normCode(new URL(location.href).searchParams.get('sala'));
+ basePage(`<div class="online-card"><div class="online-kicker">⚔️ DUELO EN TIEMPO REAL</div><h2 class="online-heading">${invited?'¡Te han invitado a jugar!':'Dos jugadores.<br>Dos móviles.'}</h2>
  <label class="online-label" for="myOnlineName">Tu nombre</label><input class="online-field" id="myOnlineName" maxlength="24" autocomplete="nickname" value="${esc(myName)}">
- <button class="online-btn secondary" data-action="create">✦ Crear sala</button><p class="online-note" style="text-align:center">O introduce el código que te envíen:</p>
- <label class="online-label" for="myRoomCode">Código de seis caracteres</label><input class="online-field" id="myRoomCode" maxlength="6" autocapitalize="characters" spellcheck="false" placeholder="ABC234" value="${esc(new URL(location.href).searchParams.get('sala')||'')}">
- <button class="online-btn" data-action="join">Unirme a la partida →</button>
- <p class="online-note">No necesitas registrarte. Tu rival debe abrir este mismo HTML publicado en GitHub Pages.</p></div>`);
+ ${invited?`<p class="online-invitation">Código de invitación: <strong>${esc(invited)}</strong></p>`:'<p class="online-note" style="text-align:center">¿Te han enviado un código? Introdúcelo aquí:</p>'}
+ <label class="online-label" for="myRoomCode">Código de seis caracteres</label><input class="online-field" id="myRoomCode" maxlength="6" autocapitalize="characters" spellcheck="false" placeholder="ABC234" value="${esc(invited)}">
+ <button class="online-btn" data-action="join">${invited?'✓ UNIRME A ESTA SALA':'UNIRME A LA PARTIDA →'}</button>
+ <div class="online-separator">O crea una sala nueva para invitar a otra persona</div><button class="online-btn ghost" data-action="create">✦ Crear sala nueva</button>
+ <p class="online-note">Para jugar los dos, solo el primer móvil debe crear la sala. El segundo tiene que unirse con el código.</p></div>`);
 }
-async function authReady(){if(auth.currentUser){uid=auth.currentUser.uid;return auth.currentUser}if(!uid){const r=await signInAnonymously(auth);uid=r.user.uid}return auth.currentUser;}
+async function authReady(){
+ if(auth.currentUser){uid=auth.currentUser.uid;return auth.currentUser}
+ if(!authPromise)authPromise=signInAnonymously(auth).finally(()=>{authPromise=null});
+ const res=await bounded(authPromise,10000,'Firebase Authentication no responde. Comprueba que Anonymous esté activado y que el móvil tenga acceso a Internet.');
+ uid=res.user.uid;return res.user;
+}
 async function tryResume(){
  if(roomCode)return;
  const fromUrl=normCode(new URL(location.href).searchParams.get('sala'));
@@ -1373,26 +1421,62 @@ async function tryResume(){
 }
 function nameFromInput(){myName=safeName($('myOnlineName')?.value||myName);localStorage.setItem('triviaOnlineName',myName);return myName}
 async function createRoom(){
- if(pending)return; pending=true;toast='';
- try{await authReady();const name=nameFromInput();
-  for(let i=0;i<4;i++){
-   const code=randomCode();const now=Date.now();
-   const fresh={hostUid:uid,hostName:name,createdAt:now,updatedAt:now,rev:0,status:'waiting',phase:'waiting',turn:'host',cat:-1,qid:-1,used:{},players:{host:newPlayer(),guest:newPlayer()}};
-   try{await set(ref(db,'rooms/'+code),fresh);enter(code);pending=false;return}catch(e){if(i===3)throw e}
-  }
- }catch(e){error(e)}finally{pending=false}
+ if(pending)return;
+ pending=true;toast='';networkNotice('');working('create',true);
+ try{
+   await authReady();
+   await waitRealtime();
+   const name=nameFromInput();
+   for(let i=0;i<4;i++){
+     const code=randomCode(),now=Date.now();
+     const fresh={hostUid:uid,hostName:name,createdAt:now,updatedAt:now,rev:0,status:'waiting',phase:'waiting',turn:'host',cat:-1,qid:-1,used:{},players:{host:newPlayer(),guest:newPlayer()}};
+     try{await bounded(set(ref(db,'rooms/'+code),fresh),12000,'La base de datos no ha confirmado la creación de la sala.');enter(code);return}catch(e){if(i===3)throw e}
+   }
+ }catch(e){error(e)}finally{pending=false;working('create',false)}
 }
 async function joinRoom(){
- if(pending)return;pending=true;toast='';
- try{await authReady();const code=normCode($('myRoomCode')?.value);if(code.length!==6){message('El código tiene seis caracteres.');return}
-  const name=nameFromInput(); const r=ref(db,'rooms/'+code);
-  let snap=null;try{snap=await get(r)}catch{}
-  if(snap?.exists()&&[snap.val().hostUid,snap.val().guestUid].includes(uid)){enter(code);return}
-  await set(ref(db,`rooms/${code}/guestUid`),uid);
-  await update(r,{guestName:name});
-  await txAt(code,d=>{if(d.status==='waiting'&&d.guestUid===uid&&d.guestName){d.status='playing';d.phase='spin'}return d});
-  enter(code);
- }catch(e){message('No se pudo entrar. Comprueba el código, que haya una plaza libre y que las reglas estén publicadas.');console.warn(e)}finally{pending=false}
+ if(pending)return;
+ pending=true;toast='';networkNotice('');working('join',true);
+ try{
+   const code=normCode($('myRoomCode')?.value);
+   if(code.length!==6){message('Introduce los seis caracteres del código que muestra el primer móvil.');return}
+   const name=nameFromInput();
+   await authReady();
+   await waitRealtime();
+   const r=ref(db,'rooms/'+code);
+   let snap=null;
+   try{snap=await bounded(get(r),10000,'Firebase no ha respondido al buscar la sala.')}catch(e){
+     // Antes de inscribirse, las reglas privadas impiden leer una sala ajena.
+     if(!String(e?.code||'').toLowerCase().includes('permission'))throw e;
+   }
+   if(snap?.exists()&&[snap.val().hostUid,snap.val().guestUid].includes(uid)){
+     if(snap.val().guestUid===uid&&snap.val().status==='waiting'){
+       await bounded(set(ref(db,'rooms/'+code+'/guestName'),name),10000,'No se ha podido guardar tu nombre.');
+       await bounded(txAt(code,d=>{if(d?.status==='waiting'&&d.guestUid===uid){d.status='playing';d.phase='spin'}return d}),12000,'La sala no ha confirmado el comienzo de la partida.');
+     }
+     enter(code);return;
+   }
+   // La plaza libre puede reservarse sin permiso de lectura previo.
+   try{await bounded(set(ref(db,'rooms/'+code+'/guestUid'),uid),12000,'Firebase no ha confirmado tu incorporación a la sala.')}catch(e){
+     let again=null;try{again=await bounded(get(r),5000,'No se puede leer la sala.')}catch{}
+     if(!again?.exists()||again.val().guestUid!==uid){
+       const reason=String(e?.code||'').toLowerCase().includes('permission')
+         ?'Firebase no autoriza entrar en la sala. Comprueba que el código sea de una sala recién creada y que estén publicadas las reglas correctas.'
+         :'La segunda plaza no se ha podido reservar. Comprueba la conexión e inténtalo de nuevo.';
+       throw new Error(reason);
+     }
+   }
+   await bounded(set(ref(db,'rooms/'+code+'/guestName'),name),10000,'La conexión se ha interrumpido al guardar tu nombre.');
+   const result=await bounded(txAt(code,d=>{
+     if(!d||d.guestUid!==uid)return;
+     if(d.status==='waiting'&&d.guestName){d.status='playing';d.phase='spin'}
+     return d;
+   }),12000,'No se pudo iniciar la partida en Firebase.');
+   if(!result.committed)throw new Error('El servidor no confirmó el inicio. Prueba a unirte de nuevo.');
+   const after=await bounded(get(r),10000,'La sala no ha confirmado el estado de la partida.');
+   if(!after.exists()||after.val().guestUid!==uid||after.val().status!=='playing')throw new Error('Te has unido, pero la partida no ha empezado. Pulsa «Unirme» de nuevo.');
+   enter(code);
+ }catch(e){error(e)}finally{pending=false;working('join',false)}
 }
 async function txAt(code,fn){
  const rr=ref(db,'rooms/'+code);
@@ -1452,7 +1536,7 @@ function showRoom(){
  if(spinLock && room.phase!=='spin')return;
  const r=room;
  if(r.status==='waiting'||!r.guestUid||!r.guestName){
-  lastRender=currentVisibleKey(r);basePage(`<div class="online-card"><div class="online-kicker">SALA CREADA</div><h2 class="online-heading">Esperando al rival…</h2><span class="online-code">${esc(roomCode)}</span><button class="online-btn secondary" data-action="share">🔗 Compartir invitación</button><p class="online-note">Tu rival debe entrar desde su móvil, pulsar «Jugar online» e introducir el código. Puedes salir y volver a entrar con el mismo dispositivo.</p></div>`);return
+  lastRender=currentVisibleKey(r);basePage(`<div class="online-card"><div class="online-kicker">${role==='host'?'SALA CREADA':'SALA LOCALIZADA'}</div><h2 class="online-heading">${role==='host'?'Esperando al rival…':'Esperando a que se complete la unión…'}</h2><span class="online-code">${esc(roomCode)}</span>${role==='host'?'<button class="online-btn secondary" data-action="share">🔗 Compartir invitación</button>':''}<p class="online-note">${role==='host'?'Solo tú debes crear la sala. El segundo móvil tiene que pulsar «Unirme a la partida» e introducir este mismo código.':'Ya tienes una plaza en esta sala. Si no empieza, prueba a entrar otra vez con el mismo código.'}</p><button class="online-btn ghost" data-action="switchRoom">↩ Cambiar sala / unirme con un código</button></div>`);return
  }
  const key=currentVisibleKey(r);if(key===lastRender)return;lastRender=key;
  let html=roomHeader(r),me=r.players[role],active=isActor();
@@ -1608,6 +1692,12 @@ view.addEventListener('click',async e=>{
  const action=btn.dataset.action; const idx=Number(btn.dataset.pick);
  if(action==='create')return createRoom();
  if(action==='join')return joinRoom();
+ if(action==='switchRoom'){
+  if(unsubscribe){unsubscribe();unsubscribe=null;}
+  clearLocal();roomCode='';room=null;role='';lastRender='';toast='';
+  history.replaceState(null,'',location.pathname+location.hash);
+  renderHome();return;
+ }
  if(action==='share'){
   const link=location.href;
   try{if(navigator.share)await navigator.share({title:'TRIVIA·SEIS',text:'Entra en mi sala '+roomCode,url:link});else{await navigator.clipboard.writeText(link);message('Enlace copiado.')}}catch{}return
