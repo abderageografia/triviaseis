@@ -1352,6 +1352,7 @@ function expireQuestionState(r){
  if(r.phase==='duel'){
   const answers=r.duelAnswers||{};
   r.duelCorrect={host:!!answers.host&&window.TRIVIA_MATCH(answers.host,BANK[r.qid]),guest:!!answers.guest&&window.TRIVIA_MATCH(answers.guest,BANK[r.qid])};
+  r.duelExpired={host:!answers.host,guest:!answers.guest};
   r.duelAnswers={host:answers.host||'Tiempo agotado',guest:answers.guest||'Tiempo agotado'};
   r.phase='duelReview';
  }else if(r.phase==='question'||r.phase==='finalQuestion'){
@@ -1633,16 +1634,16 @@ function showRoom(){
   ${r.hint?`<p class="online-note">💡 La respuesta empieza por «${esc(BANK[r.qid][3].slice(0,2))}…»</p>`:''}`:'<p class="online-note">Tu rival está respondiendo… La solución aparecerá después.</p>'}</div>`;
  }else if(r.phase==='review'||r.phase==='finalReview'){
   const result=r.result||{correct:false,answer:''},finale=r.phase==='finalReview';
-  html+=`<div class="online-card"><div class="online-special">${finale?'👑 GRAN FINAL':'RESULTADO DE LA PREGUNTA'}</div>${qBlock(r)}<div class="online-feedback ${result.correct?'ok':'no'}">${result.correct?'✓ ¡CORRECTO!':'✕ INCORRECTO'}<small>${result.correct?'La respuesta se contará como válida.':'Respuesta correcta: '+esc(BANK[r.qid][3])}</small></div>
+  html+=`<div class="online-card"><div class="online-special">${finale?'👑 GRAN FINAL':'RESULTADO DE LA PREGUNTA'}</div>${qBlock(r)}<div class="online-feedback ${result.correct?'ok':'no'}">${result.correct?'✓ ¡CORRECTO!':result.expired?'⌛ TIEMPO AGOTADO':'✕ INCORRECTO'}<small>${result.correct?'La respuesta se contará como válida.':'Respuesta correcta: '+esc(BANK[r.qid][3])}</small></div>
   <p class="online-note">${esc(nameOf(r.turn))} respondió: «${esc(result.answer)}».</p>
-  ${active?`${!result.correct?'<button data-action="manual" class="online-btn ghost small">Mi respuesta también era válida</button><button data-action="retry" class="online-btn ghost small" '+(me.jokers<=0||finale?'disabled':'')+'>🃏 Reintentar con comodín</button>':''}<button data-action="continue" class="online-btn">CONTINUAR →</button>`:'<p class="online-note">Esperando a que continúe tu rival…</p>'}</div>`;
+  ${active?`${!result.correct&&!result.expired?'<button data-action="manual" class="online-btn ghost small">Mi respuesta también era válida</button><button data-action="retry" class="online-btn ghost small" '+(me.jokers<=0||finale?'disabled':'')+'>🃏 Reintentar con comodín</button>':''}<button data-action="continue" class="online-btn">CONTINUAR →</button>`:'<p class="online-note">Esperando a que continúe tu rival…</p>'}</div>`;
  }else if(r.phase==='duel'){
   const answer=r.duelAnswers?.[role],both=r.duelAnswers?.host&&r.duelAnswers?.guest;
   html+=`<div class="online-card"><div class="online-special">⚔️ DUELO SORPRESA</div><h2 class="online-heading">Los dos respondéis</h2>${qBlock(r)}
   ${answer?'<p class="online-note">Tu respuesta está enviada. Esperando al rival…</p>':`<form id="onlineDuelForm"><label class="online-label" for="onlineAnswer">Tu respuesta (no se mostrará hasta que ambos contestéis)</label><input id="onlineAnswer" class="online-field" required autocomplete="off" autocorrect="off"><button class="online-btn" type="submit">ENVIAR RESPUESTA</button></form>`}</div>`;
  }else if(r.phase==='duelReview'){
   const d=r.duelAnswers||{},correct=r.duelCorrect||{};
-  html+=`<div class="online-card"><div class="online-special">⚔️ RESULTADO DEL DUELO</div><h2 class="online-heading">${esc(BANK[r.qid][2])}</h2><div class="online-feedback ${correct[role]?'ok':'no'}">${correct.host&&correct.guest?'¡EMPATE!':correct.host?'Gana '+esc(r.hostName):correct.guest?'Gana '+esc(r.guestName):'Nadie acertó'}<small>Respuesta: ${esc(BANK[r.qid][3])}</small></div><p class="online-note">${esc(r.hostName)}: ${esc(d.host)} ${correct.host?'✓':'✕'}</p><p class="online-note">${esc(r.guestName)}: ${esc(d.guest)} ${correct.guest?'✓':'✕'}</p><button class="online-btn ghost small" data-action="duelManual" ${correct[role]?'disabled':''}>Mi respuesta también era válida</button>${active?'<button class="online-btn" data-action="duelContinue">CONTINUAR →</button>':'<p class="online-note">Esperando a quien inició el duelo…</p>'}</div>`;
+  html+=`<div class="online-card"><div class="online-special">⚔️ RESULTADO DEL DUELO</div><h2 class="online-heading">${esc(BANK[r.qid][2])}</h2><div class="online-feedback ${correct[role]?'ok':'no'}">${correct.host&&correct.guest?'¡EMPATE!':correct.host?'Gana '+esc(r.hostName):correct.guest?'Gana '+esc(r.guestName):'Nadie acertó'}<small>Respuesta: ${esc(BANK[r.qid][3])}</small></div><p class="online-note">${esc(r.hostName)}: ${esc(d.host)} ${correct.host?'✓':'✕'}</p><p class="online-note">${esc(r.guestName)}: ${esc(d.guest)} ${correct.guest?'✓':'✕'}</p><button class="online-btn ghost small" data-action="duelManual" ${correct[role]||r.duelExpired?.[role]?'disabled':''}>Mi respuesta también era válida</button>${active?'<button class="online-btn" data-action="duelContinue">CONTINUAR →</button>':'<p class="online-note">Esperando a quien inició el duelo…</p>'}</div>`;
  }else if(r.phase==='finalPick'){
   const finalist=r.finalist||other(r.turn);
   html+=`<div class="online-card"><div class="online-special">👑 GRAN FINAL</div><h2 class="online-heading">${esc(nameOf(finalist))} está a una pregunta de ganar</h2><p class="online-note">El rival elige una de estas dos categorías para la pregunta difícil.</p>
@@ -1740,12 +1741,13 @@ async function answer(text,duel=false){if(!text.trim())return;
 async function handleJoker(type){await tx(r=>{
  if(r.turn!==role||!['question','review'].includes(r.phase))return;
  const p=r.players[role];if(p.jokers<1)return;
+ if(type==='retry'&&r.result?.expired)return;
  if(type==='hint'&&r.phase==='question'&&!r.hint){p.jokers--;r.hint=true;return r}
  if((type==='change'&&r.phase==='question')||(type==='retry'&&r.phase==='review'&&!r.result?.correct)){
   const id=sampleFrom(r,r.cat);if(id<0)return;p.jokers--;r.qid=id;(r.used ??= {})[id]=true;r.phase='question';r.hint=false;r.result=null;startQuestionClock(r);return r;
  }
 })}
-async function manual(){await tx(r=>{if(r.turn!==role||!['review','finalReview'].includes(r.phase)||!r.result||r.result.correct)return;r.result.correct=true;r.result.manual=true;return r})}
+async function manual(){await tx(r=>{if(r.turn!==role||!['review','finalReview'].includes(r.phase)||!r.result||r.result.correct||r.result.expired)return;r.result.correct=true;r.result.manual=true;return r})}
 async function imageFailed(){await tx(r=>{if(r.turn!==role||!['question','finalQuestion'].includes(r.phase))return;const id=sampleFrom(r,r.cat);if(id<0)return;r.qid=id;(r.used ??= {})[id]=true;r.hint=false;startQuestionClock(r);return r})}
 async function continueQuestion(){await tx(r=>{
  if(r.turn!==role||!['review','finalReview'].includes(r.phase))return;
@@ -1762,7 +1764,7 @@ async function continueQuestion(){await tx(r=>{
  }
  r.result=null;r.bonus=null;r.topic='';r.qid=-1;return r;
 })}
-async function duelManual(){await tx(r=>{if(r.phase!=='duelReview'||!r.duelAnswers?.[role]||r.duelCorrect?.[role])return;r.duelCorrect[role]=true;return r})}
+async function duelManual(){await tx(r=>{if(r.phase!=='duelReview'||!r.duelAnswers?.[role]||r.duelCorrect?.[role]||r.duelExpired?.[role])return;r.duelCorrect[role]=true;return r})}
 async function duelContinue(){await tx(r=>{
  if(r.turn!==role||r.phase!=='duelReview')return;
  const c=r.duelCorrect||{};
