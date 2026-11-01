@@ -273,7 +273,7 @@ function render(){
 }
 function candidates(cat,level){
  const eligible=state.mode==='classic'?i=>state.pips[i]<3:()=>true;
- const pool=BANK.map((q,i)=>(q[0]===byCat[cat]&&!q[8]?.surprise&&!state.used.includes(i)&&(!q[8]?.geo_visual)&&(!q[8]||!!q[8].src||!!q[8].wiki||!!q[8].mythology)&&(!level||level==='both'||q[1]===level))?i:-1).filter(i=>i>=0);
+ const pool=BANK.map((q,i)=>(q[0]===byCat[cat]&&!q[8]?.surprise&&!state.used.includes(i)&&(!q[8]?.geo_visual)&&(!q[8]||!!q[8].src||!!q[8].wiki||!!q[8].mythology||!!q[8].special_choice)&&(!level||level==='both'||q[1]===level))?i:-1).filter(i=>i>=0);
  return pool;
 }
 function createSoloOptions(q){
@@ -285,7 +285,10 @@ function startQuestion(){
  if(!pool.length){state.stage='wheel';save();render();return}
  const specials=pool.filter(i=>BANK[i]?.[8]?.special_choice);
  const surpriseId=!state.risk?(window.TRIVIA_SURPRISE_PICK?.(state.used,!!state.surpriseSeen)??-1):-1;
- const id=surpriseId>=0?surpriseId:(specials.length&&Math.random()<.12?specials[Math.floor(Math.random()*specials.length)]:pool[Math.floor(Math.random()*pool.length)]);
+ const regular=pool.filter(i=>!BANK[i]?.[8]?.special_choice);
+ const take=a=>a[Math.floor(Math.random()*a.length)];
+ const showSpecial=specials.length>0&&(!regular.length||Math.random()<.12);
+ const id=surpriseId>=0?surpriseId:(showSpecial?take(specials):take(regular.length?regular:specials));
  if(surpriseId>=0)state.surpriseSeen=true;
  state.qid=id;state.used.push(id);state.asked++;state.stage='question';state.seconds=state.mode==='sprint'?35:BANK[id][1]==='dificil'?60:45;state.deadline=Date.now()+state.seconds*1000;
  // La respuesta escrita es la regla. Las elecciones son una excepción difícil.
