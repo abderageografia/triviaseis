@@ -792,14 +792,22 @@ function retryAnswer(){
 function pendingUnfinished(p){return p.done.map((x,i)=>x<3?i:-1).filter(i=>i>=0)}
 function tryBonus(){
  const p=players[turn],have=cheeseCount(p),missing=6-have;
- // Solo se ofrecen desafíos en los que existe premio y hay quesitos que arriesgar.
- if(have<1||missing<2||askedThisSession-lastSpecialAt<4||Math.random()>=.105)return false;
- const amount=(have>=2&&missing>=3&&Math.random()<.32)?3:2;
- challenge={amount,loss:amount===3?2:1};
+ // Un desafío opcional puede permitir robar al rival un quesito completo.
+ if(have<1||missing<1||askedThisSession-lastSpecialAt<4||Math.random()>=.135)return false;
+ const rival=players[1-turn];
+ const canSteal=rival.done[selectedCategory]===3&&p.done[selectedCategory]<3;
+ const steal=canSteal&&Math.random()<.65;
+ const amount=steal?1:(have>=2&&missing>=3&&Math.random()<.32)?3:2;
+ challenge=steal?{amount:1,loss:1,stealCategory:selectedCategory}:{amount,loss:amount===3?2:1};
  lastSpecialAt=askedThisSession;
  stage='offer';
- $('bonusTitle').textContent='¡'+amount+' QUESITOS EN JUEGO!';
- $('bonusDescription').textContent='Si aciertas una pregunta difícil, ganas '+amount+' quesitos que te falten. Si fallas, pierdes '+challenge.loss+' quesito'+(challenge.loss===1?'':'s')+' que ya tengas. Puedes rechazar el riesgo.';
+ if(steal){
+  $('bonusTitle').textContent='⚔️ ¡ROBO DE QUESITO!';
+  $('bonusDescription').textContent='Si respondes bien una pregunta difícil, le quitas a '+rival.name+' el quesito de '+cats[selectedCategory].name+' y lo consigues tú. Si fallas, pierdes un quesito propio. Puedes rechazar el desafío.';
+ }else{
+  $('bonusTitle').textContent='¡'+amount+' QUESITOS EN JUEGO!';
+  $('bonusDescription').textContent='Si aciertas una pregunta difícil, ganas '+amount+' quesitos que te falten. Si fallas, pierdes '+challenge.loss+' quesito'+(challenge.loss===1?'':'s')+' que ya tengas. Puedes rechazar el riesgo.';
+ }
  $('bonusOffer').classList.remove('hide');
  saveGame();return true;
 }
@@ -815,6 +823,18 @@ function declineBonus(){
 }
 function awardBonus(){
  const p=players[turn],wanted=challenge.amount;
+ if(Number.isInteger(challenge.stealCategory)){
+  const cat=challenge.stealCategory;
+  const otherPlayer=players[1-turn];
+  if(otherPlayer.done[cat]===3){
+   otherPlayer.done[cat]=0;p.done[cat]=3;
+   $('cheeseReward').textContent='⚔️ ¡QUESITO ROBADO! '+cats[cat].emoji+' '+cats[cat].name+' cambia de propietario.';
+  }else{
+   p.done[cat]=Math.min(3,p.done[cat]+1);
+   $('cheeseReward').textContent='⚔️ El rival ya no tenía ese quesito. Ganas una sección.';
+  }
+  $('cheeseReward').classList.remove('hide');burst();saveGame();return;
+ }
  let choices=pendingUnfinished(p);
  // Priorizar el color sorteado; el resto se reparte sin hacer perder un quesito ya obtenido.
  choices=choices.filter(x=>x!==selectedCategory);
@@ -1801,16 +1821,19 @@ function showRoom(){
  }else if(r.phase==='bonusChoice'){
   html+=`<div class="online-card"><div class="online-special">⚡ PREGUNTA DE ALTO RIESGO</div><h2 class="online-heading">${r.bonus?.count} quesitos en juego</h2><p class="online-note">Si aciertas, completas ${r.bonus?.count} quesitos. Si fallas, pierdes ${r.bonus?.loss} de los que ya tienes.</p>
   ${active?'<button class="online-btn" data-action="acceptBonus">ACEPTAR EL RIESGO</button><button class="online-btn ghost" data-action="declineBonus">Pregunta normal</button>':'<p class="online-note">El rival decide si acepta…</p>'}</div>`;
+ }else if(r.phase==='stealChoice'){
+  html+=`<div class="online-card"><div class="online-special">⚔️ DESAFÍO DE ROBO</div><h2 class="online-heading">¿Arrebatar el quesito de ${esc(labels[r.cat])}?</h2><p class="online-note">Si aciertas una pregunta difícil, el quesito completo pasa de tu rival a ti. Si fallas, pierdes una sección propia y el turno. Puedes rechazar el reto sin penalización.</p>
+  ${active?'<button class="online-btn" data-action="acceptSteal">⚔️ INTENTAR EL ROBO</button><button class="online-btn ghost" data-action="declineSteal">Pregunta normal</button>':'<p class="online-note">El rival decide si acepta el reto…</p>'}</div>`;
  }else if(r.phase==='question'||r.phase==='finalQuestion'){
   const finale=r.phase==='finalQuestion';
-  html+=`<div class="online-card">${finale?'<div class="online-special">👑 GRAN FINAL</div>':''}${qBlock(r)}
+  html+=`<div class="online-card">${finale?'<div class="online-special">👑 GRAN FINAL</div>':r.steal?.accepted?'<div class="online-special">⚔️ PREGUNTA DE ROBO · DIFÍCIL</div>':''}${qBlock(r)}
   ${active?`<form id="onlineAnswerForm"><label for="onlineAnswer" class="online-label">Tu respuesta</label><input id="onlineAnswer" class="online-field" placeholder="Escribe aquí…" autocomplete="off" autocorrect="off" autocapitalize="sentences" required><button type="submit" class="online-btn">COMPROBAR ✓</button></form>
   <div class="online-shields"><span>🃏 ${me.jokers} comodines</span><span>🔥 ${me.streak} aciertos seguidos</span></div>
   ${finale?'':`<div class="online-flex"><button class="online-btn ghost small" data-action="hint" ${me.jokers<=0||r.hint?'disabled':''}>💡 Pista</button><button class="online-btn ghost small" data-action="change" ${me.jokers<=0?'disabled':''}>🔄 Cambiar</button></div>`}
   ${r.hint?`<p class="online-note">💡 La respuesta empieza por «${esc(BANK[r.qid][3].slice(0,2))}…»</p>`:''}`:'<p class="online-note">Tu rival está respondiendo… La solución aparecerá después.</p>'}</div>`;
  }else if(r.phase==='review'||r.phase==='finalReview'){
   const result=r.result||{correct:false,answer:''},finale=r.phase==='finalReview';
-  html+=`<div class="online-card"><div class="online-special">${finale?'👑 GRAN FINAL':'RESULTADO DE LA PREGUNTA'}</div>${qBlock(r)}<div class="online-feedback ${result.correct?'ok':'no'}">${result.correct?'✓ ¡CORRECTO!':result.expired?'⌛ TIEMPO AGOTADO':'✕ INCORRECTO'}<small>${result.correct?'La respuesta se contará como válida.':'Respuesta correcta: '+esc(BANK[r.qid][3])}</small></div>
+  html+=`<div class="online-card"><div class="online-special">${finale?'👑 GRAN FINAL':r.steal?.accepted?'⚔️ RESULTADO DEL ROBO':'RESULTADO DE LA PREGUNTA'}</div>${qBlock(r)}<div class="online-feedback ${result.correct?'ok':'no'}">${result.correct?'✓ ¡CORRECTO!':result.expired?'⌛ TIEMPO AGOTADO':'✕ INCORRECTO'}<small>${result.correct?'La respuesta se contará como válida.':'Respuesta correcta: '+esc(BANK[r.qid][3])}</small></div>
   <p class="online-note">${esc(nameOf(r.turn))} respondió: «${esc(result.answer)}».</p>
   ${active?`${!result.correct&&!result.expired?'<button data-action="retry" class="online-btn ghost small" '+(me.jokers<=0||finale?'disabled':'')+'>🃏 Reintentar con comodín</button>':''}<button data-action="continue" class="online-btn">CONTINUAR →</button>`:'<p class="online-note">Esperando a que continúe tu rival…</p>'}</div>`;
  }else if(r.phase==='duel'){
@@ -2104,7 +2127,7 @@ function topicChoices(r,cat){
 }
 function startQuestion(r,cat,topic=''){
  const f=topic?tags[cat].find(([s])=>s===topic)?.[1]:null;
- let id=sampleFrom(r,cat,r.bonus?.accepted?'dificil':'both',f?(q=>f.test(q[2]+' '+(q[6]||''))):null);
+ let id=sampleFrom(r,cat,r.bonus?.accepted||r.steal?.accepted?'dificil':'both',f?(q=>f.test(q[2]+' '+(q[6]||''))):null);
  if(id<0)id=sampleFrom(r,cat,'both');if(id<0)return false;
  r.qid=id;r.cat=cat;r.topic=topic;(r.used ??= {})[id]=true;r.phase='question';r.hint=false;r.result=null;startQuestionClock(r);
  return true;
@@ -2121,12 +2144,15 @@ async function doSpin(protectedSpin=false){
   if(r.phase!=='spin'||r.turn!==role)return;
   const me=r.players[role];let choices=[0,1,2,3,4,5];
   if(protectedSpin){if(me.shields<1)return;me.shields--;choices=choices.filter(i=>me.done[i]<3&&i!==me.lastCat);if(!choices.length)choices=[0,1,2,3,4,5].filter(i=>me.done[i]<3)}
-  const cat=choices[Math.floor(Math.random()*choices.length)];r.cat=cat;me.lastCat=cat;r.bonus=null;r.topic='';r.result=null;
+  const cat=choices[Math.floor(Math.random()*choices.length)];r.cat=cat;me.lastCat=cat;r.bonus=null;r.steal=null;r.topic='';r.result=null;
   const roll=protectedSpin?1:Math.random();
   if(roll<.035){r.phase='choiceCategory';r.options=[cat,...[0,1,2,3,4,5].filter(i=>i!==cat)].sort(()=>Math.random()-.5).slice(0,2);return r}
   if(roll<.085){const opts=topicChoices(r,cat);if(opts){r.phase='choiceTopic';r.options=opts;return r}}
   if(roll<.13){const id=sampleFrom(r,cat);if(id>=0){r.qid=id;(r.used ??= {})[id]=true;r.phase='duel';r.duelAnswers={};r.duelCorrect={};startQuestionClock(r);return r}}
   if(roll<.17&&complete(me)>0){r.bonus={count:Math.random()<.65?2:3,loss:1,accepted:false};r.bonus.loss=r.bonus.count===2?1:2;r.phase='bonusChoice';return r}
+  if(roll<.23&&r.players[other(role)]?.done[cat]===3&&me.done[cat]<3){
+   r.steal={cat,accepted:false};r.phase='stealChoice';return r;
+  }
   startQuestion(r,cat);return r;
  });
   if(!result?.committed)return;
@@ -2151,6 +2177,16 @@ async function chooseOption(idx){await tx(r=>{
  r.options=[];return r;
 })}
 async function bonusChoice(accept){await tx(r=>{if(r.phase!=='bonusChoice'||r.turn!==role)return;r.bonus.accepted=accept;startQuestion(r,r.cat);return r})}
+async function stealChoice(accept){
+ await tx(r=>{
+  if(r.phase!=='stealChoice'||r.turn!==role||!r.steal)return;
+  if(accept && r.players[other(role)]?.done[r.cat]===3 && r.players[role]?.done[r.cat]<3){
+   r.steal.accepted=true;
+  }else r.steal=null;
+  if(!startQuestion(r,r.cat))return;
+  return r;
+ });
+}
 async function answer(text,duel=false){if(!text.trim())return;
  onlineVibrate(18);
  await tx(r=>{
@@ -2181,14 +2217,25 @@ async function continueQuestion(){await tx(r=>{
  if(final){if(r.result.correct){r.phase='finished';r.status='finished';r.winner=role;return r}
   const cat=r.cat;p.done[cat]=Math.max(0,p.done[cat]-1);p.streak=0;r.turn=other(role);r.phase='spin';r.finalist=null;r.result=null;return r;
  }
- if(r.result.correct){p.hits++;if(r.bonus?.accepted){awardCheeses(p,r.bonus.count,r.cat);p.streak=0}
+ if(r.result.correct){p.hits++;
+  if(r.steal?.accepted){
+   const victim=r.players[other(role)],cat=r.steal.cat;
+   if(victim.done[cat]===3&&p.done[cat]<3){victim.done[cat]=0;p.done[cat]=3}
+   else p.done[cat]=Math.min(3,p.done[cat]+2);
+   p.streak=0;
+  }else if(r.bonus?.accepted){awardCheeses(p,r.bonus.count,r.cat);p.streak=0}
   else {let gain=p.streak>=3?2:1;p.done[r.cat]=Math.min(3,p.done[r.cat]+gain);p.streak=gain===2?0:p.streak+1}
   if(complete(p)===6){startFinalPick(r,role)}else r.phase='spin';
  }else{
   if(r.bonus?.accepted)loseCheeses(p,r.bonus.loss);
+  if(r.steal?.accepted){
+   const progress=p.done.map((n,i)=>n>0?i:-1).filter(i=>i>=0);
+   const penalized=p.done[r.cat]>0?r.cat:progress[0];
+   if(penalized!==undefined)p.done[penalized]--;
+  }
   p.streak=0;r.turn=other(role);r.phase='spin';
  }
- r.result=null;r.bonus=null;r.topic='';r.qid=-1;return r;
+ r.result=null;r.bonus=null;r.steal=null;r.topic='';r.qid=-1;return r;
 })}
 async function duelContinue(){await tx(r=>{
  if(r.turn!==role||r.phase!=='duelReview')return;
@@ -2227,6 +2274,8 @@ view.addEventListener('click',async e=>{
  if(action==='pick')return chooseOption(idx);
  if(action==='acceptBonus')return bonusChoice(true);
  if(action==='declineBonus')return bonusChoice(false);
+ if(action==='acceptSteal')return stealChoice(true);
+ if(action==='declineSteal')return stealChoice(false);
  if(action==='hint'||action==='change'||action==='retry')return handleJoker(action);
  if(action==='imageFail')return imageFailed();
  if(action==='continue')return continueQuestion();
