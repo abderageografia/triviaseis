@@ -16,7 +16,7 @@ for(const line of presenters.split('\n')){
   question='¿Qué actor puso voz al Carlos Alcántara adulto que narraba episodios de «Cuéntame cómo pasó»?';
  }else{
   const qualified=show.match(/^(.+?) (en su (?:primera|segunda|tercera|última) etapa|en su (?:primera|segunda) temporada|desde (?:19|20)\d\d|durante (?:su |los |las |el |gran parte)|en (?:Antena 3|Telecinco|Cuatro|TVE|La Sexta|HBO Max|COPE|Movistar\+)|entre (?:19|20)\d\d|en los años (?:ochenta|noventa|dos mil))/i);
-  const title=qualified?qualified[1]:show,suffix=qualified?' '+qualified[2]:'';
+  const title=qualified?qualified[1]:show,suffix=qualified?' '+show.slice(qualified[1].length+1):'';
   question=['¿Quién presentaba «'+title+'»'+suffix+'?','¿Quién estuvo al frente de «'+title+'»'+suffix+'?','¿Qué presentador o presentadora se asocia a «'+title+'»'+suffix+'?'][out.length%3];
  }
  if(seen.has(question))continue;seen.add(question);
