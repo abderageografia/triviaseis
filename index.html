@@ -2204,7 +2204,7 @@ function vsPickRound(r){
   id=sampleFrom(r,cat,wantsHard?'dificil':'both');
   if(id<0)id=sampleFrom(r,cat);
   if(id<0)return false;
-  if(!rapid&&BANK[id][1]==='dificil'&&Math.random()<.45){
+  if(!rapid&&(BANK[id][8]?.special_choice||(BANK[id][1]==='dificil'&&Math.random()<.45))){
    const possible=vsCreateChoices(BANK[id],4);
    if(possible.length===4){choices=possible;format='four'}
   }
