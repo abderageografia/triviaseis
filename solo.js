@@ -56,6 +56,10 @@ css.textContent = `
 .solo-crop img{width:100%;height:100%;object-fit:cover;transform:scale(var(--z,2));transform-origin:var(--pos,center center)}
 .solo-time{height:12px;border-radius:9px;background:#0a1732;overflow:hidden;border:1px solid #52618a;margin:10px 0}
 .solo-time > div{height:100%;width:100%;background:#65d8ca;transition:width 250ms linear}
+.solo-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0}
+.solo-option{background:#24375a;color:white;border:1px solid #748bb8;border-radius:16px;min-height:74px;padding:14px 9px;font:inherit;font-weight:750;line-height:1.25;cursor:pointer}
+.solo-option:disabled{display:none}
+.solo-write{background:none;border:0;color:#a9dbed;text-decoration:underline;padding:12px 8px;cursor:pointer}
 .solo-powers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:15px}
 .solo-pill{background:#283a5c;border:1px solid #7388ae;color:#fff;border-radius:13px;padding:11px 4px;font-size:12px;cursor:pointer}
 .solo-ok{border:1px solid #5eddb6;background:#173c3b;color:#8bffdb;border-radius:15px;padding:14px;text-align:center;font-size:20px;font-weight:850}
@@ -103,7 +107,7 @@ function render(){
  }else if(state.stage==='question'){
   const q=playerQuestion(); if(!q){state.stage='wheel';save();render();return}
   let seconds=Math.max(0,Math.ceil((state.deadline-Date.now())/1000));
-  main+='<div class="solo-panel"><div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+'</div><div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div><div id="soloMedia"></div><form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form><div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(state.aids.hint===0?'disabled':'')+'>💡 Pista · '+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint"></p></div>';
+  main+='<div class="solo-panel"><div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+'</div><div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div><div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div><button class="solo-write" data-solo="write">Prefiero escribir la respuesta</button>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(state.aids.hint===0?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint"></p></div>';
  }else if(state.stage==='result'){
   main+='<div class="solo-panel"><div class="solo-kicker">'+(state.lastCorrect?'RESPUESTA CORRECTA':'RESPUESTA INCORRECTA')+'</div><h2>'+htmlEscape(state.lastQText)+'</h2><div class="'+(state.lastCorrect?'solo-ok':'solo-no')+'">'+(state.lastCorrect?'✓ ¡ACERTASTE!':'✕ FALLO')+'</div><p class="solo-note">Respuesta: <b style="color:#ffe094">'+htmlEscape(state.lastAnswer)+'</b></p><p class="solo-note">'+htmlEscape(state.lastMessage)+'</p>'+actionButton('next','CONTINUAR →')+'</div>';
  }else if(state.stage==='finished'){
@@ -116,12 +120,37 @@ function candidates(cat,level){
  const pool=BANK.map((q,i)=>(q[0]===byCat[cat]&&!state.used.includes(i)&&(!q[8]?.geo_visual)&&(!q[8]||!!q[8].src||!!q[8].wiki)&&(!level||level==='both'||q[1]===level))?i:-1).filter(i=>i>=0);
  return pool;
 }
+function createSoloOptions(q){
+ const norm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+ const answer=String(q[3]||''),sameKind=r=>r[0]===q[0]&&r[7]===q[7];
+ const isYear=/^(?:c\.\s*)?\d{1,4}(?:\s*a\.\s*C\.)?$/.test(answer);
+ const isCentury=/^siglo\s/i.test(answer);
+ const bce=/a\.\s*C\./.test(answer);
+ const fits=r=>{
+  const x=String(r?.[3]||'');
+  if(!x||norm(x)===norm(answer)||window.TRIVIA_MATCH?.(x,q))return false;
+  if(isYear)return /^(?:c\.\s*)?\d{1,4}(?:\s*a\.\s*C\.)?$/.test(x)&&(/a\.\s*C\./.test(x)===bce);
+  if(isCentury)return /^siglo\s/i.test(x)&&(/a\.\s*C\./.test(x)===bce);
+  if(/^\d+$/.test(x)||/^siglo\s/i.test(x))return false;
+  return Math.abs(x.length-answer.length)<Math.max(12,answer.length*.8);
+ };
+ let similar=BANK.filter(r=>r!==q&&sameKind(r)&&fits(r));
+ const era=similar.filter(r=>r[6]===q[6]);if(era.length>=3)similar=era;
+ let pool=[...new Set(similar.map(x=>x[3]))];
+ if(pool.length<3)pool=[...new Set([...pool,...BANK.filter(r=>r[0]===q[0]&&fits(r)).map(r=>r[3])])];
+ for(let i=pool.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}
+ if(pool.length<3)return [];
+ let opts=[answer,...pool.slice(0,3)];
+ for(let i=3;i>0;i--){let j=Math.floor(Math.random()*(i+1));[opts[i],opts[j]]=[opts[j],opts[i]]}
+ return opts;
+}
 function startQuestion(){
  let pool=candidates(state.cat,state.risk?'dificil':state.diff);
  if(!pool.length){state.used=[];pool=candidates(state.cat,state.diff)}
  if(!pool.length){state.stage='wheel';save();render();return}
  const id=pool[Math.floor(Math.random()*pool.length)];
  state.qid=id;state.used.push(id);state.asked++;state.stage='question';state.seconds=state.mode==='sprint'?35:BANK[id][1]==='dificil'?60:45;state.deadline=Date.now()+state.seconds*1000;
+ state.options=createSoloOptions(BANK[id]);state.hiddenChoices=[];
  save();render();
 }
 function spin(){
@@ -189,7 +218,7 @@ async function loadPhoto(){
  let source=meta.src;
  if(!source&&meta.wiki){
   try{const res=await fetch('https://'+(meta.lang||'es')+'.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(meta.wiki));
-   if(!res.ok)throw Error('Imagen no disponible');const json=await res.json();source=json.originalimage?.source||json.thumbnail?.source}catch{return}
+   if(!res.ok)throw Error('Imagen no disponible');const json=await res.json();source=json.originalimage?.source||json.thumbnail?.source}catch{if(box.isConnected)box.innerHTML='<p class="solo-note">No se ha cargado la imagen.</p><button class="solo-secondary" data-solo="mediaFail">Otra pregunta sin penalización</button>';return}
  }
  if(!source||ticket!==mediaTicket||!box.isConnected)return;
  const img=document.createElement('img');img.src=source;img.loading='eager';img.alt='Imagen para identificar';
@@ -215,8 +244,19 @@ root.addEventListener('click',e=>{
  if(cmd==='risk'){state.risk=true;startQuestion();return}
  if(cmd==='normal'){state.risk=false;startQuestion();return}
  if(cmd==='next')return advance();
+ if(cmd==='option'&&state.stage==='question'&&state.options?.length===4){const i=Number(btn.dataset.idx);if(Number.isInteger(i)&&i>=0&&i<4&&!state.hiddenChoices?.includes(i))grade(state.options[i]);return}
+ if(cmd==='write'&&state.stage==='question'){state.options=[];save();render();return}
+ if(cmd==='mediaFail'&&state.stage==='question'){state.used.pop();startQuestion();return}
  if(cmd==='submit'){e.preventDefault();let input=root.querySelector('#soloAnswer');if(input?.value.trim())grade(input.value);return}
- if(cmd==='hint'&&state.stage==='question'&&state.aids.hint>0){state.aids.hint--;const answer=String(playerQuestion()[3]);root.querySelector('#soloHint').textContent='Pista: empieza por «'+answer.slice(0,Math.min(2,answer.length))+'…»';save();const b=root.querySelector('[data-solo="hint"]');if(b)b.textContent='💡 Pista · '+state.aids.hint;return}
+ if(cmd==='hint'&&state.stage==='question'&&state.aids.hint>0){
+  state.aids.hint--;const answer=String(playerQuestion()[3]);
+  if(state.options?.length===4){
+   const wrong=state.options.map((v,i)=>({v,i})).filter(x=>!window.TRIVIA_MATCH(x.v,playerQuestion())&&!state.hiddenChoices.includes(x.i));
+   for(const x of wrong.slice(0,2)){state.hiddenChoices.push(x.i);const btn=root.querySelector('[data-solo="option"][data-idx="'+x.i+'"]');if(btn)btn.disabled=true}
+   root.querySelector('#soloHint').textContent='Comodín 50:50: eliminadas dos opciones incorrectas.';
+  }else root.querySelector('#soloHint').textContent='Pista: empieza por «'+answer.slice(0,Math.min(2,answer.length))+'…»';
+  save();const b=root.querySelector('[data-solo="hint"]');if(b)b.textContent=(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint;return
+ }
  if(cmd==='swap')return swapQuestion();
  if(cmd==='shield'&&state.stage==='question'&&state.aids.shield>0){state.aids.shield--;state.shields++;save();const b=root.querySelector('[data-solo="shield"]');if(b)b.textContent='🛡️ Escudo · '+state.aids.shield;const n=root.querySelector('#soloHint');if(n)n.textContent='Escudo activado para tu próximo fallo.';return}
 });
