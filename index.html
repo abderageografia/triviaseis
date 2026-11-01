@@ -1638,7 +1638,7 @@ function startQuestionClock(r){
  r.deadline=serverNow()+seconds*1000;
 }
 function clockHTML(r){
- if(!Number(r.deadline)||!['question','finalQuestion','duel','counterQuestion'].includes(r.phase))return '';
+ if(!Number(r.deadline)||!['question','finalQuestion','duel','counterQuestion','gridQuestion'].includes(r.phase))return '';
  const remaining=Math.max(0,Math.ceil((Number(r.deadline)-serverNow())/1000));
  const pct=Math.max(0,Math.min(100,100*(Number(r.deadline)-serverNow())/(Number(r.timerSeconds||45)*1000)));
  return `<div class="online-timer ${remaining<=10?'danger':''}" id="onlineTimer" role="timer"><span>⏳ TIEMPO RESTANTE</span><strong id="onlineCountdown">${remaining} s</strong><div class="online-timer-track"><div class="online-timer-bar" id="onlineTimerBar" style="width:${pct}%"></div></div></div>`;
@@ -1651,6 +1651,8 @@ function expireQuestionState(r){
   r.duelExpired={host:!answers.host,guest:!answers.guest};
   r.duelAnswers={host:answers.host||'Tiempo agotado',guest:answers.guest||'Tiempo agotado'};
   r.phase='duelReview';
+ }else if(r.phase==='gridQuestion'){
+  r.gridResult={answer:'Tiempo agotado',correct:false,expired:true};r.phase='gridReview';
  }else if(r.phase==='counterQuestion'){
   r.phase='counterReview';r.counter??={by:other(r.turn),correct:false};r.counter.expired=true;
  }else if(r.phase==='question'||r.phase==='finalQuestion'){
@@ -1667,7 +1669,7 @@ async function expireOnlineClock(){
 }
 function refreshOnlineClock(){
  refreshVsClock();
- if(root.hidden||!room||!['question','finalQuestion','duel','counterQuestion'].includes(room.phase)||!Number(room.deadline))return;
+ if(root.hidden||!room||!['question','finalQuestion','duel','counterQuestion','gridQuestion'].includes(room.phase)||!Number(room.deadline))return;
  const left=Number(room.deadline)-serverNow(),remaining=Math.max(0,Math.ceil(left/1000));
  const timer=$('onlineTimer'),label=$('onlineCountdown'),bar=$('onlineTimerBar');
  if(label)label.textContent=remaining+' s';
@@ -1804,6 +1806,7 @@ function renderHome(){
  <div class="online-separator">ELIGE CÓMO QUIERES JUGAR</div>
   <button class="online-btn ghost" data-action="create">🎡 MODO RULETA · Por turnos</button>
   <button class="online-btn secondary" data-action="createVersus">⚔️ MODO VS · Los dos a la vez</button>
+  <button class="online-btn ghost" data-action="createGrid">🧩 TRES EN RAYA · Conquista casillas</button>
   <p class="online-note" style="text-align:center">En VS: 10, 15 o 20 rondas, preguntas escritas, intrusos y ráfagas de dos opciones, apuestas y muerte súbita.</p>
  <p class="online-note">Para jugar los dos, solo el primer móvil debe crear la sala. El segundo tiene que unirse con el código.</p></div>`);
 }
@@ -1837,7 +1840,7 @@ async function tryResume(){
 function nameFromInput(){myName=safeName($('myOnlineName')?.value||myName);localStorage.setItem('triviaOnlineName',myName);return myName}
 async function createRoom(mode='roulette'){
  if(pending)return;
- pending=true;toast='';networkNotice('');working(mode==='versus'?'createVersus':'create',true);
+ pending=true;toast='';networkNotice('');working(mode==='versus'?'createVersus':mode==='grid'?'createGrid':'create',true);
  try{
    await authReady();
    await waitRealtime();
@@ -1845,10 +1848,11 @@ async function createRoom(mode='roulette'){
    for(let i=0;i<4;i++){
      const code=randomCode(),now=serverNow();
      const fresh={hostUid:uid,hostName:name,createdAt:now,updatedAt:now,lastActiveAt:now,rev:0,status:'waiting',phase:'waiting',mode,turn:'host',cat:-1,qid:-1,used:{},surpriseSeen:false,players:{host:newPlayer(),guest:newPlayer()}};
+   if(mode==='grid'){Object.assign(fresh,{gridCells:Array.from({length:9},()=>({owner:null,power:0})),gridMoves:0,gridRematch:{host:false,guest:false},gridLast:null});}
    if(mode==='versus'){Object.assign(fresh,{vsRound:0,vsMaxRounds:10,vsScores:{host:0,guest:0},vsStreaks:{host:0,guest:0},vsPowers:{host:{bets:2,hints:1},guest:{bets:2,hints:1}},vsBombSchedule:vsNewBombSchedule(10),vsRematch:{host:false,guest:false},vsHistory:[]});fresh.vsPowerSchedule=vsNewPowerSchedule(10,fresh.vsBombSchedule);fresh.vsRapidSchedule=vsNewRapidSchedule(10,fresh.vsPowerSchedule,fresh.vsBombSchedule);fresh.vsCurseRound=5;fresh.vsCategoryStats={host:{},guest:{}};}
      try{await bounded(set(ref(db,'rooms/'+code),fresh),12000,'La base de datos no ha confirmado la creación de la sala.');enter(code);return}catch(e){if(i===3)throw e}
    }
- }catch(e){error(e)}finally{pending=false;working(mode==='versus'?'createVersus':'create',false)}
+ }catch(e){error(e)}finally{pending=false;working(mode==='versus'?'createVersus':mode==='grid'?'createGrid':'create',false)}
 }
 async function joinRoom(){
  if(pending)return;
@@ -1900,7 +1904,7 @@ async function joinRoom(){
      await bounded(update(r,{
        guestName:name,
        status:'playing',
-       phase:v.mode==='versus'?'vsLobby':'spin',
+       phase:v.mode==='versus'?'vsLobby':v.mode==='grid'?'gridPick':'spin',
        updatedAt:serverNow(),
        lastActiveAt:serverNow(),
        rev:Number(v.rev||0)+1
@@ -1994,6 +1998,7 @@ function showRoom(){
  }
  const key=currentVisibleKey(r);if(key===lastRender)return;lastRender=key;
  if(r.mode==='versus'){showVsRoom(r);return;}
+ if(r.mode==='grid'){showGridRoom(r);return;}
  let html=roomHeader(r),me=r.players[role],active=isActor();
  if(r.phase==='spin'){
   html+=`<div class="online-card" style="text-align:center"><div class="online-kicker">JUEGA AHORA</div><h2 class="online-heading">${esc(nameOf(r.turn))}</h2>${spinGraphic(r.players[r.turn],r)}
@@ -2550,6 +2555,10 @@ view.addEventListener('click',async e=>{
  const action=btn.dataset.action; const idx=Number(btn.dataset.pick); const count=Number(btn.dataset.count);
  if(action==='create')return createRoom('roulette');
  if(action==='createVersus')return createRoom('versus');
+ if(action==='createGrid')return createRoom('grid');
+ if(action==='gridPick')return gridPick(Number(btn.dataset.cell));
+ if(action==='gridContinue')return gridContinue();
+ if(action==='gridRematch')return gridRematch();
  if(action==='join')return joinRoom();
  if(action==='switchRoom')return switchOnlineRoom();
  if(action==='testVibration')return testOnlineVibration();
@@ -2579,10 +2588,10 @@ view.addEventListener('click',async e=>{
  if(action==='new')return switchOnlineRoom(false);
 });
 view.addEventListener('submit',async e=>{
- if(e.target.id!=='onlineAnswerForm'&&e.target.id!=='onlineDuelForm'&&e.target.id!=='onlineCounterForm'&&e.target.id!=='vsAnswerForm')return;e.preventDefault();
+ if(e.target.id!=='onlineAnswerForm'&&e.target.id!=='onlineDuelForm'&&e.target.id!=='onlineCounterForm'&&e.target.id!=='gridAnswerForm'&&e.target.id!=='vsAnswerForm')return;e.preventDefault();
  const text=e.target.querySelector('input')?.value||'';
  const submit=e.target.querySelector('button');if(submit)submit.disabled=true;
- try{if(e.target.id==='vsAnswerForm')await vsSubmit(text);else if(e.target.id==='onlineCounterForm')await answerCounter(text);else await answer(text,e.target.id==='onlineDuelForm')}finally{if(submit&&submit.isConnected)submit.disabled=false}
+ try{if(e.target.id==='gridAnswerForm')await gridAnswer(text);else if(e.target.id==='vsAnswerForm')await vsSubmit(text);else if(e.target.id==='onlineCounterForm')await answerCounter(text);else await answer(text,e.target.id==='onlineDuelForm')}finally{if(submit&&submit.isConnected)submit.disabled=false}
 });
 if(new URL(location.href).searchParams.has('sala'))openOnline();
 </script>
