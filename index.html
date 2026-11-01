@@ -1638,7 +1638,7 @@ function startQuestionClock(r){
  r.deadline=serverNow()+seconds*1000;
 }
 function clockHTML(r){
- if(!Number(r.deadline)||!['question','finalQuestion','duel'].includes(r.phase))return '';
+ if(!Number(r.deadline)||!['question','finalQuestion','duel','counterQuestion'].includes(r.phase))return '';
  const remaining=Math.max(0,Math.ceil((Number(r.deadline)-serverNow())/1000));
  const pct=Math.max(0,Math.min(100,100*(Number(r.deadline)-serverNow())/(Number(r.timerSeconds||45)*1000)));
  return `<div class="online-timer ${remaining<=10?'danger':''}" id="onlineTimer" role="timer"><span>⏳ TIEMPO RESTANTE</span><strong id="onlineCountdown">${remaining} s</strong><div class="online-timer-track"><div class="online-timer-bar" id="onlineTimerBar" style="width:${pct}%"></div></div></div>`;
@@ -1651,6 +1651,8 @@ function expireQuestionState(r){
   r.duelExpired={host:!answers.host,guest:!answers.guest};
   r.duelAnswers={host:answers.host||'Tiempo agotado',guest:answers.guest||'Tiempo agotado'};
   r.phase='duelReview';
+ }else if(r.phase==='counterQuestion'){
+  r.phase='counterReview';r.counter??={by:other(r.turn),correct:false};r.counter.expired=true;
  }else if(r.phase==='question'||r.phase==='finalQuestion'){
   r.result={answer:'Tiempo agotado',correct:false,expired:true};
   r.phase=r.phase==='finalQuestion'?'finalReview':'review';
@@ -1665,7 +1667,7 @@ async function expireOnlineClock(){
 }
 function refreshOnlineClock(){
  refreshVsClock();
- if(root.hidden||!room||!['question','finalQuestion','duel'].includes(room.phase)||!Number(room.deadline))return;
+ if(root.hidden||!room||!['question','finalQuestion','duel','counterQuestion'].includes(room.phase)||!Number(room.deadline))return;
  const left=Number(room.deadline)-serverNow(),remaining=Math.max(0,Math.ceil(left/1000));
  const timer=$('onlineTimer'),label=$('onlineCountdown'),bar=$('onlineTimerBar');
  if(label)label.textContent=remaining+' s';
@@ -2477,9 +2479,11 @@ async function answer(text,duel=false){if(!text.trim())return;
   }
   if(r.turn!==role||!['question','finalQuestion'].includes(r.phase))return;
   r.result={answer:text.trim().slice(0,120),correct:window.TRIVIA_MATCH(text,BANK[r.qid])};
-  r.phase=r.phase==='finalQuestion'?'finalReview':'review';r.deadline=null;return r;
+  if(r.phase==='question'&&!r.result.correct&&!r.steal?.accepted&&!r.bonus?.accepted&&!r.defense&&r.players[other(role)]?.done[r.cat]<3&&Math.random()<.3){r.counter={by:other(role),answer:null,correct:false};r.phase='counterQuestion';r.deadline=serverNow()+8000;r.timerSeconds=8}
+  else{r.phase=r.phase==='finalQuestion'?'finalReview':'review';r.deadline=null}return r;
  });
 }
+async function answerCounter(text){if(!text.trim())return;onlineVibrate([35,40,40]);await tx(r=>{if(r.phase!=='counterQuestion'||r.counter?.by!==role)return;if(serverNow()>Number(r.deadline)){expireQuestionState(r);return r}r.counter.answer=text.trim().slice(0,120);r.counter.correct=!!window.TRIVIA_MATCH(text,BANK[r.qid]);r.phase='counterReview';r.deadline=null;return r})}
 async function handleJoker(type){await tx(r=>{
  if(r.turn!==role||!['question','review'].includes(r.phase))return;
  const p=r.players[role];if(p.jokers<1)return;
@@ -2491,7 +2495,7 @@ async function handleJoker(type){await tx(r=>{
 })}
 async function imageFailed(){await tx(r=>{if(r.turn!==role||!['question','finalQuestion'].includes(r.phase))return;const id=sampleFrom(r,r.cat);if(id<0)return;r.qid=id;(r.used ??= {})[id]=true;r.hint=false;startQuestionClock(r);return r})}
 async function continueQuestion(){await tx(r=>{
- if(r.turn!==role||!['review','finalReview'].includes(r.phase))return;
+ if(r.turn!==role||!['review','finalReview','counterReview'].includes(r.phase))return;
  const final=r.phase==='finalReview',p=r.players[role];
  if(final){if(r.result.correct){r.phase='finished';r.status='finished';r.winner=role;return r}
   const cat=r.cat;p.done[cat]=Math.max(0,p.done[cat]-1);p.streak=0;r.turn=other(role);r.phase='spin';r.finalist=null;r.result=null;return r;
@@ -2507,6 +2511,7 @@ async function continueQuestion(){await tx(r=>{
   else {let gain=BANK[r.qid]?.[8]?.surprise?2:p.streak>=3?2:1;p.done[r.cat]=Math.min(3,p.done[r.cat]+gain);p.streak=gain===2?0:p.streak+1}
   if(complete(p)===6){startFinalPick(r,role)}else r.phase='spin';
  }else{
+  if(r.counter?.correct){const robber=r.players[r.counter.by];robber.done[r.cat]=Math.min(3,(robber.done[r.cat]||0)+1);robber.hits=(robber.hits||0)+1}
   if(r.bonus?.accepted)loseCheeses(p,r.bonus.loss);
   if(r.steal?.accepted){
    const progress=p.done.map((n,i)=>n>0?i:-1).filter(i=>i>=0);
@@ -2515,7 +2520,9 @@ async function continueQuestion(){await tx(r=>{
   }
   p.streak=0;r.turn=other(role);r.phase='spin';
  }
- r.result=null;r.bonus=null;r.steal=null;r.topic='';r.qid=-1;return r;
+ const counterFinal=r.counter?.correct&&complete(r.players[r.counter.by])===6?r.counter.by:null;
+ r.result=null;r.bonus=null;r.steal=null;r.defense=null;r.counter=null;r.topic='';r.qid=-1;
+ if(counterFinal)startFinalPick(r,counterFinal);return r;
 })}
 async function duelContinue(){await tx(r=>{
  if(r.turn!==role||r.phase!=='duelReview')return;
@@ -2565,10 +2572,10 @@ view.addEventListener('click',async e=>{
  if(action==='new')return switchOnlineRoom(false);
 });
 view.addEventListener('submit',async e=>{
- if(e.target.id!=='onlineAnswerForm'&&e.target.id!=='onlineDuelForm'&&e.target.id!=='vsAnswerForm')return;e.preventDefault();
+ if(e.target.id!=='onlineAnswerForm'&&e.target.id!=='onlineDuelForm'&&e.target.id!=='onlineCounterForm'&&e.target.id!=='vsAnswerForm')return;e.preventDefault();
  const text=e.target.querySelector('input')?.value||'';
  const submit=e.target.querySelector('button');if(submit)submit.disabled=true;
- try{if(e.target.id==='vsAnswerForm')await vsSubmit(text);else await answer(text,e.target.id==='onlineDuelForm')}finally{if(submit&&submit.isConnected)submit.disabled=false}
+ try{if(e.target.id==='vsAnswerForm')await vsSubmit(text);else if(e.target.id==='onlineCounterForm')await answerCounter(text);else await answer(text,e.target.id==='onlineDuelForm')}finally{if(submit&&submit.isConnected)submit.disabled=false}
 });
 if(new URL(location.href).searchParams.has('sala'))openOnline();
 </script>
