@@ -1989,6 +1989,88 @@ async function attachMedia(){
  }catch{if(ticket===questionImageTicket&&slot.isConnected){slot.innerHTML=room?.mode==='versus'?'<p class="online-note">La imagen no se ha cargado. Puedes responder con el texto disponible.</p>':'<p class="online-note">Esta imagen no se ha cargado. Puedes cambiar la pregunta gratis.</p><button class="online-btn ghost small" data-action="imageFail">Cambiar sin gastar comodín</button>'}}
 }
 function currentVisibleKey(r){const answers=r.duelAnswers?Object.keys(r.duelAnswers).join('|'):'';return [r.rev,r.status,r.phase,r.turn,r.qid,role,answers].join(':')}
+
+const GRID_CATEGORIES=[0,1,2,3,4,5,0,2,4];
+function gridWinner(cells){
+ const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+ for(const line of lines){const owner=cells[line[0]]?.owner;if(owner&&line.every(i=>cells[i]?.owner===owner))return owner}
+ return null;
+}
+function gridPoints(r,who){return (r.gridCells||[]).filter(c=>c?.owner===who).length}
+function showGridRoom(r){
+ const cells=Array.isArray(r.gridCells)?r.gridCells:[];
+ const active=isActor();
+ let html='<div class="online-card" style="padding:12px"><div class="online-flex"><span class="online-kicker">🧩 TRES EN RAYA · '+esc(roomCode)+'</span><button class="online-exit" data-action="share">Compartir código</button></div><div class="vs-scoreboard"><div class="vs-player"><b>'+esc(r.hostName)+'</b><div class="vs-points">'+gridPoints(r,'host')+' casillas</div></div><div class="vs-player"><b>'+esc(r.guestName)+'</b><div class="vs-points">'+gridPoints(r,'guest')+' casillas</div></div></div><p class="online-note">Cada acierto conquista una casilla. Puedes robar casillas rivales. Cinco defensas acertadas la vuelven inexpugnable. ¡Tres en línea ganan!</p></div>';
+ if(r.phase==='gridPick'||r.phase==='gridQuestion'||r.phase==='gridReview'){
+  html+='<div class="online-card" style="text-align:center"><div class="online-special">'+(active?'TU TURNO':'TURNO DEL RIVAL')+' · '+esc(nameOf(r.turn))+'</div><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px auto;max-width:390px">'+Array.from({length:9},(_,i)=>{
+   const tile=cells[i]||{owner:null,power:0},cat=GRID_CATEGORIES[i];
+   const locked=tile.power>=5,selectable=r.phase==='gridPick'&&active&&!locked;
+   const face=tile.owner==='host'?'✕':tile.owner==='guest'?'◯':emojis[cat];
+   const owner=tile.owner?'<small style="display:block;font-size:11px;margin-top:4px">'+(locked?'🔒 INEXPUGNABLE':'🛡️ '+tile.power+'/5')+'</small>':'<small style="display:block;font-size:11px;margin-top:4px">'+esc(labels[cat])+'</small>';
+   return '<button class="online-choice" data-action="gridPick" data-cell="'+i+'" '+(selectable?'':'disabled')+' style="min-height:95px;--cc:'+colors[cat]+';opacity:'+(selectable?1:.83)+'"><span class="big">'+face+'</span>'+owner+'</button>';
+  }).join('')+'</div></div>';
+ }
+ if(r.phase==='gridPick'){
+  html+='<div class="online-card"><h2 class="online-heading">'+(active?'Elige la casilla que quieres conquistar':'Tu rival está seleccionando una casilla')+'</h2><p class="online-note">Las casillas propias pueden reforzarse hasta cinco veces. Las del contrario se pueden arrebatar salvo que estén blindadas.</p></div>';
+ }else if(r.phase==='gridQuestion'){
+  html+='<div class="online-card"><div class="online-special">🧩 CASILLA '+(Number(r.gridTarget)+1)+' · '+esc(labels[r.cat])+'</div>'+qBlock(r)+(active?'<form id="gridAnswerForm"><label class="online-label" for="gridInput">Escribe tu respuesta</label><input class="online-field" id="gridInput" required autocomplete="off" maxlength="120"><button class="online-btn" type="submit">CONQUISTAR CASILLA</button></form>':'<p class="online-note">El rival está respondiendo. La solución se mantendrá oculta.</p>')+'</div>';
+ }else if(r.phase==='gridReview'){
+  const outcome=r.gridResult||{correct:false,answer:'Tiempo agotado'};
+  html+='<div class="online-card"><div class="online-special">RESULTADO DE LA CONQUISTA</div><h2 class="online-question">'+esc(BANK[r.qid]?.[2]||'Pregunta')+'</h2><div class="online-feedback '+(outcome.correct?'ok':'no')+'">'+(outcome.correct?'✓ ¡CASILLA CONQUISTADA!':'✕ CASILLA NO CONQUISTADA')+'<small>Respuesta correcta: '+esc(BANK[r.qid]?.[3]||'')+'</small></div><p class="online-note">Respuesta: '+esc(outcome.answer||'Tiempo agotado')+'</p>'+(active?'<button class="online-btn" data-action="gridContinue">CONTINUAR →</button>':'<p class="online-note">Esperando a tu rival…</p>')+'</div>';
+ }else if(r.phase==='gridFinished'){
+  const draw=!r.winner;
+  html+='<div class="online-card" style="text-align:center"><div style="font-size:60px">🏆</div><h2 class="online-heading">'+(draw?'¡EMPATE!':'¡GANA '+esc(nameOf(r.winner))+'!')+'</h2><p class="online-note">Casillas: '+esc(r.hostName)+' '+gridPoints(r,'host')+' · '+esc(r.guestName)+' '+gridPoints(r,'guest')+'</p>'+(r.gridRematch?.[role]?'<p class="online-note">Revancha solicitada. Esperando al rival…</p>':'<button class="online-btn" data-action="gridRematch">🔄 REVANCHA · MISMA SALA</button>')+'</div>';
+ }else html+='<div class="online-card">Sincronizando tablero…</div>';
+ basePage(html);attachMedia();
+}
+async function gridPick(index){
+ if(!Number.isInteger(index)||index<0||index>8)return;
+ await tx(r=>{
+  if(r.mode!=='grid'||r.phase!=='gridPick'||r.turn!==role)return;
+  const cell=r.gridCells?.[index];if(!cell||cell.power>=5)return;
+  const cat=GRID_CATEGORIES[index],id=sampleFrom(r,cat,'both');
+  if(id<0)return;
+  r.gridTarget=index;r.cat=cat;r.qid=id;(r.used??={})[id]=true;r.gridResult=null;r.phase='gridQuestion';startQuestionClock(r);return r;
+ });
+}
+async function gridAnswer(text){
+ if(!text.trim())return;
+ onlineVibrate(25);
+ await tx(r=>{
+  if(r.mode!=='grid'||r.phase!=='gridQuestion'||r.turn!==role)return;
+  if(expireQuestionState(r))return r;
+  r.gridResult={answer:text.trim().slice(0,120),correct:!!window.TRIVIA_MATCH(text,BANK[r.qid])};r.phase='gridReview';r.deadline=null;return r;
+ });
+}
+async function gridContinue(){
+ await tx(r=>{
+  if(r.mode!=='grid'||r.phase!=='gridReview'||r.turn!==role)return;
+  const cell=r.gridCells?.[r.gridTarget];
+  if(cell&&r.gridResult?.correct&&cell.power<5){
+   if(cell.owner===role){cell.power=Math.min(5,cell.power+1)}
+   else{cell.owner=role;cell.power=1}
+  }
+  r.gridMoves=(r.gridMoves||0)+1;
+  const winner=gridWinner(r.gridCells);
+  if(winner||r.gridMoves>=30){
+   r.winner=winner;
+   if(!winner){const h=gridPoints(r,'host'),g=gridPoints(r,'guest');r.winner=h===g?null:h>g?'host':'guest'}
+   r.phase='gridFinished';r.status='finished';
+  }else{r.turn=other(r.turn);r.phase='gridPick'}
+  r.gridResult=null;r.gridTarget=null;r.qid=-1;r.deadline=null;return r;
+ });
+}
+async function gridRematch(){
+ await tx(r=>{
+  if(r.mode!=='grid'||r.phase!=='gridFinished')return;
+  (r.gridRematch??={host:false,guest:false})[role]=true;
+  if(r.gridRematch.host&&r.gridRematch.guest){
+   r.turn=other(r.winner||'guest');r.winner=null;r.status='playing';r.phase='gridPick';r.gridCells=Array.from({length:9},()=>({owner:null,power:0}));r.gridMoves=0;r.gridRematch={host:false,guest:false};r.gridResult=null;r.gridTarget=null;r.qid=-1;
+  }
+  return r;
+ });
+}
+
 function showRoom(){
  if(!room||!role)return;
  if(spinLock && room.phase!=='spin')return;
