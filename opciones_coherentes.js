@@ -78,6 +78,7 @@ function choose(q,bank,amount=4,validFn=null){
  for(const peer of bank){
   if(!peer||peer===q||peer[0]!==cat||peer[8]?.special_choice)continue;
   const value=clean(peer[3]);
+  if(kind==='bravo:persona'&&/integrante|famosa|mujer|ama de casa|exconcursante|actriz|socialité|participante|concursante|hermana/i.test(q[2]||'')&&/^(?:andy cohen)$/i.test(value))continue;
   if(!value||used.has(N(value))||!sameTopic(peer)||shapes(value)!==shape)continue;
   if(shape==='año'&&/a\.?\s*c/i.test(value)!==/a\.?\s*c/i.test(a))continue;
   if(shape==='año'&&Math.abs(Number(value)-Number(a))>45)continue;
