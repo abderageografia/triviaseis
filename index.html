@@ -641,7 +641,7 @@ function fullDate(s){
 function sameNameWithoutSpaces(s){return N(s).replace(/\s+/g,'')}
 function asksForPerson(q){
  const t=N(q[2]);
- return /^(quien\b|a quien\b|que (?:actor|actriz|director|directora|pintor|pintora|artista|arquitecto|arquitecta|escultor|escultora|autor|autora|escritor|escritora|poeta|dramaturgo|dramaturga|cantante|cineasta|interprete|compositor|compositora|musico|musica|filosofo|filosofa|cientifico|cientifica|rey|reina|emperador|emperatriz|politico|politica|presidente|presidenta|fotografo|fotografa)\b)/.test(t);
+ return /^(quien\b|a quien\b|que (?:actor|actriz|director|directora|pintor|pintora|artista|arquitecto|arquitecta|escultor|escultora|autor|autora|escritor|escritora|poeta|dramaturgo|dramaturga|cantante|cineasta|interprete|compositor|compositora|musico|musica|filosofo|filosofa|cientifico|cientifica|rey|reina|emperador|emperatriz|politico|politica|presidente|presidenta|fotografo|fotografa|personaje|lider|dirigente|militar|monarca|explorador|exploradora)\b)/.test(t);
 }
 function match(input,q){
  const response=N(input);
