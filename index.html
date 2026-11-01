@@ -470,6 +470,16 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
 .vs-power{border:1px solid #7a85b7;background:#273557;border-radius:14px;color:#eef2ff;padding:13px 9px;font-size:12px;font-weight:900;min-height:70px}
 .vs-power.active{background:#5b345c;border-color:#ffb9db;color:white}
 .vs-power:disabled{opacity:.45}
+.vs-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:15px 0 9px}
+.vs-choice-grid.rapid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.vs-choice-btn{background:linear-gradient(150deg,#304b79,#172c50);border:2px solid #728abb;border-radius:17px;color:#f8faff;font:inherit;font-weight:850;font-size:clamp(13px,3.6vw,17px);min-height:94px;padding:14px 10px;text-align:center;overflow-wrap:anywhere;touch-action:manipulation;transition:transform .1s,background .15s}
+.vs-choice-btn:active:not(:disabled){transform:scale(.97);background:#385d82}
+.vs-choice-btn:disabled{opacity:.54}
+.vs-choice-letter{display:block;font-size:12px;font-weight:900;color:#95e4e8;margin-bottom:8px}
+.vs-choice-caption{text-align:center;font-size:12px;color:#c5d3ed;font-weight:750;margin:12px 0}
+.vs-rapid-banner{padding:10px 12px;border:1px solid #ffcc75;background:#463827;border-radius:12px;color:#ffe4b5;text-align:center;font-weight:900;font-size:15px;margin:10px 0}
+.vs-format-label{text-align:center;font-weight:900;font-size:12px;letter-spacing:.7px;color:#d4e5ff}
+@media(max-width:360px){.vs-choice-btn{min-height:75px;padding:10px 7px;font-size:13px}}
 .vs-result-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}
 .vs-result-player{background:#162641;border:1px solid #566c95;border-radius:14px;padding:12px;min-width:0}
 .vs-result-player strong{display:block;font-size:20px;color:#ffe29b;margin:5px 0}
@@ -553,6 +563,7 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
 <script src="./historia_extra.js?v=5"></script>
 <script src="./cine_extra.js?v=5"></script>
 <script src="./arte_extra.js?v=1"></script>
+<script src="./preguntas_especiales.js?v=1"></script>
 <script src="./geo_extra_relieve.js?v=1"></script>
 <script src="./geo_extra_aguas.js?v=1"></script>
 <script src="./geo_extra_ciudades.js?v=2"></script>
@@ -1429,7 +1440,7 @@ setupCounters();restoreGame();
 
 window.TRIVIA_MATCH = match;
 </script>
-<script src="./solo.js?v=4"></script>
+<script src="./solo.js?v=5"></script>
 
 <div id="onlineRoot" class="online-root" hidden aria-live="polite">
   <div class="online-toolbar"><div class="online-logo">🌐 TRIVIA<span>·</span>SEIS <small style="font-size:11px;color:#9ce6e9">ONLINE</small></div><div style="display:flex;gap:6px"><button id="onlineSwitchRoom" class="online-exit" type="button" hidden>Otra sala</button><button id="onlineExit" class="online-exit" type="button">Salir</button></div></div>
@@ -1456,7 +1467,8 @@ const colors=['#ef7186','#f2bf62','#42c8be','#6a9efa','#b99aff','#67d087'];
 const labels=['Historia','Arte','Geografía','Cine','Literatura','Miscelánea'];
 const emojis=['🏛️','🎨','🌍','🎬','📚','🎤'];
 const keys=['historia','arte','geo','cine','lit','mix'];
-const BANK=window.GAME_BANK;
+// Preguntas especiales solo en individual y VS; la ruleta tradicional conserva su banco.
+const BANK=window.GAME_BANK.concat(window.TRIVIA_BONUS_QUIZ||[]);
 const byCat=keys.map(k=>BANK.map((q,i)=>q[0]===k?i:-1).filter(i=>i>=0));
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
