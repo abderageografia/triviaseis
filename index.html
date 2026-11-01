@@ -1305,7 +1305,7 @@ function chooseQuestion(changing=false){
  if(selectedTopic)base=base.filter(id=>selectedTopic.ids.has(id));
  if(!base.length){if(finalRound){const winner=finalRound.contender;finalRound=null;endVictory(winner);return} $('spinInfo').textContent='No quedan preguntas inéditas de esta categoría. Gira otra vez.';stage='ready';challenge=null;draw();return}
  let pool=level==='both'?base:base.filter(id=>BANK[id][1]===level);if(!pool.length)pool=base;
- const surpriseId=(!changing&&!finalRound&&!challenge)?(window.TRIVIA_SURPRISE_PICK?.(used,surpriseSeen)??-1):-1;
+ const surpriseId=(!changing&&!finalRound&&!challenge&&!defense)?(window.TRIVIA_SURPRISE_PICK?.(used,surpriseSeen)??-1):-1;
  qIndex=surpriseId>=0?surpriseId:chooseVaried(pool);
  if(surpriseId>=0)surpriseSeen=true;
  used.add(qIndex);askedThisSession++;persist();saveGame();
@@ -1488,7 +1488,7 @@ function continueGame(){
   players[turn].streak=0;
   turn=1-turn;stage='handoff';saveGame();
   $('handoffTitle').textContent='Turno de '+players[turn].name;
-  if(!$('handoffDescription').textContent.includes('desafío te ha costado'))$('handoffDescription').textContent='Pasa el móvil al siguiente jugador.';
+  if(!/desafío te ha costado|Defensa fallada/.test($('handoffDescription').textContent))$('handoffDescription').textContent='Pasa el móvil al siguiente jugador.';
   $('handoff').classList.remove('hide');
  }
 }
