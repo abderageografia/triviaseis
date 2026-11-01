@@ -179,7 +179,10 @@ function summary(){
    '<span class="solo-pip-icon">'+icons[i]+'</span><div class="solo-circles">'+[0,1,2].map(j=>'<i class="'+(j<n?'on':'')+'"></i>').join('')+'</div><b>'+n+'/3</b></div>'
  ).join('')+'</div>';
  const inventory='<div class="solo-inventory"><span>🛡️ '+state.shields+' escudos</span><span>⭐ '+state.stars+' coronas</span><span>✅ '+state.correct+' aciertos'+(state.mode==='sprint'?' / '+state.goal:'')+'</span></div>';
- return '<div class="solo-hud'+(compact?' compact':'')+'">'+stats+pips+inventory+'</div>';
+ const value=state.mode==='classic'?state.pips.reduce((a,n)=>a+n,0):Math.min(state.goal,state.asked);
+ const goal=state.mode==='classic'?18:state.goal;
+ const prog='<div class="solo-progress" role="group" aria-label="Progreso de la partida"><div class="solo-progress-label"><span>'+(state.mode==='classic'?'👑 CONQUISTA':'⚡ DESAFÍO')+'</span><strong>'+value+' / '+goal+'</strong></div><div class="solo-progress-track" role="progressbar" aria-valuenow="'+value+'" aria-valuemin="0" aria-valuemax="'+goal+'"><span style="width:'+(value/goal*100)+'%"></span></div><div class="solo-progress-foot">'+(state.mode==='classic'?state.stars+' de 6 coronas completadas':Math.max(0,state.goal-state.asked)+' preguntas restantes')+'</div></div>';
+ return '<div class="solo-hud'+(compact?' compact':'')+'">'+stats+prog+pips+inventory+'</div>';
 }
 function wheelSvg(){
  const step=2*Math.PI/6,cx=150,cy=150,r=145;
@@ -331,6 +334,7 @@ function grade(answer,expired=false){
  stopTimer();
  const q=playerQuestion();
  const correct=!expired && !!answer.trim() && !!window.TRIVIA_MATCH?.(answer,q);
+ const beforeFx={lives:state.lives,shields:state.shields,stars:state.stars,points:state.points,streak:state.streak};
  state.lastCorrect=correct;state.lastQText=q[2];state.lastAnswer=q[3];state.lastMessage='';
  if(correct){
   soloVibrate([30,40,65]);
@@ -349,8 +353,16 @@ function grade(answer,expired=false){
   state.lives=Math.max(0,state.lives-livesLost);state.streak=0;
  }
  state.stage='result';state.risk=false;save();render();
+ if(window.TRIVIA_FX){
+  if(state.lives<beforeFx.lives)window.TRIVIA_FX.show('life','💔','VIDA PERDIDA',state.lives+' vidas restantes');
+  else if(state.stars>beforeFx.stars)window.TRIVIA_FX.show('crown','👑','¡CORONA CONSEGUIDA!',state.stars+' de 6 categorías conquistadas');
+  else if(state.shields>beforeFx.shields)window.TRIVIA_FX.show('shield','🛡️','¡ESCUDO GANADO!','La racha de cuatro aciertos te protege');
+  else if(state.shields<beforeFx.shields)window.TRIVIA_FX.show('shield','🛡️','¡ESCUDO ACTIVADO!','Has evitado perder una vida');
+  else if(correct)window.TRIVIA_FX.show('right',state.streak>1?'🔥':'✨',state.streak>1?'¡RACHA DE '+state.streak+'!':'¡ACERTASTE!', '+'+(state.points-beforeFx.points)+' puntos');
+  else window.TRIVIA_FX.show('wrong','✕',expired?'TIEMPO AGOTADO':'RESPUESTA INCORRECTA','Inténtalo en la siguiente');
+ }
 }
-function end(message){stopTimer();state.endReason=message;state.stage='finished';save();render()}
+function end(message){stopTimer();state.endReason=message;state.stage='finished';save();render();window.TRIVIA_FX?.show(state.lives&&state.mode==='classic'&&state.stars===6?'win':'end',state.lives&&state.mode==='classic'&&state.stars===6?'🏆':'🏁',state.lives&&state.mode==='classic'&&state.stars===6?'¡LOS SEIS QUESITOS!':'PARTIDA TERMINADA',message)}
 function advance(){
  if(!state||state.stage!=='result')return;
  if(!state.lives){end('Te has quedado sin vidas');return}
@@ -434,9 +446,132 @@ root.addEventListener('click',e=>{
   save();const b=root.querySelector('[data-solo="hint"]');if(b)b.textContent=(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint;return
  }
  if(cmd==='swap')return swapQuestion();
- if(cmd==='shield'&&state.stage==='question'&&state.aids.shield>0){state.aids.shield--;state.shields++;save();const b=root.querySelector('[data-solo="shield"]');if(b)b.textContent='🛡️ Escudo · '+state.aids.shield;const n=root.querySelector('#soloHint');if(n)n.textContent='Escudo activado para tu próximo fallo.';return}
+ if(cmd==='shield'&&state.stage==='question'&&state.aids.shield>0){state.aids.shield--;state.shields++;save();window.TRIVIA_FX?.show('shield','🛡️','ESCUDO EQUIPADO','Tu próximo fallo estará protegido');const b=root.querySelector('[data-solo="shield"]');if(b)b.textContent='🛡️ Escudo · '+state.aids.shield;const n=root.querySelector('#soloHint');if(n)n.textContent='Escudo activado para tu próximo fallo.';return}
 });
 root.addEventListener('submit',e=>{if(e.target.id==='soloAnswerForm'){e.preventDefault();const v=root.querySelector('#soloAnswer')?.value;if(v?.trim())grade(v)}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopWheelVibration()});
 document.getElementById('soloLaunch')?.addEventListener('click',open);
+})();
+
+(function TriviaFeedback(){
+'use strict';
+const style=document.createElement('style');
+style.textContent="\n/* Feedback visual compartido entre solitario, ruleta y VS */\n.solo-progress{padding:10px 12px 9px;margin:10px 0 12px;border:1px solid #52688e;background:#0e1c35;border-radius:15px}\n.solo-progress-label{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#c8dafa;font-weight:900;letter-spacing:.9px}\n.solo-progress-label strong{color:#ffe295;font-size:13px;letter-spacing:0}\n.solo-progress-track,.trivia-fx-track{height:10px;border-radius:20px;background:#0a1326;border:1px solid #52658d;overflow:hidden;position:relative}\n.solo-progress-track{margin:8px 0 4px}\n.solo-progress-track>span,.trivia-fx-track>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#58c9d4,#a48bff,#ffd47f);box-shadow:0 0 12px #9cceff88;transition:width .7s cubic-bezier(.2,.8,.2,1)}\n.solo-progress-foot{font-size:10px;color:#a4b9db;text-align:right}\n.solo-pip.complete{animation:trivia-pip-glow 1s ease-out}\n.trivia-fx-progress{margin:7px 0 0;padding:0 4px 2px}\n.trivia-fx-caption{font-size:10px;font-weight:800;letter-spacing:.6px;color:#c9d5f0;display:flex;justify-content:space-between;margin-bottom:5px}\n.trivia-fx-track{height:8px}\n.trivia-fx-layer{position:fixed;inset:0;pointer-events:none;z-index:25000;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:16px;animation:trivia-overlay-enter .16s ease-out}\n.trivia-fx-shade{position:absolute;inset:0;background:radial-gradient(circle,#12183300 5%,#0b112350 90%);animation:trivia-overlay-fade 1.6s ease-out forwards}\n.trivia-fx-card{position:relative;isolation:isolate;min-width:min(78vw,285px);max-width:min(90vw,390px);text-align:center;border:2px solid var(--fx-color);border-radius:26px;background:linear-gradient(150deg,#263451f7,#0e1932f7);padding:20px 21px 21px;color:#fff;box-shadow:0 14px 60px #000c,0 0 45px var(--fx-glow);animation:trivia-reward-pop 1.62s ease-in-out both}\n.trivia-fx-symbol{font-size:clamp(57px,16vw,86px);line-height:1.1;display:block;margin:2px auto 8px;filter:drop-shadow(0 7px 12px var(--fx-glow));animation:trivia-symbol-bounce .8s ease-out}\n.trivia-fx-title{font-size:clamp(21px,6vw,31px);font-weight:1000;line-height:1.13;text-wrap:balance;letter-spacing:.3px}\n.trivia-fx-sub{font-size:14px;color:#dbe7ff;font-weight:650;margin-top:8px;line-height:1.25}\n.trivia-fx-layer.life .trivia-fx-card,.trivia-fx-layer.wrong .trivia-fx-card{animation:trivia-loss-pop 1.48s ease-in-out both}\n.trivia-fx-particle{position:absolute;left:50%;top:48%;width:8px;height:13px;border-radius:2px;background:var(--c);transform:translate(-50%,-50%);animation:trivia-confetti var(--t) cubic-bezier(.17,.65,.36,1) both;animation-delay:var(--delay)}\n.trivia-fx-layer.life .trivia-fx-symbol{animation:trivia-broken-heart .65s ease-out}\n.trivia-fx-layer.shield .trivia-fx-symbol{animation:trivia-shield-shine .8s ease-out}\n.trivia-fx-layer.crown .trivia-fx-symbol,.trivia-fx-layer.win .trivia-fx-symbol{animation:trivia-crown-rise .85s cubic-bezier(.1,.7,.2,1)}\n@keyframes trivia-overlay-enter{from{opacity:0}to{opacity:1}}\n@keyframes trivia-overlay-fade{0%{opacity:1}90%,100%{opacity:0}}\n@keyframes trivia-reward-pop{0%{opacity:0;transform:scale(.45) translateY(30px)}17%{opacity:1;transform:scale(1.10) translateY(-5px)}27%{transform:scale(1)}72%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.9) translateY(-20px)}}\n@keyframes trivia-loss-pop{0%{opacity:0;transform:scale(1.2)}15%{opacity:1;transform:scale(.95)}22%{transform:translateX(-11px)}30%{transform:translateX(10px)}38%{transform:translateX(-7px)}48%{transform:none}80%{opacity:1}100%{opacity:0;transform:scale(.95)}}\n@keyframes trivia-symbol-bounce{0%{transform:scale(.3) rotate(-20deg)}55%{transform:scale(1.2) rotate(9deg)}100%{transform:none}}\n@keyframes trivia-broken-heart{0%{transform:scale(1.3)}45%{transform:scale(.87) rotate(-17deg)}100%{transform:scale(1) rotate(0)}}\n@keyframes trivia-shield-shine{0%{transform:scale(.5) rotate(-17deg);filter:brightness(3)}60%{transform:scale(1.22) rotate(8deg)}100%{transform:scale(1)}}\n@keyframes trivia-crown-rise{0%{transform:translateY(50px) rotate(-15deg) scale(.5)}65%{transform:translateY(-12px) scale(1.2)}100%{transform:translateY(0) scale(1)}}\n@keyframes trivia-confetti{0%{opacity:1;transform:translate(-50%,-50%) rotate(0)}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) rotate(var(--rot))}}\n@keyframes trivia-pip-glow{0%{filter:brightness(1)}35%{filter:brightness(1.9)}100%{filter:brightness(1)}}\n@media(prefers-reduced-motion:reduce){.trivia-fx-card,.trivia-fx-symbol,.trivia-fx-particle,.trivia-fx-shade,.solo-pip.complete{animation:none!important}.trivia-fx-layer{animation:none}.solo-progress-track>span,.trivia-fx-track>span{transition:none!important}}\n";
+document.head.appendChild(style);
+const colors={shield:['#6edcf1','#6edcf155'],crown:['#ffd676','#ffcf535c'],win:['#ffd676','#ffcf535c'],life:['#ff788d','#f756775b'],wrong:['#ff788d','#f756775b'],right:['#67ecc0','#67ecc05b'],round:['#a99aff','#aa99ff50'],end:['#a5b8dd','#9dabdd45']};
+let cleanup=0,notificationToken=0;
+function show(type,symbol,title,description){
+ const tone=colors[type]||colors.round;
+ if(cleanup)clearTimeout(cleanup);
+ document.querySelectorAll('.trivia-fx-layer').forEach(e=>e.remove());
+ const layer=document.createElement('div');
+ layer.className='trivia-fx-layer '+type;
+ layer.setAttribute('aria-hidden','true');
+ layer.style.setProperty('--fx-color',tone[0]);layer.style.setProperty('--fx-glow',tone[1]);
+ const shade=document.createElement('div');shade.className='trivia-fx-shade';layer.append(shade);
+ const card=document.createElement('div');card.className='trivia-fx-card';
+ for(const [cls,content] of [['trivia-fx-symbol',symbol],['trivia-fx-title',title],['trivia-fx-sub',description||'']]){
+  const node=document.createElement('div');node.className=cls;node.textContent=content;card.append(node);
+ }
+ layer.append(card);
+ if(!matchMedia('(prefers-reduced-motion: reduce)').matches&&['crown','shield','win','right','round'].includes(type)){
+  for(let i=0;i<30;i++){
+   const particle=document.createElement('i');particle.className='trivia-fx-particle';
+   const angle=Math.PI*2*i/30,spread=70+Math.random()*Math.min(200,innerWidth*.28);
+   particle.style.setProperty('--c',['#ffd775','#78efc1','#aa9aff','#fff1ba'][i%4]);
+   particle.style.setProperty('--dx',Math.cos(angle)*spread+'px');
+   particle.style.setProperty('--dy',(Math.sin(angle)*spread+150)+'px');
+   particle.style.setProperty('--rot',(Math.random()*960-480)+'deg');
+   particle.style.setProperty('--t',(1.1+Math.random()*.65)+'s');
+   particle.style.setProperty('--delay',(Math.random()*.16)+'s');
+   layer.append(particle);
+  }
+ }
+ document.body.appendChild(layer);
+ const token=++notificationToken;
+ cleanup=setTimeout(()=>{if(token===notificationToken)layer.remove();cleanup=0},1800);
+}
+window.TRIVIA_FX={show};
+const progress=(value,max,label)=>{
+ const n=Math.max(0,Math.min(max,Number(value)||0));
+ return '<div class="trivia-fx-progress"><div class="trivia-fx-caption"><span>'+label+'</span><span>'+n+' / '+max+'</span></div><div class="trivia-fx-track" role="progressbar" aria-valuenow="'+n+'" aria-valuemin="0" aria-valuemax="'+max+'"><span style="width:'+(n/max*100)+'%"></span></div></div>';
+};
+let previousKey='',previousData=null,queued=false;
+const getNumber=(text)=>Number(String(text||'').match(/\d+/)?.[0]||0);
+function observeState(){
+ queued=false;
+ const online=document.getElementById('onlineRoot');
+ const inOnline=online&&!online.hidden;
+ const solo=document.getElementById('soloRoot');
+ if(solo&&!solo.hidden){previousKey='';previousData=null;return}
+ if(inOnline){
+  const view=document.getElementById('onlineView');
+  if(!view)return;
+  const roomMarker=view.querySelector('.online-kicker')?.textContent||'';
+  const key='online:'+roomMarker.match(/SALA\s+([A-Z0-9]{6})/)?.[1];
+  const versus=!!view.querySelector('.vs-scoreboard');
+  if(versus){
+   const nodes=[...view.querySelectorAll('.vs-scoreboard .vs-player')];
+   if(nodes.length!==2)return;
+   const scores=nodes.map(n=>getNumber(n.querySelector('.vs-points')?.textContent));
+   const roundText=view.querySelector('.vs-round-badge')?.textContent||'';
+   const m=roundText.match(/RONDA\s+(\d+)\s*\/\s*(\d+)/i);
+   if(m){
+    const value=Number(m[1]),max=Number(m[2]);
+    const bar=progress(Math.max(0,value-1),max,'PROGRESO DEL DUELO');
+    const holder=view.querySelector('.vs-round-badge');
+    if(holder&&!holder.querySelector('.trivia-fx-progress'))holder.insertAdjacentHTML('afterend',bar);
+   }
+   const here=key+':vs';
+   if(previousKey===here&&previousData){
+    const self=nodes.findIndex(n=>n.classList.contains('self'));
+    const gain=self>=0?scores[self]-(previousData.scores?.[self]||0):0;
+    if(gain>0)show('right','⚡','+'+gain+' PUNTOS','¡Buen resultado en el duelo!');
+    const other=self===0?1:0;
+    if(gain<=0&&scores[other]>(previousData.scores?.[other]||0))show('round','⚔️','PUNTÚA TU RIVAL','La siguiente ronda puede cambiar el marcador');
+   }
+   previousKey=here;previousData={scores};return;
+  }
+  const cards=[...view.querySelectorAll('.online-players .online-player')];
+  if(cards.length!==2)return;
+  const scores=cards.map(n=>getNumber(n.querySelector('.score')?.textContent));
+  const shields=cards.map(n=>getNumber(n.querySelector('small')?.textContent?.split('🛡️')[1]));
+  cards.forEach((card,i)=>{if(!card.querySelector('.trivia-fx-progress'))card.insertAdjacentHTML('beforeend',progress(scores[i],6,'QUESITOS CONSEGUIDOS'))});
+  const here=key+':roulette';
+  if(previousKey===here&&previousData){
+   const earned=scores.findIndex((n,i)=>n>(previousData.scores?.[i]||0));
+   const lost=scores.findIndex((n,i)=>n<(previousData.scores?.[i]||0));
+   if(earned>=0)show('crown','🧀','¡QUESITO CONSEGUIDO!',cards[earned].querySelector('b')?.textContent||'');
+   else if(lost>=0)show('life','💔','QUESITO PERDIDO',cards[lost].querySelector('b')?.textContent||'');
+   else {
+    const gained=shields.findIndex((n,i)=>n>(previousData.shields?.[i]||0));
+    const spent=shields.findIndex((n,i)=>n<(previousData.shields?.[i]||0));
+    if(gained>=0)show('shield','🛡️','ESCUDO CONSEGUIDO','Giro protegido disponible');
+    else if(spent>=0)show('shield','🛡️','ESCUDO UTILIZADO','Giro protegido');
+   }
+  }
+  previousKey=here;previousData={scores,shields};return;
+ }
+ const game=document.getElementById('game');
+ if(!game||game.classList.contains('hide')){previousKey='';previousData=null;return}
+ const cards=[...document.querySelectorAll('#players .mini-player')];
+ if(!cards.length)return;
+ const scores=cards.map(n=>getNumber(n.querySelector('.number')?.textContent));
+ cards.forEach((card,i)=>{if(!card.querySelector('.trivia-fx-progress'))card.insertAdjacentHTML('beforeend',progress(scores[i],6,'CORONAS'))});
+ const here='local:'+cards.map(n=>n.querySelector('.player-name')?.textContent).join('|');
+ if(previousKey===here&&previousData){
+  const earned=scores.findIndex((n,i)=>n>(previousData.scores?.[i]||0));
+  const lost=scores.findIndex((n,i)=>n<(previousData.scores?.[i]||0));
+  if(earned>=0)show('crown','🧀','¡QUESITO CONSEGUIDO!',cards[earned].querySelector('.player-name')?.textContent||'');
+  else if(lost>=0)show('life','💔','QUESITO PERDIDO',cards[lost].querySelector('.player-name')?.textContent||'');
+ }
+ previousKey=here;previousData={scores};
+}
+const observer=new MutationObserver(()=>{
+ if(queued)return;
+ queued=true;
+ requestAnimationFrame(observeState);
+});
+observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','class']});
+requestAnimationFrame(observeState);
 })();
