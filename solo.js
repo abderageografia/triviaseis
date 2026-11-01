@@ -134,7 +134,7 @@ let state = null, tick = 0, spinning = false, wheelRotation = 0, mediaTicket = 0
 const HAPTIC_KEY='triviaSeisSoloHaptics';
 let hapticsOn=true;
 try{hapticsOn=localStorage.getItem(HAPTIC_KEY)!=='off'}catch{}
-let wheelFrame=0,wheelToken=0;
+let wheelFrame=0,wheelToken=0,landingTimer=0;
 function soloVibrate(pattern){
  if(!hapticsOn||root.hidden||document.hidden||typeof navigator.vibrate!=='function')return false;
  try{return navigator.vibrate(pattern)!==false}catch{return false}
@@ -144,7 +144,8 @@ function stopWheelVibration(){
 }
 function cancelWheelAnimation(){
  wheelToken++;if(wheelFrame)cancelAnimationFrame(wheelFrame);
- wheelFrame=0;spinning=false;stopWheelVibration();
+ if(landingTimer)clearTimeout(landingTimer);
+ landingTimer=0;wheelFrame=0;spinning=false;stopWheelVibration();
 }
 
 const save=()=>{if(state)try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}};
@@ -261,21 +262,54 @@ function startQuestion(){
  save();render();
 }
 function spin(){
- if(spinning||state.stage!=='wheel')return;spinning=true;
- let cats=byCat.map((_,i)=>i).filter(i=>state.mode!=='classic'||state.pips[i]<3);
- if(!cats.length){end('Has conquistado los seis quesitos');return}
- const cat=cats[Math.floor(Math.random()*cats.length)];
- const index=cat; const normalized=(index+0.5)*60;
- wheelRotation+=1440+(360-(wheelRotation%360)-normalized+360)%360;
- const disc=root.querySelector('#soloDisc');
- if(disc)disc.style.transform='rotate('+wheelRotation+'deg)';
- const btn=root.querySelector('[data-solo="spin"]');if(btn)btn.disabled=true;
- setTimeout(()=>{
-  spinning=false;if(root.hidden||!state||state.stage!=='wheel')return;
-  state.cat=cat;state.risk=false;
-  state.stage=Math.random()<.18?'offer':'question';
-  if(state.stage==='question')startQuestion();else{save();render()}
- },1570);
+ if(spinning||!state||state.stage!=='wheel')return;
+ const available=byCat.map((_,i)=>i).filter(i=>state.mode!=='classic'||state.pips[i]<3);
+ if(!available.length){end('Has conquistado los seis quesitos');return}
+ cancelWheelAnimation();
+ spinning=true;
+ const token=wheelToken;
+ const selected=available[Math.floor(Math.random()*available.length)];
+ const startAngle=wheelRotation;
+ const current=((startAngle%360)+360)%360;
+ const target=(360-(selected+0.5)*60+360)%360;
+ const offset=(target-current+360)%360;
+ const finishAngle=startAngle+(4+Math.floor(Math.random()*2))*360+offset;
+ const duration=2800;
+ const btn=root.querySelector('[data-solo="spin"]');
+ const status=root.querySelector('#soloSpinStatus');
+ if(btn){btn.disabled=true;btn.textContent='GIRANDO…'}
+ if(status){status.classList.add('spinning');status.textContent='La ruleta está eligiendo una categoría…'}
+ // Este primer pulso se solicita directamente desde el toque del jugador.
+ soloVibrate([50,35,50]);
+ let started=null,lastPulse=-Infinity,lastSection=Math.floor((startAngle+30)/60);
+ function frame(now){
+  if(token!==wheelToken||!state||root.hidden||state.stage!=='wheel')return;
+  if(started===null)started=now;
+  const t=Math.min(1,(now-started)/duration);
+  const eased=1-Math.pow(1-t,3.4);
+  wheelRotation=startAngle+(finishAngle-startAngle)*eased;
+  paintWheel(wheelRotation);
+  // Pulsos breves al pasar a otro sector, con mayor separación al frenar.
+  const section=Math.floor((wheelRotation+30)/60);
+  if(section!==lastSection&&now-lastPulse>=110&&t<0.97){
+   soloVibrate(t>0.7?34:24);
+   lastPulse=now;
+  }
+  lastSection=section;
+  if(t<1){wheelFrame=requestAnimationFrame(frame);return}
+  wheelFrame=0;wheelRotation=finishAngle;paintWheel(wheelRotation);
+  stopWheelVibration();soloVibrate([65,45,90]);
+  if(status){status.classList.remove('spinning');status.textContent=icons[selected]+' '+names[selected]+' · ¡categoría elegida!'}
+  landingTimer=setTimeout(()=>{
+   landingTimer=0;
+   if(token!==wheelToken||root.hidden||!state||state.stage!=='wheel')return;
+   spinning=false;state.cat=selected;state.risk=false;
+   state.stage=Math.random()<.18?'offer':'question';
+   if(state.stage==='question')startQuestion();
+   else{save();render()}
+  },380);
+ }
+ wheelFrame=requestAnimationFrame(frame);
 }
 function grade(answer,expired=false){
  if(!state||state.stage!=='question')return;
@@ -284,6 +318,7 @@ function grade(answer,expired=false){
  const correct=!expired && !!answer.trim() && !!window.TRIVIA_MATCH?.(answer,q);
  state.lastCorrect=correct;state.lastQText=q[2];state.lastAnswer=q[3];state.lastMessage='';
  if(correct){
+  soloVibrate([30,40,65]);
   state.correct++;state.streak++;state.bestStreak=Math.max(state.streak,state.bestStreak);
   const bonus=state.risk?2:1;
   state.points+=(q[1]==='dificil'?150:100)*bonus+Math.min(100,state.streak*10);
@@ -291,6 +326,7 @@ function grade(answer,expired=false){
   if(state.streak%4===0){state.shields=Math.min(2,state.shields+1);state.lastMessage='🔥 Cuatro aciertos seguidos: has ganado un escudo.'}
   else state.lastMessage='+'+((q[1]==='dificil'?150:100)*bonus+Math.min(100,state.streak*10))+' puntos'+(state.risk?' y avance doble':'')+'.';
  }else{
+  soloVibrate([85,45,100]);
   const livesLost=(state.shields>0?0:1)+(state.risk?1:0);
   if(state.shields>0){state.shields--;state.lastMessage='El escudo evita perder una vida.'}
   else state.lastMessage=expired?'Se ha agotado el tiempo.':'Pierdes una vida.';
@@ -380,5 +416,6 @@ root.addEventListener('click',e=>{
  if(cmd==='shield'&&state.stage==='question'&&state.aids.shield>0){state.aids.shield--;state.shields++;save();const b=root.querySelector('[data-solo="shield"]');if(b)b.textContent='🛡️ Escudo · '+state.aids.shield;const n=root.querySelector('#soloHint');if(n)n.textContent='Escudo activado para tu próximo fallo.';return}
 });
 root.addEventListener('submit',e=>{if(e.target.id==='soloAnswerForm'){e.preventDefault();const v=root.querySelector('#soloAnswer')?.value;if(v?.trim())grade(v)}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)stopWheelVibration()});
 document.getElementById('soloLaunch')?.addEventListener('click',open);
 })();
