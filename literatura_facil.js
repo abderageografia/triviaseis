@@ -1,5 +1,5 @@
 /* Literatura con dificultad revisada: personajes, obras y autores conocidos. */
-(function(){
+window.TRIVIA_BANK_PATCHES??=[];window.TRIVIA_BANK_PATCHES.push(function(){
 'use strict';
 const bank=window.GAME_BANK;
 if(!Array.isArray(bank))return;
@@ -21,4 +21,4 @@ for(const line of rows.split('\n')){
  seen.add(question.toLocaleLowerCase('es'));
 }
 window.TRIVIA_LITERATURE_REVISED={added,total:bank.filter(q=>q[0]==='lit').length};
-})();
+});
