@@ -66,6 +66,68 @@ css.textContent = `
 .solo-no{border:1px solid #ec8195;background:#3b233f;color:#ffabbc;border-radius:15px;padding:14px;text-align:center;font-size:20px;font-weight:850}
 .solo-kicker{font-size:12px;font-weight:800;letter-spacing:1.7px;text-align:center;color:#a1e6ed}
 @media(min-width:640px){#soloRoot{padding:25px}}
+
+/* Tablero móvil actualizado */
+#soloRoot{background:radial-gradient(ellipse 90% 45% at 50% -15%,#314673,transparent 87%),linear-gradient(#101a33,#080f21);padding:calc(12px + env(safe-area-inset-top)) 12px calc(26px + env(safe-area-inset-bottom))}
+.solo-wrap{max-width:580px}
+.solo-top{gap:7px;margin-bottom:9px}
+.solo-logo{font-size:clamp(16px,4.6vw,21px);line-height:1.2}
+.solo-small{font-size:10px}
+.solo-back,.solo-vibrate{flex-shrink:0;min-height:42px;padding:8px 10px;border:1px solid #6785af;border-radius:12px;color:#f1f5ff;background:#213555;font-size:12px;font-weight:800}
+.solo-vibrate[aria-pressed="true"]{border-color:#70e5d3;color:#a8fff2}
+.solo-vibrate:disabled{opacity:.6}
+.solo-panel{padding:clamp(13px,4vw,21px);border:1px solid #617ba9;border-radius:23px;box-shadow:0 14px 36px #02071488,inset 0 1px #ffffff1b}
+.solo-panel h2{margin:8px auto 12px;font-size:clamp(22px,6vw,29px)}
+.solo-hud{display:grid;gap:8px;margin:8px 0}
+.solo-stats{gap:7px}
+.solo-stat{min-height:78px;min-width:0;padding:9px 3px;border-radius:15px;background:linear-gradient(160deg,#1a2b49,#0c1b33)}
+.solo-stat b{font-size:clamp(22px,7vw,30px);line-height:1.25;font-variant-numeric:tabular-nums}
+.solo-stat small{letter-spacing:.5px;font-size:10px}
+.solo-stat .solo-hearts{display:flex;align-items:center;justify-content:center;gap:1px;flex-wrap:wrap;font-size:clamp(20px,6vw,28px);min-height:38px;letter-spacing:-2px;color:#ff7689}
+.solo-hearts .lost{color:#455270;filter:saturate(.4)}
+.solo-pips{gap:5px;margin:0}
+.solo-pip{border-radius:12px;padding:8px 1px 6px;background:linear-gradient(145deg,#172743,#101c33);border-color:#4a638a}
+.solo-pip.complete{border-color:var(--cc);box-shadow:0 0 11px color-mix(in srgb,var(--cc) 30%,transparent)}
+.solo-pip-icon{display:block;font-size:clamp(18px,5.6vw,24px);line-height:1.1}
+.solo-pip b{font-size:10px;margin-top:4px}
+.solo-circles{gap:3px;margin-top:6px}
+.solo-circles i{width:7px;height:7px}
+.solo-inventory{display:flex;justify-content:center;flex-wrap:wrap;gap:5px;font-size:11px;color:#d7e6ff}
+.solo-inventory span{border:1px solid #526b96;border-radius:99px;background:#162640;padding:5px 9px;white-space:nowrap}
+.solo-hud.compact .solo-stat{min-height:58px;padding:5px 3px}
+.solo-hud.compact .solo-stat b{font-size:23px}
+.solo-hud.compact .solo-stat .solo-hearts{font-size:20px;min-height:29px}
+.solo-hud.compact .solo-pip{padding:5px 0}
+.solo-hud.compact .solo-pip-icon{font-size:19px}
+.solo-hud.compact .solo-circles{margin-top:3px}
+.solo-game-panel{margin-top:8px;text-align:center}
+.solo-wheel-panel{background:radial-gradient(circle at 50% 33%,#293e67,#192743 65%,#141e36)}
+.solo-wheel-wrap{width:clamp(185px,min(78vw,37dvh),338px);height:auto;aspect-ratio:1;position:relative;margin:10px auto 16px;isolation:isolate;filter:drop-shadow(0 10px 21px #000a)}
+.solo-wheel-wrap:before{content:'';position:absolute;inset:-3%;z-index:-1;background:conic-gradient(#ef718655,#f2bf6255,#42c8be55,#6a9efa55,#b99aff55,#67d08755,#ef718655);border-radius:50%;filter:blur(12px)}
+.solo-disc{width:100%;height:100%;border:4px solid #d7e4ff;border-radius:50%;transition:none;will-change:transform;box-shadow:inset 0 0 18px #0007,0 0 0 3px #334671;overflow:hidden}
+.solo-wheel-icons{position:absolute;inset:0;pointer-events:none}
+.solo-wheel-icon{position:absolute;transform:translate(-50%,-50%);width:17%;height:17%;display:grid;place-items:center;border:2px solid var(--cc);border-radius:50%;background:radial-gradient(circle at 35% 20%,#2c3d63,#0b172b 80%);font-size:clamp(21px,7vw,34px);box-shadow:0 3px 10px #000b,0 0 12px color-mix(in srgb,var(--cc) 44%,transparent)}
+.solo-pointer{z-index:5;top:-7px;left:50%;width:0;height:0;transform:translateX(-50%);border-left:15px solid transparent;border-right:15px solid transparent;border-top:29px solid #ffe7aa;border-bottom:0;filter:drop-shadow(0 3px 3px #000a) drop-shadow(0 0 7px #ffe18f)}
+.solo-wheel-center{z-index:3;left:33%;top:33%;width:34%;height:34%;border:4px solid #e4dfff;background:radial-gradient(circle at 30% 23%,#354b7e,#111d39 80%);box-shadow:0 0 0 3px #ffffff1a,0 3px 15px #000a;font-size:clamp(27px,9vw,37px);pointer-events:none}
+.solo-spin-status{font-size:12px;font-weight:850;color:#b9cce9;min-height:18px;margin:0 0 6px}
+.solo-spin-status.spinning{color:#ffe3ab}
+.solo-cta{min-height:54px;margin:10px auto;padding:13px 16px;font-size:16px;border:1px solid #b4a7ff;border-bottom:4px solid #342a8a;box-shadow:0 4px 0 #302776,0 11px 24px #4b39bd40}
+.solo-cta:active:not(:disabled){transform:translateY(2px);box-shadow:0 2px 0 #302776}
+.solo-cta:disabled{opacity:.68}
+.solo-game-panel .solo-note{font-size:12px;margin:9px 0 0}
+.solo-question-panel .solo-question{font-size:clamp(20px,5.6vw,29px);line-height:1.23;margin:17px auto;text-wrap:balance;overflow-wrap:anywhere}
+.solo-question-panel .solo-option{min-height:66px;padding:11px 8px;font-size:14px}
+.solo-question-panel .solo-options{margin:12px 0}
+.solo-question-panel .solo-pill{min-height:43px}
+.solo-question-panel .solo-time{height:9px;margin:9px 0}
+.solo-question-panel .solo-field{padding:13px 14px;font-size:17px}
+.solo-result-panel h2{font-size:clamp(19px,5vw,26px);overflow-wrap:anywhere}
+.solo-choice.active{background:#24455a;border-color:#79eddd}
+.solo-haptics-help{font-size:12px;text-align:center;color:#b9cce8;margin:12px auto;line-height:1.4}
+.solo-haptics-help button{margin-left:5px;background:#263e62;border:1px solid #719ac7;border-radius:10px;color:#fff;padding:7px 10px;font-weight:800}
+#soloRoot button:focus-visible,#soloRoot input:focus-visible,#soloRoot select:focus-visible{outline:3px solid #ffe39e;outline-offset:2px}
+@media(max-width:370px){#soloRoot{padding-left:8px;padding-right:8px}.solo-panel{padding:12px}.solo-logo{font-size:15px}.solo-small{font-size:9px}.solo-back,.solo-vibrate{padding:7px 8px;font-size:11px}.solo-wheel-wrap{width:clamp(176px,min(75vw,35dvh),298px)}.solo-inventory{gap:3px}.solo-inventory span{padding:4px 6px}}
+@media(max-height:640px){.solo-panel{margin:7px 0}.solo-wheel-wrap{width:clamp(160px,min(69vw,32dvh),280px);margin:5px auto 9px}.solo-game-panel h2{margin:4px 0}.solo-stat{min-height:69px}.solo-stat b{font-size:23px}.solo-inventory{font-size:10px}.solo-cta{min-height:46px;padding:10px}}
 `;
 document.head.appendChild(css);
 let state = null, tick = 0, spinning = false, wheelRotation = 0, mediaTicket = 0, chosenMode = 'classic', chosenLevel = 'both';
