@@ -2008,14 +2008,14 @@ function showRoom(){
   ${active?'<button class="online-btn" data-action="acceptSteal">⚔️ INTENTAR EL ROBO</button><button class="online-btn ghost" data-action="declineSteal">Pregunta normal</button>':'<p class="online-note">El rival decide si acepta el reto…</p>'}</div>`;
  }else if(r.phase==='question'||r.phase==='finalQuestion'){
   const finale=r.phase==='finalQuestion';
-  html+=`<div class="online-card">${finale?'<div class="online-special">👑 GRAN FINAL</div>':r.steal?.accepted?'<div class="online-special">⚔️ PREGUNTA DE ROBO · DIFÍCIL</div>':''}${qBlock(r)}
+  html+=`<div class="online-card">${finale?'<div class="online-special">👑 GRAN FINAL</div>':r.steal?.accepted?'<div class="online-special">⚔️ PREGUNTA DE ROBO · DIFÍCIL</div>':r.defense?'<div class="online-special">🛡️ DEFENSA DEL QUESITO · Si fallas pierdes una sección</div>':''}${qBlock(r)}
   ${active?`<form id="onlineAnswerForm"><label for="onlineAnswer" class="online-label">Tu respuesta</label><input id="onlineAnswer" class="online-field" placeholder="Escribe aquí…" autocomplete="off" autocorrect="off" autocapitalize="sentences" required><button type="submit" class="online-btn">COMPROBAR ✓</button></form>
   <div class="online-shields"><span>🃏 ${me.jokers} comodines</span><span>🔥 ${me.streak} aciertos seguidos</span></div>
   ${finale?'':`<div class="online-flex"><button class="online-btn ghost small" data-action="hint" ${me.jokers<=0||r.hint?'disabled':''}>💡 Pista</button><button class="online-btn ghost small" data-action="change" ${me.jokers<=0?'disabled':''}>🔄 Cambiar</button></div>`}
   ${r.hint?`<p class="online-note">💡 La respuesta empieza por «${esc(BANK[r.qid][3].slice(0,2))}…»</p>`:''}`:'<p class="online-note">Tu rival está respondiendo… La solución aparecerá después.</p>'}</div>`;
  }else if(r.phase==='review'||r.phase==='finalReview'){
   const result=r.result||{correct:false,answer:''},finale=r.phase==='finalReview';
-  html+=`<div class="online-card"><div class="online-special">${finale?'👑 GRAN FINAL':r.steal?.accepted?'⚔️ RESULTADO DEL ROBO':'RESULTADO DE LA PREGUNTA'}</div>${qBlock(r)}<div class="online-feedback ${result.correct?'ok':'no'}">${result.correct?'✓ ¡CORRECTO!':result.expired?'⌛ TIEMPO AGOTADO':'✕ INCORRECTO'}<small>${result.correct?'La respuesta se contará como válida.':'Respuesta correcta: '+esc(BANK[r.qid][3])}</small></div>
+  html+=`<div class="online-card"><div class="online-special">${finale?'👑 GRAN FINAL':r.steal?.accepted?'⚔️ RESULTADO DEL ROBO':r.defense?'🛡️ RESULTADO DE LA DEFENSA':'RESULTADO DE LA PREGUNTA'}</div>${qBlock(r)}<div class="online-feedback ${result.correct?'ok':'no'}">${result.correct?'✓ ¡CORRECTO!':result.expired?'⌛ TIEMPO AGOTADO':'✕ INCORRECTO'}<small>${result.correct?'La respuesta se contará como válida.':'Respuesta correcta: '+esc(BANK[r.qid][3])}</small></div>
   <p class="online-note">${esc(nameOf(r.turn))} respondió: «${esc(result.answer)}».</p>
   ${active?`${!result.correct&&!result.expired?'<button data-action="retry" class="online-btn ghost small" '+(me.jokers<=0||finale?'disabled':'')+'>🃏 Reintentar con comodín</button>':''}<button data-action="continue" class="online-btn">CONTINUAR →</button>`:'<p class="online-note">Esperando a que continúe tu rival…</p>'}</div>`;
  }else if(r.phase==='duel'){
@@ -2403,9 +2403,9 @@ function topicChoices(r,cat){
 }
 function startQuestion(r,cat,topic=''){
  const f=topic?tags[cat].find(([s])=>s===topic)?.[1]:null;
- let id=sampleFrom(r,cat,r.bonus?.accepted||r.steal?.accepted?'dificil':'both',f?(q=>f.test(q[2]+' '+(q[6]||''))):null);
+ let id=sampleFrom(r,cat,r.bonus?.accepted||r.steal?.accepted||r.defense?'dificil':'both',f?(q=>f.test(q[2]+' '+(q[6]||''))):null);
  if(id<0)id=sampleFrom(r,cat,'both');if(id<0)return false;
- const surpriseId=(!r.bonus?.accepted&&!r.steal?.accepted&&!r.finalist)?(window.TRIVIA_SURPRISE_PICK?.(r.used,!!r.surpriseSeen)??-1):-1;
+ const surpriseId=(!r.bonus?.accepted&&!r.steal?.accepted&&!r.defense&&!r.finalist)?(window.TRIVIA_SURPRISE_PICK?.(r.used,!!r.surpriseSeen)??-1):-1;
  if(surpriseId>=0){id=surpriseId;r.surpriseSeen=true;topic=''}
  r.qid=id;r.cat=cat;r.topic=topic;(r.used ??= {})[id]=true;r.phase='question';r.hint=false;r.result=null;startQuestionClock(r);
  return true;
@@ -2422,15 +2422,16 @@ async function doSpin(protectedSpin=false){
   if(r.phase!=='spin'||r.turn!==role)return;
   const me=r.players[role];let choices=[0,1,2,3,4,5];
   if(protectedSpin){if(me.shields<1)return;me.shields--;choices=choices.filter(i=>me.done[i]<3&&i!==me.lastCat);if(!choices.length)choices=[0,1,2,3,4,5].filter(i=>me.done[i]<3)}
-  const cat=choices[Math.floor(Math.random()*choices.length)];r.cat=cat;me.lastCat=cat;r.bonus=null;r.steal=null;r.topic='';r.result=null;
+  const cat=choices[Math.floor(Math.random()*choices.length)];r.cat=cat;me.lastCat=cat;r.bonus=null;r.steal=null;r.defense=null;r.counter=null;r.topic='';r.result=null;
   const roll=protectedSpin?1:Math.random();
   if(roll<.035){r.phase='choiceCategory';r.options=[cat,...[0,1,2,3,4,5].filter(i=>i!==cat)].sort(()=>Math.random()-.5).slice(0,2);return r}
   if(roll<.085){const opts=topicChoices(r,cat);if(opts){r.phase='choiceTopic';r.options=opts;return r}}
   if(roll<.13){const id=sampleFrom(r,cat);if(id>=0){r.qid=id;(r.used ??= {})[id]=true;r.phase='duel';r.duelAnswers={};r.duelCorrect={};startQuestionClock(r);return r}}
   if(roll<.17&&complete(me)>0){r.bonus={count:Math.random()<.65?2:3,loss:1,accepted:false};r.bonus.loss=r.bonus.count===2?1:2;r.phase='bonusChoice';return r}
-  if(roll<.23&&r.players[other(role)]?.done[cat]===3&&me.done[cat]<3){
+  if(roll<.55&&r.players[other(role)]?.done[cat]===3&&me.done[cat]<3){
    r.steal={cat,accepted:false};r.phase='stealChoice';return r;
   }
+  if(me.done[cat]===3&&!protectedSpin){r.defense={cat};startQuestion(r,cat);return r}
   startQuestion(r,cat);return r;
  });
   if(!result?.committed)return;
@@ -2495,6 +2496,7 @@ async function continueQuestion(){await tx(r=>{
  if(final){if(r.result.correct){r.phase='finished';r.status='finished';r.winner=role;return r}
   const cat=r.cat;p.done[cat]=Math.max(0,p.done[cat]-1);p.streak=0;r.turn=other(role);r.phase='spin';r.finalist=null;r.result=null;return r;
  }
+ if(r.defense){if(r.result.correct){p.hits++;p.streak++;}else{p.done[r.defense.cat]=2;p.streak=0;r.turn=other(role)}r.phase='spin';r.result=null;r.defense=null;r.qid=-1;return r}
  if(r.result.correct){p.hits++;
   if(r.steal?.accepted){
    const victim=r.players[other(role)],cat=r.steal.cat;
