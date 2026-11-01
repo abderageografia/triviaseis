@@ -1452,7 +1452,7 @@ window.TRIVIA_MATCH = match;
 <script src="./solo.js?v=5"></script>
 
 <div id="onlineRoot" class="online-root" hidden aria-live="polite">
-  <div class="online-toolbar"><div class="online-logo">🌐 TRIVIA<span>·</span>SEIS <small style="font-size:11px;color:#9ce6e9">ONLINE</small></div><div style="display:flex;gap:6px"><button id="onlineSwitchRoom" class="online-exit" type="button" hidden>Otra sala</button><button id="onlineExit" class="online-exit" type="button">Salir</button></div></div>
+  <div class="online-toolbar"><div class="online-logo">🌐 TRIVIA<span>·</span>SEIS <small style="font-size:11px;color:#9ce6e9">ONLINE</small></div><div style="display:flex;gap:6px"><button id="onlineSwitchRoom" class="online-exit" type="button" hidden>Otra sala (borra)</button><button id="onlineExit" class="online-exit" type="button">Salir</button></div></div>
   <div class="online-status" id="onlineConnectivity">Conectando…</div>
   <div id="onlineConnectionAlert" class="online-connection-alert" role="status" hidden></div>
   <div id="onlineView"><div class="online-card"><h2 class="online-heading">Preparando conexión…</h2></div></div>
@@ -1461,7 +1461,7 @@ window.TRIVIA_MATCH = match;
 <script type="module">
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js';
 import {getAuth, onAuthStateChanged, signInAnonymously} from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js';
-import {getDatabase, ref, get, set, update, onValue, runTransaction} from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-database.js';
+import {getDatabase, ref, get, set, update, remove, onValue, runTransaction} from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-database.js';
 const cfg={
  apiKey:'AIzaSyAv9poWT3TIMEooaYarhijnaBKv1CCPsfc',
  authDomain:'trivia-seis.firebaseapp.com',projectId:'trivia-seis',
@@ -1481,7 +1481,7 @@ const BANK=window.GAME_BANK.concat(window.TRIVIA_BONUS_QUIZ||[]);
 const byCat=keys.map(k=>BANK.map((q,i)=>q[0]===k?i:-1).filter(i=>i>=0));
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let uid='',roomCode='',room=null,role='',unsubscribe=null,connected=false,pending=false,lastRender='',myName=localStorage.getItem('triviaOnlineName')||'Jugador',toast='',spinLock=false;
+let uid='',roomCode='',room=null,role='',unsubscribe=null,connected=false,pending=false,leavingRoom=false,lastRender='',myName=localStorage.getItem('triviaOnlineName')||'Jugador',toast='',spinLock=false;
 let imageCache=new Map(), questionImageTicket=0;
 let authPromise=null;
 let resumeEpoch=0;
@@ -1671,11 +1671,42 @@ function forgetOnlineRoom(){
  const url=new URL(location.href);url.searchParams.delete('sala');url.searchParams.delete('v');
  history.replaceState(null,'',url.pathname+url.search+url.hash);
 }
-function switchOnlineRoom(confirmLeave=true){
- if(confirmLeave&&roomCode&&!confirm('¿Abandonar esta sala? La partida seguirá guardada y podrás volver con el mismo código.'))return;
- forgetOnlineRoom();renderHome();
+async function exitOnlineRoom(closeAfter=false,ask=true){
+ if(leavingRoom)return;
+ const code=roomCode;
+ if(!code){
+  forgetOnlineRoom();
+  if(closeAfter){root.hidden=true;document.body.style.overflow=''}else renderHome();
+  return;
+ }
+ if(ask&&!confirm('¿Salir y ELIMINAR definitivamente esta partida online para los dos jugadores? No se podrá recuperar.'))return;
+ if(!connected||!uid){
+  message('Sin conexión a Firebase: no se ha borrado la sala. Recupera la conexión y vuelve a pulsar «Salir y borrar».');
+  return;
+ }
+ leavingRoom=true;
+ const exit=$('onlineExit'),switchBtn=$('onlineSwitchRoom');
+ if(exit){exit.disabled=true;exit.textContent='Borrando…'}
+ if(switchBtn)switchBtn.disabled=true;
+ try{
+  // El servidor debe confirmar la eliminación antes de abandonar localmente la sala.
+  await bounded(remove(ref(db,'rooms/'+code)),12000,'Firebase no ha confirmado que la sala se haya borrado.');
+  forgetKnownRoom(code);
+  forgetOnlineRoom();
+  if(closeAfter){root.hidden=true;document.body.style.overflow=''}
+  else{renderHome();message('La sala se ha eliminado. Ambos jugadores han salido de la partida.')}
+ }catch(e){
+  console.warn('No se ha podido eliminar la sala:',e);
+  networkNotice('No se ha borrado la partida online. Comprueba la conexión o los permisos de Firebase y vuelve a intentarlo.');
+  message('No se ha podido confirmar el borrado. La partida sigue guardada.');
+ }finally{
+  leavingRoom=false;
+  if(exit){exit.disabled=false;exit.textContent=roomCode?'Salir y borrar':'Salir'}
+  if(switchBtn)switchBtn.disabled=false;
+ }
 }
-function closeOnline(){forgetOnlineRoom();root.hidden=true;document.body.style.overflow=''}
+function switchOnlineRoom(confirmLeave=true){return exitOnlineRoom(false,confirmLeave)}
+function closeOnline(){return exitOnlineRoom(true,true)}
 function fitOnline(){
  const vp=window.visualViewport;
  root.style.top=(vp?Math.round(vp.offsetTop):0)+'px';
@@ -1688,7 +1719,7 @@ window.visualViewport?.addEventListener('scroll',fitOnline);
 window.addEventListener('resize',fitOnline);
 view.addEventListener('focusin',e=>{if(e.target.matches('input'))requestAnimationFrame(()=>e.target.scrollIntoView({block:'center',behavior:'smooth'}))});
 $('onlineLaunch').addEventListener('click',openOnline);
-$('onlineExit').addEventListener('click',()=>{if(roomCode&&!confirm('¿Salir de la partida? No volverás a entrar automáticamente. Podrás regresar con el código de la sala.'))return;closeOnline()});
+$('onlineExit').addEventListener('click',()=>closeOnline());
 $('onlineSwitchRoom').addEventListener('click',()=>switchOnlineRoom());
 onValue(ref(db,'.info/connected'),snap=>{
  connected=!!snap.val();
@@ -1702,6 +1733,7 @@ onAuthStateChanged(auth,user=>{uid=user?.uid||'';if(uid){cleanupKnownRooms();if(
 function basePage(content){view.innerHTML=content+(toast?`<p class="online-note" id="onlineToast" role="status">${esc(toast)}</p>`:'');}
 function renderHome(){
  const change=$('onlineSwitchRoom');if(change)change.hidden=true;
+ const exit=$('onlineExit');if(exit)exit.textContent='Salir';
  lastRender='home';const invited=normCode(new URL(location.href).searchParams.get('sala'));
  basePage(`<div class="online-card"><div class="online-kicker">⚔️ DUELO EN TIEMPO REAL</div><h2 class="online-heading">${invited?'¡Te han invitado a jugar!':'Dos jugadores.<br>Dos móviles.'}</h2>
  <label class="online-label" for="myOnlineName">Tu nombre</label><input class="online-field" id="myOnlineName" maxlength="24" autocomplete="nickname" value="${esc(myName)}">
@@ -1841,9 +1873,10 @@ function enter(code){
  resumeEpoch++;
  if(unsubscribe)unsubscribe();roomCode=code;saveLocal();rememberRoom(code);lastRender='';
  const change=$('onlineSwitchRoom');if(change)change.hidden=false;
+ const exit=$('onlineExit');if(exit)exit.textContent='Salir y borrar';
  history.replaceState(null,'',location.pathname+'?sala='+code+'&v=10'+location.hash);
  unsubscribe=onValue(ref(db,'rooms/'+code),snap=>{
-  if(root.hidden||roomCode!==code)return;
+  if(root.hidden||roomCode!==code||leavingRoom)return;
   if(!snap.exists()){forgetKnownRoom(code);forgetOnlineRoom();renderHome();message('La sala ya no existe.');return}
   room=snap.val();role=room.hostUid===uid?'host':room.guestUid===uid?'guest':'';
   if(!role){forgetOnlineRoom();renderHome();message('No tienes acceso a esta sala.');return}
