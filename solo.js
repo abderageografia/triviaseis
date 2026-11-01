@@ -175,13 +175,29 @@ function summary(){
  return '<div class="solo-hud'+(compact?' compact':'')+'">'+stats+pips+inventory+'</div>';
 }
 function wheelSvg(){
- const step=2*Math.PI/6, cx=150,cy=150,r=145;
- return '<svg viewBox="0 0 300 300" style="width:100%;height:100%" aria-label="Ruleta de categorías">'+colors.map((col,i)=>{
- const a=i*step-Math.PI/2,b=(i+1)*step-Math.PI/2;
- let x1=cx+r*Math.cos(a),y1=cy+r*Math.sin(a),x2=cx+r*Math.cos(b),y2=cy+r*Math.sin(b);
- let t=(a+b)/2,tx=cx+90*Math.cos(t),ty=cy+90*Math.sin(t);
- return '<path d="M 150 150 L '+x1+' '+y1+' A '+r+' '+r+' 0 0 1 '+x2+' '+y2+' Z" fill="'+col+'" stroke="#10213c" stroke-width="3" opacity="'+(state.pips[i]===3?'.3':'1')+'"/><text x="'+tx+'" y="'+(ty+8)+'" font-size="30" text-anchor="middle">'+icons[i]+'</text>'
- }).join('')+'</svg>';
+ const step=2*Math.PI/6,cx=150,cy=150,r=145;
+ return '<svg viewBox="0 0 300 300" class="solo-wheel-svg" style="width:100%;height:100%" role="img" aria-label="Ruleta de seis categorías">'+
+ colors.map((col,i)=>{
+  const a=i*step-Math.PI/2,b=(i+1)*step-Math.PI/2;
+  const x1=cx+r*Math.cos(a),y1=cy+r*Math.sin(a),x2=cx+r*Math.cos(b),y2=cy+r*Math.sin(b);
+  return '<path d="M 150 150 L '+x1+' '+y1+' A '+r+' '+r+' 0 0 1 '+x2+' '+y2+' Z" fill="'+col+'" stroke="#111a34" stroke-width="3" opacity="'+(state.pips[i]===3?'.28':'1')+'"/>';
+ }).join('')+'<circle cx="150" cy="150" r="141" fill="none" stroke="#ffffff53" stroke-width="2"/><circle cx="150" cy="150" r="57" fill="#131e3a" stroke="#ffffff5a" stroke-width="3"/></svg>';
+}
+function wheelIconsHtml(){
+ return '<div class="solo-wheel-icons" id="soloWheelIcons" aria-hidden="true">'+icons.map((v,i)=>
+  '<span class="solo-wheel-icon" style="--cc:'+colors[i]+'" data-solo-icon="'+i+'">'+v+'</span>'
+ ).join('')+'</div>';
+}
+function paintWheel(angle){
+ const disc=root.querySelector('#soloDisc');
+ if(disc)disc.style.transform='rotate('+angle+'deg)';
+ const iconsWrap=root.querySelector('#soloWheelIcons');
+ if(!iconsWrap)return;
+ Array.from(iconsWrap.children).forEach((badge,i)=>{
+  const a=(-60+i*60+angle)*Math.PI/180;
+  badge.style.left=(50+30*Math.cos(a))+'%';
+  badge.style.top=(50+30*Math.sin(a))+'%';
+ });
 }
 function render(){
  if(root.hidden)return;
@@ -192,7 +208,7 @@ function render(){
  }
  let main=summary();
  if(state.stage==='wheel'){
-  main+='<div class="solo-panel"><div class="solo-kicker">'+(state.mode==='classic'?'CONQUISTA LAS SEIS CORONAS':'DESAFÍO DE 15 PREGUNTAS')+'</div><h2>Gira la ruleta</h2><div class="solo-wheel-wrap"><div class="solo-pointer"></div><div id="soloDisc" class="solo-disc">'+wheelSvg()+'</div><div class="solo-wheel-center">🎯</div></div>'+actionButton('spin','GIRAR RULETA ↻')+'<p class="solo-note">Los aciertos mantienen tu racha. Cada cuarta respuesta correcta añade un escudo.</p></div>';
+  main+='<div class="solo-panel"><div class="solo-kicker">'+(state.mode==='classic'?'CONQUISTA LAS SEIS CORONAS':'DESAFÍO DE 15 PREGUNTAS')+'</div><h2>Gira la ruleta</h2><div class="solo-wheel-wrap"><div class="solo-pointer"></div><div id="soloDisc" class="solo-disc">'+wheelSvg()+'</div>'+wheelIconsHtml()+'<div class="solo-wheel-center">🎯</div></div>'+actionButton('spin','GIRAR RULETA ↻')+'<p class="solo-note">Los aciertos mantienen tu racha. Cada cuarta respuesta correcta añade un escudo.</p></div>';
  }else if(state.stage==='offer'){
   main+='<div class="solo-panel"><div class="solo-kicker">⚡ DESAFÍO ESPECIAL</div><h2>¿Te arriesgas?</h2><p class="solo-note">La siguiente pregunta será de <b>'+names[state.cat]+'</b>. Si aceptas, conseguirás doble avance y puntos extra al acertar. Si fallas perderás una vida adicional.</p>'+actionButton('risk','ACEPTAR EL RETO ⚡')+actionButton('normal','PREGUNTA NORMAL','solo-cta solo-secondary')+'</div>';
  }else if(state.stage==='question'){
@@ -204,7 +220,7 @@ function render(){
  }else if(state.stage==='finished'){
   main+='<div class="solo-panel"><div class="solo-kicker">🏆 FIN DEL RETO</div><h2>'+htmlEscape(state.endReason||'Partida terminada')+'</h2><p class="solo-note">Has conseguido <b>'+state.points+' puntos</b> con '+state.correct+' aciertos en '+state.asked+' preguntas. Máxima racha: '+state.bestStreak+'. Coronas: '+state.stars+'/6.</p>'+actionButton('again','VOLVER A JUGAR ↻')+'</div>';
  }
- screen(main);if(state.stage==='question'){loadPhoto();startTimer()}
+ screen(main);if(state.stage==='wheel')paintWheel(wheelRotation);if(state.stage==='question'){loadPhoto();startTimer()}
 }
 function candidates(cat,level){
  const eligible=state.mode==='classic'?i=>state.pips[i]<3:()=>true;
