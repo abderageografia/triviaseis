@@ -175,7 +175,7 @@ function actionButton(cmd,title,cl='solo-cta'){return '<button class="'+cl+'" da
 // Cada pista escrita revela nuevas letras, manteniendo oculta al menos una letra.
 function soloHintParts(){
  const chars=Array.from(String(playerQuestion()?.[3]??'').trim());
- const isLetter=ch=>/[\\p{L}\\p{N}]/u.test(ch);
+ const isLetter=ch=>/[\p{L}\p{N}]/u.test(ch);
  const total=chars.filter(isLetter).length;
  const max=Math.max(0,total-1);
  const used=Number(state?.hintUses)||0;
