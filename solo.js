@@ -2,7 +2,7 @@
 'use strict';
 const BANK = (window.GAME_BANK || []).concat(window.TRIVIA_BONUS_QUIZ || []);
 const byCat = ['historia','arte','geo','cine','lit','mix'];
-const names = ['Historia','Arte','Geografía','Cine','Literatura','Miscelánea'];
+const names = ['Historia','Arte','Geografía','Cine','Literatura y política','Miscelánea'];
 const icons = ['🏛️','🎨','🌍','🎬','📚','🎤'];
 const colors = ['#ef7186','#f2bf62','#42c8be','#6a9efa','#b99aff','#67d087'];
 const KEY = 'triviaSeisSoloV1';
