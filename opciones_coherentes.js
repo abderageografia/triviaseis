@@ -12,7 +12,10 @@ function semantic(q){
  if(/¿cómo se (?:apellida|apellidaba)|¿cuál es el apellido/.test(t))return 'apellido';
  const bravo=/housewives|rhoslc|rhobh|rhonj|rhori|rhony|bravo-(bh|slc|ri)/i.test(t+' '+tag);
  if(bravo){
-  if(/¿(?:en qué|qué) ciudad|¿(?:en qué|qué) estado|¿qué franquicia|¿de qué localidad|¿dónde/.test(t))return 'bravo:ubicacion';
+  if(/¿(?:en qué|qué) ciudad|¿de qué localidad/.test(t))return 'bravo:ciudad';
+  if(/¿(?:en qué|qué) estado/.test(t))return 'bravo:estado';
+  if(/¿qué franquicia|¿dónde/.test(t))return 'bravo:ubicacion';
+  if(/¿qué presentador|¿quién present[oó]|¿quién dirigi[oó] (?:el |un )?reencuentro/.test(t))return 'bravo:presentador';
   if(/¿cómo se abrevia|siglas/.test(t))return 'bravo:siglas';
   if(/¿qué programa|¿qué reality|¿cuál es el título/.test(t))return 'bravo:programa';
   if(/¿quién|¿qué (?:integrante|mujer|ama de casa|exconcursante|presentador|cantante|participante|famosa|figura|actriz|socialité|personaje)|¿cómo se llama la participante/.test(t))return 'bravo:persona';
@@ -46,7 +49,9 @@ function family(k){
  return k;
 }
 const houseNames=['Kyle Richards','Kim Richards','Kathy Hilton','Lisa Rinna','Lisa Vanderpump','Erika Jayne','Dorit Kemsley','Sutton Stracke','Garcelle Beauvais','Jennifer Tilly','Bozoma Saint John','Heather Gay','Whitney Rose','Meredith Marks','Mary Cosby','Lisa Barlow','Jen Shah','Monica Garcia','Bronwyn Newport','Britani Bateman','Dolores Catania','Teresa Giudice','Melissa Gorga','Ashley Iaconetti','Rulla Nehme Pontarelli','Alicia Carmody'];
-const housePlaces=['Beverly Hills','Salt Lake City','Rhode Island','New Jersey','Orange County','Atlanta','New York City','Potomac','Miami','Dallas','Dubai','Vancouver','Cheshire','Melbourne'];
+const houseCities=['Beverly Hills','Salt Lake City','Atlanta','New York City','Potomac','Miami','Dallas','Dubai','Vancouver','Melbourne'];
+const houseStates=['Utah','New Jersey','Rhode Island','California','Georgia','Florida','Texas'];
+const housePlaces=[...houseCities,...houseStates,'Orange County','Cheshire'];
 function choose(q,bank,amount=4,validFn=null){
  if(!q||![2,4].includes(amount))return [];
  const a=clean(q[3]);if(!a)return [];
@@ -83,12 +88,15 @@ function choose(q,bank,amount=4,validFn=null){
   if(peer[7]===q[7])rank+=6;
   if(peer[6]===q[6])rank+=4;
   if(topic==='bravo'&&/bravo|housewives/i.test(peer[2]+' '+peer[7]))rank+=8;
+  const spanishShows=/Aída|Aquí no hay quien viva|La que se avecina|Los protegidos|Los Serrano|Cuéntame cómo pasó|Las chicas del cable|Vis a vis|La casa de papel|Élite|El internado|Física o química|El ministerio del tiempo/i;
+  if(kind==='actor'&&spanishShows.test(peer[2])===spanishShows.test(q[2]))rank+=4;
   if(topic==='tv'&&/televisi[oó]n|programa|serie|reality|cast/i.test(peer[2]+' '+peer[7]))rank+=2;
   if(topic==='musica'&&/cantante|int[eé]rprete|canci[oó]n|disco|[aá]lbum|m[uú]sica/i.test(peer[2]+' '+peer[7]))rank+=2;
   candidates.push({value,rank:rank+Math.random()});
  }
- if(kind==='bravo:persona'||kind==='bravo:ubicacion'){
-  for(const value of (kind==='bravo:persona'?houseNames:housePlaces)){
+ if(['bravo:persona','bravo:ubicacion','bravo:ciudad','bravo:estado'].includes(kind)){
+  const correctPool=kind==='bravo:persona'?houseNames:kind==='bravo:ciudad'?houseCities:kind==='bravo:estado'?houseStates:housePlaces;
+  for(const value of correctPool){
    if(!used.has(N(value))&&value!==a){used.add(N(value));candidates.push({value,rank:10+Math.random()})}
   }
  }
