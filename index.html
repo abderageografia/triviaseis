@@ -552,6 +552,7 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
 <div id="handoff" class="modal-bg hide"><div class="modal handoff"><div class="big">📱</div><div class="pill">CAMBIO DE TURNO</div><h2 id="handoffTitle"></h2><p class="muted" id="handoffDescription">Pasa el móvil al siguiente jugador.</p><button id="handoffGo" class="btn wide">YA ESTOY LISTO →</button></div></div>
 <script src="./historia_extra.js?v=5"></script>
 <script src="./cine_extra.js?v=5"></script>
+<script src="./arte_extra.js?v=1"></script>
 <script src="./geo_extra_relieve.js?v=1"></script>
 <script src="./geo_extra_aguas.js?v=1"></script>
 <script src="./geo_extra_ciudades.js?v=2"></script>
@@ -587,6 +588,9 @@ if(Array.isArray(window.TRIVIA_HISTORY_EXTRA)&&window.TRIVIA_HISTORY_EXTRA.lengt
 }
 if(Array.isArray(window.TRIVIA_CINE_EXTRA)&&window.TRIVIA_CINE_EXTRA.length===1000){
  window.GAME_BANK.push(...window.TRIVIA_CINE_EXTRA);
+}
+if(Array.isArray(window.TRIVIA_ART_EXTRA)&&window.TRIVIA_ART_EXTRA.length===1000){
+ window.GAME_BANK.push(...window.TRIVIA_ART_EXTRA);
 }
 
 // Ampliación editorial de Geografía: exactamente 1.000 preguntas repartidas en cinco bancos.
