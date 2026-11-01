@@ -153,14 +153,19 @@ const save=()=>{if(state)try{localStorage.setItem(KEY,JSON.stringify(state))}cat
 function load(){try{let old=JSON.parse(localStorage.getItem(KEY)||'null');if(old?.v===1&&Array.isArray(old.pips)&&Array.isArray(old.used)&&old.stage!=='finished')return old}catch{}return null}
 function resetSave(){try{localStorage.removeItem(KEY)}catch{}}
 function stopTimer(){if(tick){clearInterval(tick);tick=0}}
-function close(){stopTimer();cancelWheelAnimation();root.hidden=true;document.body.style.overflow='';save()}
+function close(){
+ // Salir descarta la partida, no la suspende.
+ if(state&&state.stage!=='finished'&&!confirm('¿Salir del modo individual y eliminar la partida actual? No podrás recuperarla.'))return;
+ stopTimer();cancelWheelAnimation();mediaTicket++;
+ resetSave();state=null;root.hidden=true;document.body.style.overflow='';
+}
 function open(){root.hidden=false;document.body.style.overflow='hidden';state=load();if(state&&state.stage==='question'&&Date.now()>Number(state.deadline))grade('',true);else render()}
 const currentCat=()=>state?.cat??0;
 const playerQuestion=()=>BANK[state?.qid]||null;
 function screen(content){
  const supported=typeof navigator.vibrate==='function';
  const hapticButton='<button class="solo-vibrate" type="button" data-solo="haptics" aria-pressed="'+(hapticsOn?'true':'false')+'" title="'+(supported?'Activar o desactivar la vibración':'Este navegador no permite vibración')+'" '+(supported?'':'disabled')+'>'+(supported?(hapticsOn?'📳':'🔕'):'🔕')+' <span>Vibración</span></button>';
- root.innerHTML='<div class="solo-wrap"><div class="solo-top"><div class="solo-logo">🎯 TRIVIA·SEIS <span class="solo-small">EN SOLITARIO</span></div>'+hapticButton+'<button class="solo-back" data-solo="close" type="button">Salir</button></div>'+content+'</div>';
+ root.innerHTML='<div class="solo-wrap"><div class="solo-top"><div class="solo-logo">🎯 TRIVIA·SEIS <span class="solo-small">EN SOLITARIO</span></div>'+hapticButton+'<button class="solo-back" data-solo="close" type="button">'+(state?'Salir y borrar':'Salir')+'</button></div>'+content+'</div>';
 }
 function actionButton(cmd,title,cl='solo-cta'){return '<button class="'+cl+'" data-solo="'+cmd+'">'+title+'</button>'}
 function summary(){
