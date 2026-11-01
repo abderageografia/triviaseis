@@ -1843,7 +1843,7 @@ async function createRoom(mode='roulette'){
    for(let i=0;i<4;i++){
      const code=randomCode(),now=serverNow();
      const fresh={hostUid:uid,hostName:name,createdAt:now,updatedAt:now,lastActiveAt:now,rev:0,status:'waiting',phase:'waiting',mode,turn:'host',cat:-1,qid:-1,used:{},surpriseSeen:false,players:{host:newPlayer(),guest:newPlayer()}};
-   if(mode==='versus'){Object.assign(fresh,{vsRound:0,vsMaxRounds:10,vsScores:{host:0,guest:0},vsStreaks:{host:0,guest:0},vsPowers:{host:{bets:2,hints:1},guest:{bets:2,hints:1}},vsPowerSchedule:vsNewPowerSchedule(),vsRematch:{host:false,guest:false},vsHistory:[]});fresh.vsRapidSchedule=vsNewRapidSchedule(10,fresh.vsPowerSchedule);}
+   if(mode==='versus'){Object.assign(fresh,{vsRound:0,vsMaxRounds:10,vsScores:{host:0,guest:0},vsStreaks:{host:0,guest:0},vsPowers:{host:{bets:2,hints:1},guest:{bets:2,hints:1}},vsBombSchedule:vsNewBombSchedule(10),vsRematch:{host:false,guest:false},vsHistory:[]});fresh.vsPowerSchedule=vsNewPowerSchedule(10,fresh.vsBombSchedule);fresh.vsRapidSchedule=vsNewRapidSchedule(10,fresh.vsPowerSchedule,fresh.vsBombSchedule);fresh.vsCurseRound=5;fresh.vsCategoryStats={host:{},guest:{}};}
      try{await bounded(set(ref(db,'rooms/'+code),fresh),12000,'La base de datos no ha confirmado la creación de la sala.');enter(code);return}catch(e){if(i===3)throw e}
    }
  }catch(e){error(e)}finally{pending=false;working(mode==='versus'?'createVersus':'create',false)}
@@ -2042,8 +2042,8 @@ function vsShuffle(items){
  return result;
 }
 // Ráfagas garantizadas: no aparecen en el primer turno ni en la final, ni consumen rondas con comodín.
-function vsNewRapidSchedule(total=10,powerSchedule={}){
- const candidates=vsShuffle(Array.from({length:Math.max(0,total-2)},(_,i)=>i+2).filter(n=>!powerSchedule[n]&&n%4!==0));
+function vsNewRapidSchedule(total=10,powerSchedule={},bombSchedule={}){
+ const candidates=vsShuffle(Array.from({length:Math.max(0,total-2)},(_,i)=>i+2).filter(n=>!powerSchedule[n]&&!bombSchedule[n]&&n%4!==0));
  const target=total===20?4:total===15?3:2, selected=[];
  for(const round of candidates){if(selected.every(other=>Math.abs(other-round)>1))selected.push(round);if(selected.length===target)break}
  if(selected.length<target)for(const round of candidates){if(!selected.includes(round))selected.push(round);if(selected.length===target)break}
@@ -2060,8 +2060,13 @@ let vsTickBusy=false;
 const vsTotal=r=>[10,15,20].includes(Number(r?.vsMaxRounds))?Number(r.vsMaxRounds):VS_TOTAL;
 const vsPowerCounts=n=>({bets:n===20?4:n===15?3:2,hints:n===10?1:2});
 // Cada partida contiene ventajas aleatorias compartidas, sin coincidir con múltiplos de 4 ni la final.
-function vsNewPowerSchedule(total=10){
- const rounds=Array.from({length:total-1},(_,i)=>i+1).filter(n=>n%4!==0);
+function vsNewBombSchedule(total=10){
+ const eligible=vsShuffle(Array.from({length:Math.max(0,total-4)},(_,i)=>i+3).filter(n=>n<total&&n%4!==0));
+ const count=total===20?3:total===15?2:1;
+ return Object.fromEntries(eligible.slice(0,count).map(n=>[n,true]));
+}
+function vsNewPowerSchedule(total=10,bombSchedule={}){
+ const rounds=Array.from({length:total-1},(_,i)=>i+1).filter(n=>n%4!==0&&!bombSchedule[n]);
  for(let i=rounds.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[rounds[i],rounds[j]]=[rounds[j],rounds[i]]}
  const schedule={},counts=vsPowerCounts(total);
  for(let i=0;i<counts.bets;i++)schedule[rounds[i]]='bet';
@@ -2070,6 +2075,8 @@ function vsNewPowerSchedule(total=10){
 }
 const vsPowerKind=r=>r.vsPowerSchedule?.[r.vsRound]||'';
 function vsPowerBanner(r){
+ if(r.vsBombActive)return '<div class="vs-special" style="border-color:#fb6d79;background:#4b2031">💣 PREGUNTA BOMBA · Si solo uno acierta, gana 200 puntos adicionales y el rival pierde 100.</div>';
+ if(r.vsCurseActive)return '<div class="vs-special" style="border-color:#c5a9ff">🎯 CATEGORÍA MALDITA · '+esc(r.vsCurseTarget==='host'?r.hostName:r.guestName)+' se enfrenta a su categoría menos acertada. Si falla pierde 75 puntos.</div>';
  const kind=vsPowerKind(r);
  if(kind==='bet')return '<div class="vs-special">🎲 RONDA DE APUESTAS · Los dos podéis apostar x2; si falláis, -75 puntos.</div>';
  if(kind==='hint')return '<div class="vs-special">💡 RONDA CON PISTA · Los dos podéis ver las dos primeras letras; cuesta 35 puntos si acertáis.</div>';
@@ -2129,7 +2136,7 @@ function showVsRoom(r){
   const chooser=role==='host'?'<div class="vs-round-badge" style="margin:14px 0 8px">ELIGE EL NÚMERO DE PREGUNTAS</div><div class="vs-power-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">'+[10,15,20].map(n=>'<button type="button" class="vs-power '+(total===n?'active':'')+'" data-action="vsLength" data-count="'+n+'" style="min-height:52px;font-size:20px">'+n+'</button>').join('')+'</div>':
     '<p class="vs-ready-state">📋 '+total+' preguntas seleccionadas. Esperando a que el anfitrión confirme.</p>';
   html+='<div class="vs-mode-card"><div class="vs-title">⚔️ DUELO DE SABERES</div><p class="vs-subtitle">Misma pregunta, mismo momento. '+total+' rondas para decidir quién gana.</p>'+chooser+
-  '<div class="vs-legend">✅ Escribir es lo habitual · 🎯 Algunas preguntas difíciles tienen cuatro opciones · ⚡ Ráfagas sorpresa de 12 segundos con dos alternativas y puntos x2 · 🔥 Rachas · ⚡ Cada 4.ª ronda x2 y la última x3 · 🎲 '+powers.bets+' rondas de apuestas · 💡 '+powers.hints+' rondas con pista · 🏆 Desempate por muerte súbita</div>'+
+  '<div class="vs-legend">✅ Escribir es lo habitual · 🎯 Algunas preguntas difíciles tienen cuatro opciones · ⚡ Ráfagas sorpresa de 12 segundos con dos alternativas y puntos x2 · 🔥 Tres aciertos seguidos activan puntos x2 · 💣 Preguntas bomba · 🎯 Categoría maldita · ⚡ Cada 4.ª ronda x2 y la última x3 · 🎲 '+powers.bets+' rondas de apuestas · 💡 '+powers.hints+' rondas con pista · 🏆 Desempate por muerte súbita</div>'+
   (role==='host'?'<button class="online-btn" data-action="vsStart">EMPEZAR '+total+' PREGUNTAS →</button>':'<p class="vs-ready-state">Esperando a que el anfitrión empiece…</p>')+'</div>';
  }else if(r.phase==='vsCountdown'){
   const remains=Math.max(0,Math.ceil((Number(r.vsStartAt)-serverNow())/1000));
@@ -2153,7 +2160,7 @@ function showVsRoom(r){
   const tie=Number(r.vsScores?.host||0)===Number(r.vsScores?.guest||0);
   html+='<div class="vs-mode-card"><div class="vs-round-badge">RESULTADO · RONDA '+r.vsRound+'</div>'+vsBonusBanner(r)+vsFormatBanner(r)+
   '<h2 class="online-question">'+esc(BANK[r.qid]?.[2]||'Pregunta')+'</h2><p class="vs-subtitle">Respuesta correcta: <b style="color:#ffe29a">'+esc(BANK[r.qid]?.[3]||'')+'</b></p>'+
-  '<div class="vs-result-row">'+vsResultCell(r,'host')+vsResultCell(r,'guest')+'</div>'+
+  vsPowerBanner(r)+'<div class="vs-result-row">'+vsResultCell(r,'host')+vsResultCell(r,'guest')+'</div>'+
   
   (r.vsRound>=vsTotal(r)&&tie?'<p class="vs-ready-state">⚡ ¡EMPATE! La siguiente será de MUERTE SÚBITA.</p>':'')+
   (ready?'<p class="vs-ready-state">✅ Listo. Esperando al rival…</p>':'<button class="online-btn" data-action="vsReady">LISTO PARA LA SIGUIENTE →</button>')+
@@ -2175,11 +2182,20 @@ function showVsRoom(r){
  attachMedia();
 }
 function vsPickRound(r){
- if(!r.vsPowerSchedule)r.vsPowerSchedule=vsNewPowerSchedule(vsTotal(r));
- if(!r.vsRapidSchedule)r.vsRapidSchedule=vsNewRapidSchedule(vsTotal(r),r.vsPowerSchedule);
+ if(!r.vsBombSchedule)r.vsBombSchedule=vsNewBombSchedule(vsTotal(r));
+ if(!r.vsPowerSchedule)r.vsPowerSchedule=vsNewPowerSchedule(vsTotal(r),r.vsBombSchedule);
+ if(!r.vsRapidSchedule)r.vsRapidSchedule=vsNewRapidSchedule(vsTotal(r),r.vsPowerSchedule,r.vsBombSchedule);
  const round=Number(r.vsRound||0)+1;
  const options=[0,1,2,3,4,5].filter(c=>c!==r.cat);
- const cat=options[Math.floor(Math.random()*options.length)];
+ let cat=options[Math.floor(Math.random()*options.length)];
+ r.vsCurseActive=false;r.vsCurseTarget=null;
+ if(round===Number(r.vsCurseRound||0)){
+  const leader=Number(r.vsScores?.host||0)>Number(r.vsScores?.guest||0)?'host':Number(r.vsScores?.guest||0)>Number(r.vsScores?.host||0)?'guest':vsShuffle(vsWho)[0];
+  const stats=r.vsCategoryStats?.[leader]||{};
+  const rated=[0,1,2,3,4,5].map(c=>({cat:c,rate:stats[c]?.attempts?stats[c].correct/stats[c].attempts:0.5,played:stats[c]?.attempts||0}));
+  rated.sort((a,b)=>a.rate-b.rate||b.played-a.played||Math.random()-.5);
+  cat=rated[0].cat;r.vsCurseActive=true;r.vsCurseTarget=leader;
+ }
  const rapid=round<=vsTotal(r)&&r.vsRapidSchedule?.[round]===true;
  const wantsHard=round>=vsTotal(r)||(!rapid&&Math.random()<.38);
  let id=-1,format='text',choices=[];
@@ -2215,7 +2231,7 @@ function vsPickRound(r){
  r.vsStartAt=serverNow()+4500;
  r.vsDeadline=r.vsStartAt+1000*r.vsSeconds;
  r.vsAnswers={};r.vsBoost={host:false,guest:false};r.vsHints={host:false,guest:false};r.vsReady={host:false,guest:false};
- r.vsGains={host:0,guest:0};
+ r.vsGains={host:0,guest:0};r.vsBombActive=!!r.vsBombSchedule?.[round];
  r.phase='vsCountdown';
  return true;
 }
@@ -2223,7 +2239,8 @@ function vsGain(r,w,answer,streak){
  if(!answer?.correct)return answer?.bet?-75:0;
  const seconds=Math.max(0,Math.min(Number(r.vsSeconds)||40,Math.floor((Number(r.vsDeadline)-Number(answer.at||0))/1000)));
  const base=100+Math.min(90,seconds*2)+Math.min(4,Number(streak||0))*25;
- const gained=base*(BANK[r.qid]?.[8]?.surprise?3:vsMultiplier(r))*(answer.bet?2:1)-(answer.hint?35:0);
+ const fireBonus=Number(streak||0)>=2?2:1;
+ const gained=base*fireBonus*(BANK[r.qid]?.[8]?.surprise?3:vsMultiplier(r))*(answer.bet?2:1)-(answer.hint?35:0);
  return Math.max(0,gained);
 }
 function vsSettle(r){
@@ -2237,7 +2254,10 @@ function vsSettle(r){
   (r.vsScores??={host:0,guest:0})[who]=Math.max(0,Number(r.vsScores?.[who]||0)+gain);
   (r.vsStreaks??={host:0,guest:0})[who]=ans?.correct?r.vsPriorStreaks[who]+1:0;
  }
- (r.vsHistory??=[]).push({round:r.vsRound,qid:r.qid,gains:{...r.vsGains}});
+ if(r.vsBombActive){const winners=vsWho.filter(w=>r.vsAnswers?.[w]?.correct);if(winners.length===1){const w=winners[0],loser=other(w);r.vsGains[w]+=200;r.vsGains[loser]-=100;r.vsScores[w]+=200;r.vsScores[loser]=Math.max(0,r.vsScores[loser]-100)}}
+ if(r.vsCurseActive&&r.vsCurseTarget&&!r.vsAnswers?.[r.vsCurseTarget]?.correct){r.vsGains[r.vsCurseTarget]-=75;r.vsScores[r.vsCurseTarget]=Math.max(0,r.vsScores[r.vsCurseTarget]-75)}
+ for(const who of vsWho){const stats=((r.vsCategoryStats??={host:{},guest:{}})[who]??={});const entry=(stats[r.cat]??={correct:0,attempts:0});entry.attempts++;if(r.vsAnswers?.[who]?.correct)entry.correct++}
+ (r.vsHistory??=[]).push({round:r.vsRound,qid:r.qid,gains:{...r.vsGains},bomb:!!r.vsBombActive,curse:!!r.vsCurseActive});
  r.vsReady={host:false,guest:false};
  r.phase='vsReview';
  return true;
@@ -2246,7 +2266,7 @@ async function vsSetLength(count){
  if(![10,15,20].includes(count))return;
  await tx(r=>{
   if(r.mode!=='versus'||r.phase!=='vsLobby'||role!=='host')return;
-  r.vsMaxRounds=count;r.vsPowerSchedule=vsNewPowerSchedule(count);r.vsRapidSchedule=vsNewRapidSchedule(count,r.vsPowerSchedule);
+  r.vsMaxRounds=count;r.vsBombSchedule=vsNewBombSchedule(count);r.vsPowerSchedule=vsNewPowerSchedule(count,r.vsBombSchedule);r.vsRapidSchedule=vsNewRapidSchedule(count,r.vsPowerSchedule,r.vsBombSchedule);r.vsCurseRound=count===20?12:count===15?8:5;r.vsCategoryStats={host:{},guest:{}};
   const {bets,hints}=vsPowerCounts(count);
   r.vsPowers={host:{bets,hints},guest:{bets,hints}};
   return r;
@@ -2264,7 +2284,7 @@ function vsResetMatch(r){
  r.status='playing';r.phase='vsLobby';r.winner=null;r.cat=-1;r.qid=-1;
  r.vsRound=0;r.surpriseSeen=false;r.vsMaxRounds=total;r.vsScores={host:0,guest:0};r.vsStreaks={host:0,guest:0};
  r.vsPowers={host:{bets,hints},guest:{bets,hints}};
- r.vsPowerSchedule=vsNewPowerSchedule(total);r.vsRapidSchedule=vsNewRapidSchedule(total,r.vsPowerSchedule);r.vsHistory=[];r.vsRematch={host:false,guest:false};
+ r.vsBombSchedule=vsNewBombSchedule(total);r.vsPowerSchedule=vsNewPowerSchedule(total,r.vsBombSchedule);r.vsRapidSchedule=vsNewRapidSchedule(total,r.vsPowerSchedule,r.vsBombSchedule);r.vsCurseRound=total===20?12:total===15?8:5;r.vsCategoryStats={host:{},guest:{}};r.vsHistory=[];r.vsRematch={host:false,guest:false};
  r.vsReady={host:false,guest:false};r.vsAnswers={};
  r.vsBoost={host:false,guest:false};r.vsHints={host:false,guest:false};
  r.vsGains={host:0,guest:0};r.vsPriorStreaks={host:0,guest:0};
