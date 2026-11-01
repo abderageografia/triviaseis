@@ -227,7 +227,7 @@ async function loadPhoto(){
 }
 function swapQuestion(){
  if(!state||state.stage!=='question'||state.aids.swap<1)return;
- state.aids.swap--;state.used.pop();startQuestion();
+ state.aids.swap--;state.used.pop();state.asked=Math.max(0,state.asked-1);startQuestion();
 }
 root.addEventListener('click',e=>{
  const btn=e.target.closest('[data-solo]');if(!btn||btn.disabled)return;
@@ -246,7 +246,7 @@ root.addEventListener('click',e=>{
  if(cmd==='next')return advance();
  if(cmd==='option'&&state.stage==='question'&&state.options?.length===4){const i=Number(btn.dataset.idx);if(Number.isInteger(i)&&i>=0&&i<4&&!state.hiddenChoices?.includes(i))grade(state.options[i]);return}
  if(cmd==='write'&&state.stage==='question'){state.options=[];save();render();return}
- if(cmd==='mediaFail'&&state.stage==='question'){state.used.pop();startQuestion();return}
+ if(cmd==='mediaFail'&&state.stage==='question'){state.used.pop();state.asked=Math.max(0,state.asked-1);startQuestion();return}
  if(cmd==='submit'){e.preventDefault();let input=root.querySelector('#soloAnswer');if(input?.value.trim())grade(input.value);return}
  if(cmd==='hint'&&state.stage==='question'&&state.aids.hint>0){
   state.aids.hint--;const answer=String(playerQuestion()[3]);
