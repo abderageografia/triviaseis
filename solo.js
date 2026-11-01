@@ -154,7 +154,21 @@ function cancelWheelAnimation(){
 }
 
 const save=()=>{if(state)try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}};
-function load(){try{let old=JSON.parse(localStorage.getItem(KEY)||'null');if(old?.v===1&&Array.isArray(old.pips)&&Array.isArray(old.used)&&old.stage!=='finished')return old}catch{}return null}
+function load(){try{
+ let old=JSON.parse(localStorage.getItem(KEY)||'null');
+ if(old?.v===1&&Array.isArray(old.pips)&&Array.isArray(old.used)&&old.stage!=='finished'){
+  // Compatibilidad con partidas que ya habían gastado pistas en la versión antigua.
+  if(!Array.isArray(old.hintPositions)){
+   old.hintPositions=[];
+   if(old.stage==='question'&&old.hintUses>0){
+    const answer=Array.from(String(BANK[old.qid]?.[3]??'').trim());
+    const indices=answer.map((ch,i)=>/[\p{L}\p{N}]/u.test(ch)?i:-1).filter(i=>i>=0);
+    old.hintPositions=indices.slice(0,Math.min(indices.length-1,old.hintUses+1));
+   }
+  }
+  return old;
+ }
+ }catch{}return null}
 function resetSave(){try{localStorage.removeItem(KEY)}catch{}}
 function stopTimer(){if(tick){clearInterval(tick);tick=0}}
 function close(){
@@ -172,21 +186,16 @@ function screen(content){
  root.innerHTML='<div class="solo-wrap"><div class="solo-top"><div class="solo-logo">🎯 TRIVIA·SEIS <span class="solo-small">EN SOLITARIO</span></div>'+hapticButton+'<button class="solo-back" data-solo="close" type="button">'+(state?'Salir y borrar':'Salir')+'</button></div>'+content+'</div>';
 }
 function actionButton(cmd,title,cl='solo-cta'){return '<button class="'+cl+'" data-solo="'+cmd+'">'+title+'</button>'}
-// Cada pista escrita revela nuevas letras, manteniendo oculta al menos una letra.
+// Cada pista descubre una posición aleatoria nueva; jamás revela la respuesta entera.
 function soloHintParts(){
  const chars=Array.from(String(playerQuestion()?.[3]??'').trim());
  const isLetter=ch=>/[\p{L}\p{N}]/u.test(ch);
- const total=chars.filter(isLetter).length;
- const max=Math.max(0,total-1);
- const used=Number(state?.hintUses)||0;
- const shown=used?Math.min(max,used+1):0;
- let position=0;
- const mask=chars.map(ch=>{
-  if(!isLetter(ch))return ch;
-  position++;
-  return position<=shown?ch:'·';
- }).join('');
- return {max,shown,mask};
+ const letterIndexes=chars.map((ch,i)=>isLetter(ch)?i:-1).filter(i=>i>=0);
+ const max=Math.max(0,letterIndexes.length-1);
+ const visible=new Set(Array.isArray(state?.hintPositions)?state.hintPositions:[]);
+ const shown=letterIndexes.filter(i=>visible.has(i)).length;
+ const mask=chars.map((ch,i)=>!isLetter(ch)||visible.has(i)?ch:'·').join('');
+ return {max,shown,mask,letterIndexes,visible};
 }
 function canUseSoloHint(){
  if(!state||state.stage!=='question'||state.aids.hint<1)return false;
@@ -196,7 +205,7 @@ function canUseSoloHint(){
 }
 function soloHintText(){
  if(state.options?.length===4)return (state.hiddenChoices?.length||0)>=2?'Comodín 50:50: eliminadas dos opciones incorrectas.':'';
- return state.hintUses?'Pista: «'+soloHintParts().mask+'» · Cada pista muestra una letra más.':'';
+ return soloHintParts().shown?'Pista: «'+soloHintParts().mask+'» · Cada pista descubre una letra en posición aleatoria.':'';
 }
 function summary(){
  const compact=state.stage!=='wheel';
@@ -282,7 +291,7 @@ function startQuestion(){
  // La respuesta escrita es la regla. Las elecciones son una excepción difícil.
  const question=BANK[id];
  state.options=question[8]?.surprise?[]:(question[8]?.special_choice||(question[1]==='dificil'&&Math.random()<.17)?createSoloOptions(question):[]);
- state.hiddenChoices=[];state.hintUses=0;
+ state.hiddenChoices=[];state.hintUses=0;state.hintPositions=[];
  save();render();
 }
 function spin(){
@@ -448,7 +457,16 @@ root.addEventListener('click',e=>{
   if(state.options?.length===4){
    const wrong=state.options.map((v,i)=>({v,i})).filter(x=>!window.TRIVIA_MATCH(x.v,playerQuestion())&&!state.hiddenChoices.includes(x.i));
    for(const x of wrong.slice(0,2)){state.hiddenChoices.push(x.i);const btn=root.querySelector('[data-solo="option"][data-idx="'+x.i+'"]');if(btn)btn.disabled=true}
-  }else state.hintUses=(state.hintUses||0)+1;
+  }else{
+   const {letterIndexes,visible}=soloHintParts();
+   const available=letterIndexes.filter(i=>!visible.has(i));
+   // Conservar siempre al menos una letra oculta.
+   if(available.length>1){
+    const next=available[Math.floor(Math.random()*available.length)];
+    (state.hintPositions??=[]).push(next);
+    state.hintUses=(state.hintUses||0)+1;
+   }
+  }
   save();
   const hint=root.querySelector('#soloHint');
   if(hint)hint.textContent=soloHintText();
