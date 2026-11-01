@@ -41,7 +41,7 @@ window.TRIVIA_MIX_FINALIZE=function(){
   if(q[6]==='mix:series-y-personajes-2026')return normalize(String(q[2]).match(/«([^»]+)»/)?.[1]||q[3]);
   return normalize(q[3]);
  };
- const used=new Set();
+ const used=new Map();
  const select=(list,cap,target)=>{
   for(const q of list){
    if(accepted.length>=1000||target<=0)break;
