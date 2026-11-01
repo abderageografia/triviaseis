@@ -109,7 +109,11 @@ css.textContent = `
 .solo-wheel-icons{position:absolute;inset:0;pointer-events:none}
 .solo-wheel-icon{position:absolute;transform:translate(-50%,-50%);width:17%;height:17%;display:grid;place-items:center;border:2px solid var(--cc);border-radius:50%;background:radial-gradient(circle at 35% 20%,#2c3d63,#0b172b 80%);font-size:clamp(21px,7vw,34px);box-shadow:0 3px 10px #000b,0 0 12px color-mix(in srgb,var(--cc) 44%,transparent)}
 .solo-pointer{z-index:5;top:-7px;left:50%;width:0;height:0;transform:translateX(-50%);border-left:15px solid transparent;border-right:15px solid transparent;border-top:29px solid #ffe7aa;border-bottom:0;filter:drop-shadow(0 3px 3px #000a) drop-shadow(0 0 7px #ffe18f)}
-.solo-wheel-center{z-index:3;left:33%;top:33%;width:34%;height:34%;border:4px solid #e4dfff;background:radial-gradient(circle at 30% 23%,#354b7e,#111d39 80%);box-shadow:0 0 0 3px #ffffff1a,0 3px 15px #000a;font-size:clamp(27px,9vw,37px);pointer-events:none}
+.solo-wheel-center{z-index:6;left:33%;top:33%;width:34%;height:34%;border:4px solid #e4dfff;background:radial-gradient(circle at 30% 23%,#354b7e,#111d39 80%);box-shadow:0 0 0 3px #ffffff1a,0 3px 15px #000a;font-size:clamp(27px,9vw,37px)}
+.solo-wheel-action{pointer-events:auto;display:flex;flex-direction:column;gap:1px;color:#fff;font-size:clamp(13px,3.7vw,18px);font-weight:900;line-height:1.05;text-align:center;text-shadow:0 1px 4px #000a;cursor:pointer;touch-action:manipulation;user-select:none;background:radial-gradient(circle at 30% 18%,#856cff,#4334af 68%,#271d61);border-color:#f5e1ff;box-shadow:0 0 0 4px #ffffff25,0 5px 20px #1d134fbf,0 0 20px #826aff80}
+.solo-wheel-action span{font-size:clamp(21px,6vw,29px);line-height:1}
+.solo-wheel-action:active:not(:disabled){transform:scale(.96)}
+.solo-wheel-action:disabled{opacity:.76;cursor:default;font-size:clamp(11px,3vw,15px)}
 .solo-spin-status{font-size:12px;font-weight:850;color:#b9cce9;min-height:18px;margin:0 0 6px}
 .solo-spin-status.spinning{color:#ffe3ab}
 .solo-cta{min-height:54px;margin:10px auto;padding:13px 16px;font-size:16px;border:1px solid #b4a7ff;border-bottom:4px solid #342a8a;box-shadow:0 4px 0 #302776,0 11px 24px #4b39bd40}
@@ -168,6 +172,32 @@ function screen(content){
  root.innerHTML='<div class="solo-wrap"><div class="solo-top"><div class="solo-logo">🎯 TRIVIA·SEIS <span class="solo-small">EN SOLITARIO</span></div>'+hapticButton+'<button class="solo-back" data-solo="close" type="button">'+(state?'Salir y borrar':'Salir')+'</button></div>'+content+'</div>';
 }
 function actionButton(cmd,title,cl='solo-cta'){return '<button class="'+cl+'" data-solo="'+cmd+'">'+title+'</button>'}
+// Cada pista escrita revela nuevas letras, manteniendo oculta al menos una letra.
+function soloHintParts(){
+ const chars=Array.from(String(playerQuestion()?.[3]??'').trim());
+ const isLetter=ch=>/[\\p{L}\\p{N}]/u.test(ch);
+ const total=chars.filter(isLetter).length;
+ const max=Math.max(0,total-1);
+ const used=Number(state?.hintUses)||0;
+ const shown=used?Math.min(max,used+1):0;
+ let position=0;
+ const mask=chars.map(ch=>{
+  if(!isLetter(ch))return ch;
+  position++;
+  return position<=shown?ch:'·';
+ }).join('');
+ return {max,shown,mask};
+}
+function canUseSoloHint(){
+ if(!state||state.stage!=='question'||state.aids.hint<1)return false;
+ if(state.options?.length===4)return (state.hiddenChoices?.length||0)<2;
+ const {max,shown}=soloHintParts();
+ return max>shown;
+}
+function soloHintText(){
+ if(state.options?.length===4)return (state.hiddenChoices?.length||0)>=2?'Comodín 50:50: eliminadas dos opciones incorrectas.':'';
+ return state.hintUses?'Pista: «'+soloHintParts().mask+'» · Cada pista muestra una letra más.':'';
+}
 function summary(){
  const compact=state.stage!=='wheel';
  const hearts=Array.from({length:state.mode==='sprint'?3:5},(_,i)=>'<span class="'+(i<state.lives?'':'lost')+'">♥</span>').join('');
@@ -218,13 +248,13 @@ function render(){
  }
  let main=summary();
  if(state.stage==='wheel'){
-  main+='<div class="solo-panel solo-game-panel solo-wheel-panel"><div class="solo-kicker">'+(state.mode==='classic'?'CONQUISTA LAS SEIS CORONAS':'DESAFÍO DE 15 PREGUNTAS')+'</div><h2>Gira la ruleta</h2><div class="solo-wheel-wrap"><div class="solo-pointer"></div><div id="soloDisc" class="solo-disc">'+wheelSvg()+'</div>'+wheelIconsHtml()+'<div class="solo-wheel-center">🎯</div></div><div id="soloSpinStatus" class="solo-spin-status" aria-live="polite">Toca para descubrir tu próxima categoría</div>'+actionButton('spin','↻ GIRAR RULETA')+'<p class="solo-note">Los aciertos mantienen tu racha. Cada cuarta respuesta correcta añade un escudo.</p></div>';
+  main+='<div class="solo-panel solo-game-panel solo-wheel-panel"><div class="solo-kicker">'+(state.mode==='classic'?'CONQUISTA LAS SEIS CORONAS':'DESAFÍO DE 15 PREGUNTAS')+'</div><h2>Gira la ruleta</h2><div class="solo-wheel-wrap"><div class="solo-pointer"></div><div id="soloDisc" class="solo-disc">'+wheelSvg()+'</div>'+wheelIconsHtml()+'<button class="solo-wheel-center solo-wheel-action" data-solo="spin" type="button" aria-label="Girar la ruleta"><span aria-hidden="true">↻</span><b>GIRAR</b></button></div><div id="soloSpinStatus" class="solo-spin-status" aria-live="polite">Pulsa GIRAR para descubrir tu próxima categoría</div>'+'<p class="solo-note">Los aciertos mantienen tu racha. Cada cuarta respuesta correcta añade un escudo.</p></div>';
  }else if(state.stage==='offer'){
   main+='<div class="solo-panel solo-game-panel"><div class="solo-kicker">⚡ DESAFÍO ESPECIAL</div><h2>¿Te arriesgas?</h2><p class="solo-note">La siguiente pregunta será de <b>'+names[state.cat]+'</b>. Si aceptas, conseguirás doble avance y puntos extra al acertar. Si fallas perderás una vida adicional.</p>'+actionButton('risk','ACEPTAR EL RETO ⚡')+actionButton('normal','PREGUNTA NORMAL','solo-cta solo-secondary')+'</div>';
  }else if(state.stage==='question'){
   const q=playerQuestion(); if(!q){state.stage='wheel';save();render();return}
   let seconds=Math.max(0,Math.ceil((state.deadline-Date.now())/1000));
-  main+='<div class="solo-panel solo-game-panel solo-question-panel"><div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+'</div><div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div>'+(state.options?.length===4?'<div class="solo-quiz-type">'+(q[8]?.special_choice?'🚫 ENCUENTRA EL INTRUSO':'🎯 RONDA ESPECIAL · 4 OPCIONES')+'</div>':'')+'<div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(state.aids.hint===0?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint"></p></div>';
+  main+='<div class="solo-panel solo-game-panel solo-question-panel"><div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+'</div><div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div>'+(state.options?.length===4?'<div class="solo-quiz-type">'+(q[8]?.special_choice?'🚫 ENCUENTRA EL INTRUSO':'🎯 RONDA ESPECIAL · 4 OPCIONES')+'</div>':'')+'<div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(!canUseSoloHint()?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint">'+htmlEscape(soloHintText())+'</p></div>';
  }else if(state.stage==='result'){
   main+='<div class="solo-panel solo-game-panel solo-result-panel"><div class="solo-kicker">'+(state.lastCorrect?'RESPUESTA CORRECTA':'RESPUESTA INCORRECTA')+'</div><h2>'+htmlEscape(state.lastQText)+'</h2><div class="'+(state.lastCorrect?'solo-ok':'solo-no')+'">'+(state.lastCorrect?'✓ ¡ACERTASTE!':'✕ FALLO')+'</div><p class="solo-note">Respuesta: <b style="color:#ffe094">'+htmlEscape(state.lastAnswer)+'</b></p><p class="solo-note">'+htmlEscape(state.lastMessage)+'</p>'+actionButton('next','CONTINUAR →')+'</div>';
  }else if(state.stage==='finished'){
@@ -250,7 +280,7 @@ function startQuestion(){
  // La respuesta escrita es la regla. Las elecciones son una excepción difícil.
  const question=BANK[id];
  state.options=question[8]?.special_choice||(question[1]==='dificil'&&Math.random()<.17)?createSoloOptions(question):[];
- state.hiddenChoices=[];
+ state.hiddenChoices=[];state.hintUses=0;
  save();render();
 }
 function spin(){
@@ -410,14 +440,18 @@ root.addEventListener('click',e=>{
  if(cmd==='option'&&state.stage==='question'&&state.options?.length===4){const i=Number(btn.dataset.idx);if(Number.isInteger(i)&&i>=0&&i<4&&!state.hiddenChoices?.includes(i))grade(state.options[i]);return}
  if(cmd==='mediaFail'&&state.stage==='question'){state.used.pop();state.asked=Math.max(0,state.asked-1);startQuestion();return}
  if(cmd==='submit'){e.preventDefault();let input=root.querySelector('#soloAnswer');if(input?.value.trim())grade(input.value);return}
- if(cmd==='hint'&&state.stage==='question'&&state.aids.hint>0){
-  state.aids.hint--;const answer=String(playerQuestion()[3]);
+ if(cmd==='hint'&&canUseSoloHint()){
+  state.aids.hint--;
   if(state.options?.length===4){
    const wrong=state.options.map((v,i)=>({v,i})).filter(x=>!window.TRIVIA_MATCH(x.v,playerQuestion())&&!state.hiddenChoices.includes(x.i));
    for(const x of wrong.slice(0,2)){state.hiddenChoices.push(x.i);const btn=root.querySelector('[data-solo="option"][data-idx="'+x.i+'"]');if(btn)btn.disabled=true}
-   root.querySelector('#soloHint').textContent='Comodín 50:50: eliminadas dos opciones incorrectas.';
-  }else root.querySelector('#soloHint').textContent='Pista: empieza por «'+answer.slice(0,Math.min(2,answer.length))+'…»';
-  save();const b=root.querySelector('[data-solo="hint"]');if(b)b.textContent=(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint;return
+  }else state.hintUses=(state.hintUses||0)+1;
+  save();
+  const hint=root.querySelector('#soloHint');
+  if(hint)hint.textContent=soloHintText();
+  const b=root.querySelector('[data-solo="hint"]');
+  if(b){b.textContent=(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint;b.disabled=!canUseSoloHint()}
+  return;
  }
  if(cmd==='swap')return swapQuestion();
  if(cmd==='shield'&&state.stage==='question'&&state.aids.shield>0){state.aids.shield--;state.shields++;save();window.TRIVIA_FX?.show('shield','🛡️','ESCUDO EQUIPADO','Tu próximo fallo estará protegido');const b=root.querySelector('[data-solo="shield"]');if(b)b.textContent='🛡️ Escudo · '+state.aids.shield;const n=root.querySelector('#soloHint');if(n)n.textContent='Escudo activado para tu próximo fallo.';return}
