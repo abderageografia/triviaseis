@@ -6,6 +6,10 @@ const names = ['Historia','Arte','Geografía','Cine','Literatura y política','M
 const icons = ['🏛️','🎨','🌍','🎬','📚','🎤'];
 const colors = ['#ef7186','#f2bf62','#42c8be','#6a9efa','#b99aff','#67d087'];
 const KEY = 'triviaSeisSoloV1';
+const RECORDS_KEY='triviaSeisSoloRecords';
+function soloRecords(){try{return JSON.parse(localStorage.getItem(RECORDS_KEY)||'{}')}catch{return {}}}
+function saveSoloRecord(){const all=soloRecords(),mode=state.mode,prev=all[mode]||{points:0,streak:0,correct:0,plays:0,wins:0};prev.points=Math.max(prev.points,state.points);prev.streak=Math.max(prev.streak,state.bestStreak);prev.correct=Math.max(prev.correct,state.correct);prev.plays++;if(state.mode==='classic'&&state.stars===6)prev.wins++;all[mode]=prev;try{localStorage.setItem(RECORDS_KEY,JSON.stringify(all))}catch{}}
+function soloMedal(key,label){state.medals??=[];if(!state.medals.includes(key)){state.medals.push(key);state.lastMessage+=' 🏅 '+label+'.';window.TRIVIA_FX?.show('crown','🏅','LOGRO DESBLOQUEADO',label)}}
 const htmlEscape = v => String(v??'').replace(/[&<>"']/g, a=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[a]));
 const root = document.createElement('section');
 root.id = 'soloRoot';
@@ -209,7 +213,7 @@ function soloHintText(){
 }
 function summary(){
  const compact=state.stage!=='wheel';
- const hearts=Array.from({length:state.mode==='sprint'?3:5},(_,i)=>'<span class="'+(i<state.lives?'':'lost')+'">♥</span>').join('');
+ const hearts=Array.from({length:state.mode==='classic'?5:3},(_,i)=>'<span class="'+(i<state.lives?'':'lost')+'">♥</span>').join('');
  const stats='<div class="solo-stats"><div class="solo-stat"><b>'+state.points+'</b><small>PUNTOS</small></div>'+
    '<div class="solo-stat"><b class="solo-hearts" aria-label="'+state.lives+' vidas restantes">'+hearts+'</b><small>VIDAS</small></div>'+
    '<div class="solo-stat"><b>🔥 '+state.streak+'</b><small>RACHA</small></div></div>';
@@ -218,10 +222,10 @@ function summary(){
    '<span class="solo-pip-icon">'+icons[i]+'</span><div class="solo-circles">'+[0,1,2].map(j=>'<i class="'+(j<n?'on':'')+'"></i>').join('')+'</div><b>'+n+'/3</b></div>'
  ).join('')+'</div>';
  const inventory='<div class="solo-inventory"><span>🛡️ '+state.shields+' escudos</span><span>⭐ '+state.stars+' coronas</span><span>✅ '+state.correct+' aciertos'+(state.mode==='sprint'?' / '+state.goal:'')+'</span></div>';
- const value=state.mode==='classic'?state.pips.reduce((a,n)=>a+n,0):Math.min(state.goal,state.asked);
- const goal=state.mode==='classic'?18:state.goal;
- const prog='<div class="solo-progress" role="group" aria-label="Progreso de la partida"><div class="solo-progress-label"><span>'+(state.mode==='classic'?'👑 CONQUISTA':'⚡ DESAFÍO')+'</span><strong>'+value+' / '+goal+'</strong></div><div class="solo-progress-track" role="progressbar" aria-valuenow="'+value+'" aria-valuemin="0" aria-valuemax="'+goal+'"><span style="width:'+(value/goal*100)+'%"></span></div><div class="solo-progress-foot">'+(state.mode==='classic'?state.stars+' de 6 coronas completadas':Math.max(0,state.goal-state.asked)+' preguntas restantes')+'</div></div>';
- return '<div class="solo-hud'+(compact?' compact':'')+'">'+stats+prog+pips+inventory+'</div>';
+ const value=state.mode==='classic'?state.pips.reduce((a,n)=>a+n,0):state.mode==='survival'?state.correct:Math.min(state.goal,state.asked);
+ const goal=state.mode==='classic'?18:state.mode==='survival'?Math.max(10,Math.ceil((state.correct+1)/10)*10):state.goal;
+ const prog='<div class="solo-progress" role="group" aria-label="Progreso de la partida"><div class="solo-progress-label"><span>'+(state.mode==='classic'?'👑 CONQUISTA':'⚡ DESAFÍO')+'</span><strong>'+value+' / '+goal+'</strong></div><div class="solo-progress-track" role="progressbar" aria-valuenow="'+value+'" aria-valuemin="0" aria-valuemax="'+goal+'"><span style="width:'+(value/goal*100)+'%"></span></div><div class="solo-progress-foot">'+(state.mode==='classic'?state.stars+' de 6 coronas completadas':state.mode==='survival'?state.asked+' preguntas resistidas':Math.max(0,state.goal-state.asked)+' preguntas restantes')+'</div></div>';
+ return '<div class="solo-hud'+(compact?' compact':'')+'">'+stats+prog+pips+inventory+(state.medals?.length?'<div class="solo-inventory">🏅 '+state.medals.length+' logros conseguidos</div>':'')+'</div>';
 }
 function wheelSvg(){
  const step=2*Math.PI/6,cx=150,cy=150,r=145;
@@ -252,7 +256,7 @@ function render(){
  if(root.hidden)return;
  stopTimer();
  if(!state){
-  screen('<div class="solo-panel solo-game-panel"><div class="solo-kicker">UN JUGADOR · SIN FIREBASE</div><h2>Tu ruleta. Tu desafío.</h2><div class="solo-choices"><button class="solo-choice '+(chosenMode==='classic'?'active':'')+'" data-solo="classic"><b>👑 Conquista</b><small>Completa las seis coronas, una por categoría. Cinco vidas.</small></button><button class="solo-choice '+(chosenMode==='sprint'?'active':'')+'" data-solo="sprint"><b>⚡ Desafío 15</b><small>15 preguntas, tres vidas y puntuación final.</small></button></div><label class="solo-note" style="display:block;margin-top:17px">Dificultad</label><select id="soloDifficulty" class="solo-select"><option value="both">Media y difícil</option><option value="media">Media</option><option value="dificil">Difícil</option></select>'+actionButton('start','EMPEZAR →')+'<p class="solo-note">Rachas, escudos, desafíos de riesgo, comodines y preguntas inéditas. El progreso queda guardado en este móvil.</p><div class="solo-haptics-help" id="soloHapticsMessage">'+(typeof navigator.vibrate==='function'?(hapticsOn?'La vibración está activada.':'La vibración está desactivada.')+' <button type="button" data-solo="testHaptics" '+(hapticsOn?'':'disabled')+'>Probar vibración</button>':'Tu navegador no admite vibración. En Chrome para Android suele estar disponible.')+'</div></div>');
+  screen('<div class="solo-panel solo-game-panel"><div class="solo-kicker">UN JUGADOR · SIN FIREBASE</div><h2>Tu ruleta. Tu desafío.</h2><div class="solo-choices"><button class="solo-choice '+(chosenMode==='classic'?'active':'')+'" data-solo="classic"><b>👑 Conquista</b><small>Completa las seis coronas, una por categoría. Cinco vidas.</small></button><button class="solo-choice '+(chosenMode==='sprint'?'active':'')+'" data-solo="sprint"><b>⚡ Desafío 15</b><small>15 preguntas, tres vidas y puntuación final.</small></button><button class="solo-choice '+(chosenMode==='survival'?'active':'')+'" data-solo="survival"><b>💀 Supervivencia</b><small>Tres vidas. Juega hasta fallar. Compite por tu mejor récord.</small></button></div><label class="solo-note" style="display:block;margin-top:17px">Dificultad</label><select id="soloDifficulty" class="solo-select"><option value="both">Media y difícil</option><option value="media">Media</option><option value="dificil">Difícil</option></select>'+actionButton('start','EMPEZAR →')+'<p class="solo-note">Rachas x2, preguntas bomba, récords locales, supervivencia, escudos y comodines. El progreso queda guardado en este móvil.</p><div class="solo-haptics-help" id="soloHapticsMessage">'+(typeof navigator.vibrate==='function'?(hapticsOn?'La vibración está activada.':'La vibración está desactivada.')+' <button type="button" data-solo="testHaptics" '+(hapticsOn?'':'disabled')+'>Probar vibración</button>':'Tu navegador no admite vibración. En Chrome para Android suele estar disponible.')+'</div></div>');
   const selector=root.querySelector('#soloDifficulty');if(selector)selector.value=chosenLevel;return;
  }
  let main=summary();
@@ -263,11 +267,11 @@ function render(){
  }else if(state.stage==='question'){
   const q=playerQuestion(); if(!q){state.stage='wheel';save();render();return}
   let seconds=Math.max(0,Math.ceil((state.deadline-Date.now())/1000));
-  main+='<div class="solo-panel solo-game-panel solo-question-panel">'+(q[8]?.surprise?'<div class="solo-kicker" style="color:#ffe59c;font-size:16px;margin-bottom:10px">🎁 ¡PREGUNTA SORPRESA! · 500 PUNTOS · AVANCE DOBLE</div>':'')+'<div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+(q[8]?.mythology?' · 🏺 MITOLOGÍA':'')+'</div><div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div>'+(state.options?.length===4?'<div class="solo-quiz-type">'+(q[8]?.special_choice?((q[8]?.variant==='intruso'||q[8]?.variant==='asociacion-falsa')?'🚫 ENCUENTRA EL INTRUSO':'🎯 PREGUNTA ESPECIAL · 4 OPCIONES'):'🎯 RONDA ESPECIAL · 4 OPCIONES')+'</div>':'')+'<div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(!canUseSoloHint()?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint">'+htmlEscape(soloHintText())+'</p></div>';
+  main+='<div class="solo-panel solo-game-panel solo-question-panel">'+(q[8]?.surprise?'<div class="solo-kicker" style="color:#ffe59c;font-size:16px;margin-bottom:10px">🎁 ¡PREGUNTA SORPRESA! · 500 PUNTOS · AVANCE DOBLE</div>':'')+'<div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+(state.bomb?' · 💣 PREGUNTA BOMBA':'')+(q[8]?.mythology?' · 🏺 MITOLOGÍA':'')+'</div><div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div>'+(state.options?.length===4?'<div class="solo-quiz-type">'+(q[8]?.special_choice?((q[8]?.variant==='intruso'||q[8]?.variant==='asociacion-falsa')?'🚫 ENCUENTRA EL INTRUSO':'🎯 PREGUNTA ESPECIAL · 4 OPCIONES'):'🎯 RONDA ESPECIAL · 4 OPCIONES')+'</div>':'')+'<div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(!canUseSoloHint()?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint">'+htmlEscape(soloHintText())+'</p></div>';
  }else if(state.stage==='result'){
   main+='<div class="solo-panel solo-game-panel solo-result-panel"><div class="solo-kicker">'+(state.lastCorrect?'RESPUESTA CORRECTA':'RESPUESTA INCORRECTA')+'</div><h2>'+htmlEscape(state.lastQText)+'</h2><div class="'+(state.lastCorrect?'solo-ok':'solo-no')+'">'+(state.lastCorrect?'✓ ¡ACERTASTE!':'✕ FALLO')+'</div><p class="solo-note">Respuesta: <b style="color:#ffe094">'+htmlEscape(state.lastAnswer)+'</b></p><p class="solo-note">'+htmlEscape(state.lastMessage)+'</p>'+actionButton('next','CONTINUAR →')+'</div>';
  }else if(state.stage==='finished'){
-  main+='<div class="solo-panel solo-game-panel solo-result-panel"><div class="solo-kicker">🏆 FIN DEL RETO</div><h2>'+htmlEscape(state.endReason||'Partida terminada')+'</h2><p class="solo-note">Has conseguido <b>'+state.points+' puntos</b> con '+state.correct+' aciertos en '+state.asked+' preguntas. Máxima racha: '+state.bestStreak+'. Coronas: '+state.stars+'/6.</p>'+actionButton('again','VOLVER A JUGAR ↻')+'</div>';
+  main+='<div class="solo-panel solo-game-panel solo-result-panel"><div class="solo-kicker">🏆 FIN DEL RETO</div><h2>'+htmlEscape(state.endReason||'Partida terminada')+'</h2><p class="solo-note">Has conseguido <b>'+state.points+' puntos</b> con '+state.correct+' aciertos en '+state.asked+' preguntas. Máxima racha: '+state.bestStreak+'. Coronas: '+state.stars+'/6. Logros: '+(state.medals?.length||0)+'.</p>'+actionButton('again','VOLVER A JUGAR ↻')+'</div>';
  }
  screen(main);if(state.stage==='wheel')paintWheel(wheelRotation);if(state.stage==='question'){loadPhoto();startTimer()}
 }
@@ -339,8 +343,8 @@ function spin(){
   landingTimer=setTimeout(()=>{
    landingTimer=0;
    if(token!==wheelToken||root.hidden||!state||state.stage!=='wheel')return;
-   spinning=false;state.cat=selected;state.risk=false;
-   state.stage=Math.random()<.18?'offer':'question';
+   spinning=false;state.cat=selected;state.risk=false;state.bomb=Math.random()<.12;
+   state.stage=state.bomb?'question':Math.random()<.18?'offer':'question';
    if(state.stage==='question')startQuestion();
    else{save();render()}
   },380);
@@ -357,21 +361,26 @@ function grade(answer,expired=false){
  if(correct){
   soloVibrate([30,40,65]);
   state.correct++;state.streak++;state.bestStreak=Math.max(state.streak,state.bestStreak);
-  const bonus=(state.risk||q[8]?.surprise)?2:1;
-  const gain=q[8]?.surprise?500+Math.min(100,state.streak*10):(q[1]==='dificil'?150:100)*bonus+Math.min(100,state.streak*10);
+  const bonus=(state.risk||q[8]?.surprise||state.bomb)?2:1;
+  const fire=state.streak>=3?2:1;
+  const gain=(q[8]?.surprise?500+Math.min(100,state.streak*10):(q[1]==='dificil'?150:100)*bonus+Math.min(100,state.streak*10))*fire+(state.bomb?200:0);
   state.points+=gain;
   if(state.mode==='classic'){state.pips[state.cat]=Math.min(3,state.pips[state.cat]+bonus);state.stars=state.pips.filter(n=>n===3).length}
   if(state.streak%4===0){state.shields=Math.min(2,state.shields+1);state.lastMessage='🔥 Cuatro aciertos seguidos: has ganado un escudo.'}
-  else state.lastMessage='+'+gain+' puntos'+(state.risk||q[8]?.surprise?' y avance doble':'')+'.';
+  else state.lastMessage='+'+gain+' puntos'+(state.risk||q[8]?.surprise||state.bomb?' y avance doble':'')+(fire===2?' · 🔥 RACHA x2':'')+'.';
+  if(state.streak>=5)soloMedal('streak5','Cinco aciertos seguidos');
+  if(state.correct>=20)soloMedal('correct20','Veinte respuestas acertadas');
+  if(state.correct>=50)soloMedal('correct50','Cincuenta respuestas acertadas');
  }else{
   soloVibrate([85,45,100]);
-  const livesLost=(state.shields>0?0:1)+(state.risk?1:0);
+  const livesLost=(state.shields>0?0:1)+(state.risk?1:0)+(state.bomb?1:0);
   if(state.shields>0){state.shields--;state.lastMessage='El escudo evita perder una vida.'}
   else state.lastMessage=expired?'Se ha agotado el tiempo.':'Pierdes una vida.';
   if(state.risk)state.lastMessage+=' El reto fallido cuesta una vida adicional.';
+  if(state.bomb)state.lastMessage+=' 💣 La pregunta bomba cuesta una vida adicional.';
   state.lives=Math.max(0,state.lives-livesLost);state.streak=0;
  }
- state.stage='result';state.risk=false;save();render();
+ state.stage='result';state.risk=false;state.bomb=false;save();render();
  if(window.TRIVIA_FX){
   if(state.lives<beforeFx.lives)window.TRIVIA_FX.show('life','💔','VIDA PERDIDA',state.lives+' vidas restantes');
   else if(state.stars>beforeFx.stars)window.TRIVIA_FX.show('crown','👑','¡CORONA CONSEGUIDA!',state.stars+' de 6 categorías conquistadas');
@@ -381,7 +390,7 @@ function grade(answer,expired=false){
   else window.TRIVIA_FX.show('wrong','✕',expired?'TIEMPO AGOTADO':'RESPUESTA INCORRECTA','Inténtalo en la siguiente');
  }
 }
-function end(message){stopTimer();state.endReason=message;state.stage='finished';save();render();window.TRIVIA_FX?.show(state.lives&&state.mode==='classic'&&state.stars===6?'win':'end',state.lives&&state.mode==='classic'&&state.stars===6?'🏆':'🏁',state.lives&&state.mode==='classic'&&state.stars===6?'¡LOS SEIS QUESITOS!':'PARTIDA TERMINADA',message)}
+function end(message){stopTimer();state.endReason=message;state.stage='finished';saveSoloRecord();save();render();window.TRIVIA_FX?.show(state.lives&&state.mode==='classic'&&state.stars===6?'win':'end',state.lives&&state.mode==='classic'&&state.stars===6?'🏆':'🏁',state.lives&&state.mode==='classic'&&state.stars===6?'¡LOS SEIS QUESITOS!':'PARTIDA TERMINADA',message)}
 function advance(){
  if(!state||state.stage!=='result')return;
  if(!state.lives){end('Te has quedado sin vidas');return}
@@ -440,11 +449,11 @@ root.addEventListener('click',e=>{
   if(info)info.textContent=ok?'Vibración solicitada. Si no la notas, revisa los ajustes de respuesta táctil del móvil.':'Este navegador o dispositivo ha rechazado la vibración.';
   return;
  }
- if(cmd==='classic'||cmd==='sprint'){chosenMode=cmd;render();return}
+ if(cmd==='classic'||cmd==='sprint'||cmd==='survival'){chosenMode=cmd;render();return}
  if(cmd==='start'||cmd==='again'){
   chosenLevel=root.querySelector('#soloDifficulty')?.value||chosenLevel;
   cancelWheelAnimation();wheelRotation=0;
-  state={v:1,mode:chosenMode,diff:chosenLevel,points:0,lives:chosenMode==='classic'?5:3,streak:0,bestStreak:0,shields:0,aids:{hint:3,swap:2,shield:1},correct:0,asked:0,goal:15,stars:0,pips:[0,0,0,0,0,0],used:[],surpriseSeen:false,stage:'wheel',risk:false,cat:0,qid:-1};
+  state={v:1,mode:chosenMode,diff:chosenLevel,points:0,lives:chosenMode==='classic'?5:3,streak:0,bestStreak:0,shields:0,aids:{hint:3,swap:2,shield:1},correct:0,asked:0,goal:15,stars:0,pips:[0,0,0,0,0,0],used:[],surpriseSeen:false,stage:'wheel',risk:false,bomb:false,medals:[],cat:0,qid:-1};
   save();render();return;
  }
  if(!state)return;
