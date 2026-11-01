@@ -2017,6 +2017,20 @@ function vsBonusBanner(r){
  const m=vsMultiplier(r);
  return m>1?'<div class="vs-special">⚡ '+(r.vsRound>vsTotal(r)?'MUERTE SÚBITA · ':r.vsRound===vsTotal(r)?'RONDA FINAL · ':'RONDA ESPECIAL · ')+'PUNTOS x'+m+'</div>':'';
 }
+function vsFormatBanner(r){
+ if(r.vsFormat==='rapid')return '<div class="vs-rapid-banner">⚡ RÁFAGA · 12 SEGUNDOS · 2 OPCIONES · PUNTOS x2</div>';
+ if(r.vsFormat==='four')return '<div class="vs-format-label">🎯 RONDA DE ELECCIÓN · 4 OPCIONES</div>';
+ return '<div class="vs-format-label">✍️ RESPUESTA ESCRITA · SIN OPCIONES</div>';
+}
+function vsAnswerControl(r){
+ if(Array.isArray(r.vsChoices)&&[2,4].includes(r.vsChoices.length)){
+  return '<div class="vs-choice-caption">'+(r.vsFormat==='rapid'?'Pulsa la respuesta antes de que se agote el tiempo.':'Elige una única respuesta. No podrás cambiarla.')+'</div>'+
+   '<div class="vs-choice-grid '+(r.vsFormat==='rapid'?'rapid':'')+'" role="group" aria-label="Opciones de respuesta">'+r.vsChoices.map((choice,i)=>
+    '<button class="vs-choice-btn" type="button" data-action="vsChoose" data-choice="'+i+'"><span class="vs-choice-letter">'+String.fromCharCode(65+i)+'</span>'+esc(choice)+'</button>'
+   ).join('')+'</div>';
+ }
+ return '<form id="vsAnswerForm"><label class="online-label" for="vsAnswer">Tu respuesta (oculta hasta el resultado)</label><input class="online-field" id="vsAnswer" type="text" autocomplete="off" autocorrect="off" autocapitalize="sentences" maxlength="120" placeholder="Escribe tu respuesta…" required><button class="online-btn" type="submit">ENVIAR RESPUESTA →</button></form>';
+}
 function vsQuestionContent(r){
  const q=BANK[r.qid];
  if(!q)return '<p class="online-note">Preparando pregunta…</p>';
@@ -2024,7 +2038,7 @@ function vsQuestionContent(r){
 }
 function vsClockHTML(r){
  const time=Math.max(0,Math.ceil((Number(r.vsDeadline||0)-serverNow())/1000));
- return '<div class="vs-clock-label">⏳ TIEMPO PARA RESPONDER</div><div id="vsClock" class="vs-clock '+(time<=10?'danger':'')+'">'+time+' s</div><div class="online-timer-track" style="height:7px;border-radius:9px;background:#344362;overflow:hidden"><div id="vsTimeBar" class="online-timer-bar" style="height:100%;width:'+Math.max(0,Math.min(100,100*(Number(r.vsDeadline)-serverNow())/(Number(r.vsSeconds||40)*1000)))+'%;background:#76ddce"></div></div>';
+ return '<div class="vs-clock-label">⏳ '+(r.vsFormat==='rapid'?'RÁFAGA DE 12 SEGUNDOS':'TIEMPO PARA RESPONDER')+'</div><div id="vsClock" class="vs-clock '+(time<=(r.vsFormat==='rapid'?4:10)?'danger':'')+'">'+time+' s</div><div class="online-timer-track" style="height:7px;border-radius:9px;background:#344362;overflow:hidden"><div id="vsTimeBar" class="online-timer-bar" style="height:100%;width:'+Math.max(0,Math.min(100,100*(Number(r.vsDeadline)-serverNow())/(Number(r.vsSeconds||40)*1000)))+'%;background:#76ddce"></div></div>';
 }
 function vsResultCell(r,w){
  const a=r.vsAnswers?.[w],good=!!a?.correct;
@@ -2041,11 +2055,11 @@ function showVsRoom(r){
   const chooser=role==='host'?'<div class="vs-round-badge" style="margin:14px 0 8px">ELIGE EL NÚMERO DE PREGUNTAS</div><div class="vs-power-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">'+[10,15,20].map(n=>'<button type="button" class="vs-power '+(total===n?'active':'')+'" data-action="vsLength" data-count="'+n+'" style="min-height:52px;font-size:20px">'+n+'</button>').join('')+'</div>':
     '<p class="vs-ready-state">📋 '+total+' preguntas seleccionadas. Esperando a que el anfitrión confirme.</p>';
   html+='<div class="vs-mode-card"><div class="vs-title">⚔️ DUELO DE SABERES</div><p class="vs-subtitle">Misma pregunta, mismo momento. '+total+' rondas para decidir quién gana.</p>'+chooser+
-  '<div class="vs-legend">✅ Acertar rápido da más puntos · 🔥 Las rachas suman · ⚡ Cada 4.ª ronda x2 y la última x3 · 🎲 '+powers.bets+' rondas aleatorias de apuestas x2 · 💡 '+powers.hints+' rondas con pista · 🎯 Ventajas iguales para los dos · 🏆 Desempate por muerte súbita</div>'+
+  '<div class="vs-legend">✅ Escribir es lo habitual · 🎯 Algunas preguntas difíciles tienen cuatro opciones · ⚡ Ráfagas sorpresa de 12 segundos con dos alternativas y puntos x2 · 🔥 Rachas · ⚡ Cada 4.ª ronda x2 y la última x3 · 🎲 '+powers.bets+' rondas de apuestas · 💡 '+powers.hints+' rondas con pista · 🏆 Desempate por muerte súbita</div>'+
   (role==='host'?'<button class="online-btn" data-action="vsStart">EMPEZAR '+total+' PREGUNTAS →</button>':'<p class="vs-ready-state">Esperando a que el anfitrión empiece…</p>')+'</div>';
  }else if(r.phase==='vsCountdown'){
   const remains=Math.max(0,Math.ceil((Number(r.vsStartAt)-serverNow())/1000));
-  html+='<div class="vs-mode-card"><div class="vs-title">'+emojis[r.cat]+' '+esc(labels[r.cat])+'</div>'+vsBonusBanner(r)+vsPowerBanner(r)+'<p class="vs-subtitle">Los dos recibiréis la misma pregunta</p><div id="vsIntroCountdown" class="vs-clock">'+remains+'</div><div class="vs-clock-label">PREPARADOS…</div></div>';
+  html+='<div class="vs-mode-card"><div class="vs-title">'+emojis[r.cat]+' '+esc(labels[r.cat])+'</div>'+vsBonusBanner(r)+vsPowerBanner(r)+vsFormatBanner(r)+'<p class="vs-subtitle">Los dos recibiréis la misma pregunta</p><div id="vsIntroCountdown" class="vs-clock">'+remains+'</div><div class="vs-clock-label">PREPARADOS…</div></div>';
  }else if(r.phase==='vsQuestion'){
   const answered=vsAnswered(r,role);
   const power=r.vsPowers?.[role]||{bets:0,hints:0},kind=vsPowerKind(r);
@@ -2053,9 +2067,9 @@ function showVsRoom(r){
   const q=BANK[r.qid]||[];
   const powerButton=kind==='bet'?'<button class="vs-power '+(bet?'active':'')+'" data-action="vsBet" '+(bet||!power.bets?'disabled':'')+'>🎲 '+(bet?'APUESTA ACTIVADA':'APOSTAR x2')+'<br><small>'+Number(power.bets||0)+' disponibles · -75 si fallas</small></button>':
     kind==='hint'?'<button class="vs-power '+(hint?'active':'')+'" data-action="vsHint" '+(hint||!power.hints?'disabled':'')+'>💡 '+(hint?'PISTA UTILIZADA':'REVELAR PISTA')+'<br><small>'+Number(power.hints||0)+' disponibles · -35 puntos si aciertas</small></button>':'';
-  html+='<div class="vs-mode-card">'+vsBonusBanner(r)+vsPowerBanner(r)+vsClockHTML(r)+vsQuestionContent(r)+
+  html+='<div class="vs-mode-card">'+vsBonusBanner(r)+vsPowerBanner(r)+vsFormatBanner(r)+vsClockHTML(r)+vsQuestionContent(r)+
   (answered?'<div class="online-feedback ok">✅ RESPUESTA ENVIADA<small>Tu respuesta está guardada. '+(vsAnswered(r,other(role))?'Los dos habéis respondido.':'Esperando al otro jugador o al final de la cuenta atrás.')+'</small></div>':
-   '<form id="vsAnswerForm"><label class="online-label" for="vsAnswer">Tu respuesta (oculta hasta el resultado)</label><input class="online-field" id="vsAnswer" type="text" autocomplete="off" autocorrect="off" autocapitalize="sentences" maxlength="120" placeholder="Escribe tu respuesta…" required><button class="online-btn" type="submit">ENVIAR RESPUESTA →</button></form>'+
+   vsAnswerControl(r)+
    (powerButton?'<div class="vs-power-grid">'+powerButton+'</div>':'')+
    (bet?'<p class="vs-ready-state">🎲 Apuesta activada: x2 si aciertas, -75 si fallas.</p>':'')+
    (hint?'<p class="vs-ready-state">💡 La respuesta empieza por «'+esc(String(q[3]||'').slice(0,2))+'…»</p>':'')
@@ -2063,7 +2077,7 @@ function showVsRoom(r){
  }else if(r.phase==='vsReview'){
   const mine=r.vsAnswers?.[role],ready=r.vsReady?.[role]===true;
   const tie=Number(r.vsScores?.host||0)===Number(r.vsScores?.guest||0);
-  html+='<div class="vs-mode-card"><div class="vs-round-badge">RESULTADO · RONDA '+r.vsRound+'</div>'+vsBonusBanner(r)+
+  html+='<div class="vs-mode-card"><div class="vs-round-badge">RESULTADO · RONDA '+r.vsRound+'</div>'+vsBonusBanner(r)+vsFormatBanner(r)+
   '<h2 class="online-question">'+esc(BANK[r.qid]?.[2]||'Pregunta')+'</h2><p class="vs-subtitle">Respuesta correcta: <b style="color:#ffe29a">'+esc(BANK[r.qid]?.[3]||'')+'</b></p>'+
   '<div class="vs-result-row">'+vsResultCell(r,'host')+vsResultCell(r,'guest')+'</div>'+
   
@@ -2208,6 +2222,7 @@ async function vsSubmit(text){
  await tx(r=>{
   if(r.mode!=='versus'||r.phase!=='vsQuestion'||r.vsAnswers?.[role])return;
   if(serverNow()>Number(r.vsDeadline)){vsSettle(r);return r;}
+  if(Array.isArray(r.vsChoices)&&r.vsChoices.length&&!r.vsChoices.includes(text.trim()))return;
   (r.vsAnswers??={})[role]={
    text:text.trim().slice(0,120),at:serverNow(),correct:!!window.TRIVIA_MATCH(text,BANK[r.qid]),
    bet:r.vsBoost?.[role]===true,hint:r.vsHints?.[role]===true
@@ -2215,6 +2230,18 @@ async function vsSubmit(text){
   if(r.vsAnswers.host&&r.vsAnswers.guest)vsSettle(r);
   return r;
  });
+}
+let vsChoiceSending=false;
+async function vsChooseOption(index){
+ if(vsChoiceSending||room?.mode!=='versus'||room.phase!=='vsQuestion'||vsAnswered(room,role))return;
+ if(!Number.isInteger(index)||index<0||index>=Number(room.vsChoices?.length||0))return;
+ const answer=room.vsChoices[index];
+ vsChoiceSending=true;
+ view.querySelectorAll('[data-action="vsChoose"]').forEach(button=>button.disabled=true);
+ try{await vsSubmit(answer)}finally{
+  vsChoiceSending=false;
+  view.querySelectorAll('[data-action="vsChoose"]').forEach(button=>button.disabled=false);
+ }
 }
 async function vsReady(){
  await tx(r=>{
@@ -2250,7 +2277,7 @@ function refreshVsClock(){
   const remainingMs=Number(room.vsDeadline)-serverNow();
   const secs=Math.max(0,Math.ceil(remainingMs/1000));
   const clock=$('vsClock'),bar=$('vsTimeBar');
-  if(clock){clock.textContent=secs+' s';clock.classList.toggle('danger',secs<=10)}
+  if(clock){clock.textContent=secs+' s';clock.classList.toggle('danger',secs<=(room.vsFormat==='rapid'?4:10))}
   if(bar)bar.style.width=Math.max(0,Math.min(100,100*remainingMs/(Number(room.vsSeconds)||40)/1000))+'%';
   if(remainingMs<=0)tickVersus();
  }
@@ -2419,6 +2446,7 @@ view.addEventListener('click',async e=>{
  if(action==='vsLength')return vsSetLength(count);
  if(action==='vsStart')return vsStart();
  if(action==='vsRematch')return vsRematch();
+ if(action==='vsChoose')return vsChooseOption(Number(btn.dataset.choice));
  if(action==='vsBet')return vsPower('bet');
  if(action==='vsHint')return vsPower('hint');
  if(action==='vsReady')return vsReady();
