@@ -565,6 +565,8 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
 <div id="handoff" class="modal-bg hide"><div class="modal handoff"><div class="big">📱</div><div class="pill">CAMBIO DE TURNO</div><h2 id="handoffTitle"></h2><p class="muted" id="handoffDescription">Pasa el móvil al siguiente jugador.</p><button id="handoffGo" class="btn wide">YA ESTOY LISTO →</button></div></div>
 <script src="./historia_extra.js?v=5"></script>
 <script src="./cine_extra.js?v=5"></script>
+<script src="./cine_letterboxd_1.js?v=1"></script>
+<script src="./cine_letterboxd_2.js?v=1"></script>
 <script src="./arte_extra.js?v=1"></script>
 <script src="./preguntas_especiales.js?v=1"></script>
 <script src="./geo_extra_relieve.js?v=1"></script>
@@ -686,6 +688,12 @@ window.TRIVIA_SURPRISE_IDS=window.GAME_BANK.map((q,i)=>q[8]?.surprise?i:-1).filt
 // Se agrega al final para conservar los índices previos de partidas guardadas.
 if(Array.isArray(window.TRIVIA_HISTORY_MYTHOLOGY)&&window.TRIVIA_HISTORY_MYTHOLOGY.length>=200){
  window.GAME_BANK.push(...window.TRIVIA_HISTORY_MYTHOLOGY);
+}
+// Ampliación Letterboxd (2006-2025): 500 preguntas de Cine.
+// Colocar al final conserva los índices de preguntas guardadas de partidas anteriores.
+if(Array.isArray(window.TRIVIA_CINE_LETTERBOXD_1)&&window.TRIVIA_CINE_LETTERBOXD_1.length===250&&
+   Array.isArray(window.TRIVIA_CINE_LETTERBOXD_2)&&window.TRIVIA_CINE_LETTERBOXD_2.length===250){
+ window.GAME_BANK.push(...window.TRIVIA_CINE_LETTERBOXD_1,...window.TRIVIA_CINE_LETTERBOXD_2);
 }
 const cats=[
  {id:'historia',name:'Historia',emoji:'🏛️',color:'#ef7186'},
