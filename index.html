@@ -1282,7 +1282,7 @@ function endVictory(index){
 
 function chooseQuestion(changing=false){
  stopSpinHaptics();let level=(finalRound||challenge)?'dificil':$('difficulty').value;
- let base=byCat[selectedCategory].filter(id=>!used.has(id) && (!finalRound || ((!BANK[id][8]||BANK[id][8]?.mythology) && BANK[id][1]==='dificil')) && !unavailableVisualIds.has(id) && (navigator.onLine || !BANK[id][8] || !!BANK[id][8].src) && (!remoteImagesDisabled || !BANK[id][8]?.wiki));
+ let base=byCat[selectedCategory].filter(id=>!used.has(id) && (!finalRound || ((!BANK[id][8]||BANK[id][8]?.mythology) && BANK[id][1]==='dificil')) && !unavailableVisualIds.has(id) && (navigator.onLine || !BANK[id][8] || !!BANK[id][8].src || !!BANK[id][8].mythology) && (!remoteImagesDisabled || !BANK[id][8]?.wiki));
  if(selectedTopic)base=base.filter(id=>selectedTopic.ids.has(id));
  if(!base.length){if(finalRound){const winner=finalRound.contender;finalRound=null;endVictory(winner);return} $('spinInfo').textContent='No quedan preguntas inéditas de esta categoría. Gira otra vez.';stage='ready';challenge=null;draw();return}
  let pool=level==='both'?base:base.filter(id=>BANK[id][1]===level);if(!pool.length)pool=base;
