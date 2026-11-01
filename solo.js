@@ -254,7 +254,7 @@ function render(){
  }else if(state.stage==='question'){
   const q=playerQuestion(); if(!q){state.stage='wheel';save();render();return}
   let seconds=Math.max(0,Math.ceil((state.deadline-Date.now())/1000));
-  main+='<div class="solo-panel solo-game-panel solo-question-panel"><div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+'</div><div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div>'+(state.options?.length===4?'<div class="solo-quiz-type">'+(q[8]?.special_choice?'🚫 ENCUENTRA EL INTRUSO':'🎯 RONDA ESPECIAL · 4 OPCIONES')+'</div>':'')+'<div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(!canUseSoloHint()?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint">'+htmlEscape(soloHintText())+'</p></div>';
+  main+='<div class="solo-panel solo-game-panel solo-question-panel">'+(q[8]?.surprise?'<div class="solo-kicker" style="color:#ffe59c;font-size:16px;margin-bottom:10px">🎁 ¡PREGUNTA SORPRESA! · 500 PUNTOS · AVANCE DOBLE</div>':'')+'<div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+'</div><div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div>'+(state.options?.length===4?'<div class="solo-quiz-type">'+(q[8]?.special_choice?'🚫 ENCUENTRA EL INTRUSO':'🎯 RONDA ESPECIAL · 4 OPCIONES')+'</div>':'')+'<div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(!canUseSoloHint()?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint">'+htmlEscape(soloHintText())+'</p></div>';
  }else if(state.stage==='result'){
   main+='<div class="solo-panel solo-game-panel solo-result-panel"><div class="solo-kicker">'+(state.lastCorrect?'RESPUESTA CORRECTA':'RESPUESTA INCORRECTA')+'</div><h2>'+htmlEscape(state.lastQText)+'</h2><div class="'+(state.lastCorrect?'solo-ok':'solo-no')+'">'+(state.lastCorrect?'✓ ¡ACERTASTE!':'✕ FALLO')+'</div><p class="solo-note">Respuesta: <b style="color:#ffe094">'+htmlEscape(state.lastAnswer)+'</b></p><p class="solo-note">'+htmlEscape(state.lastMessage)+'</p>'+actionButton('next','CONTINUAR →')+'</div>';
  }else if(state.stage==='finished'){
@@ -264,7 +264,7 @@ function render(){
 }
 function candidates(cat,level){
  const eligible=state.mode==='classic'?i=>state.pips[i]<3:()=>true;
- const pool=BANK.map((q,i)=>(q[0]===byCat[cat]&&!state.used.includes(i)&&(!q[8]?.geo_visual)&&(!q[8]||!!q[8].src||!!q[8].wiki)&&(!level||level==='both'||q[1]===level))?i:-1).filter(i=>i>=0);
+ const pool=BANK.map((q,i)=>(q[0]===byCat[cat]&&!q[8]?.surprise&&!state.used.includes(i)&&(!q[8]?.geo_visual)&&(!q[8]||!!q[8].src||!!q[8].wiki)&&(!level||level==='both'||q[1]===level))?i:-1).filter(i=>i>=0);
  return pool;
 }
 function createSoloOptions(q){
@@ -275,11 +275,13 @@ function startQuestion(){
  if(!pool.length){state.used=[];pool=candidates(state.cat,state.diff)}
  if(!pool.length){state.stage='wheel';save();render();return}
  const specials=pool.filter(i=>BANK[i]?.[8]?.special_choice);
- const id=specials.length&&Math.random()<.12?specials[Math.floor(Math.random()*specials.length)]:pool[Math.floor(Math.random()*pool.length)];
+ const surpriseId=!state.risk?(window.TRIVIA_SURPRISE_PICK?.(state.used,!!state.surpriseSeen)??-1):-1;
+ const id=surpriseId>=0?surpriseId:(specials.length&&Math.random()<.12?specials[Math.floor(Math.random()*specials.length)]:pool[Math.floor(Math.random()*pool.length)]);
+ if(surpriseId>=0)state.surpriseSeen=true;
  state.qid=id;state.used.push(id);state.asked++;state.stage='question';state.seconds=state.mode==='sprint'?35:BANK[id][1]==='dificil'?60:45;state.deadline=Date.now()+state.seconds*1000;
  // La respuesta escrita es la regla. Las elecciones son una excepción difícil.
  const question=BANK[id];
- state.options=question[8]?.special_choice||(question[1]==='dificil'&&Math.random()<.17)?createSoloOptions(question):[];
+ state.options=question[8]?.surprise?[]:(question[8]?.special_choice||(question[1]==='dificil'&&Math.random()<.17)?createSoloOptions(question):[]);
  state.hiddenChoices=[];state.hintUses=0;
  save();render();
 }
@@ -343,11 +345,12 @@ function grade(answer,expired=false){
  if(correct){
   soloVibrate([30,40,65]);
   state.correct++;state.streak++;state.bestStreak=Math.max(state.streak,state.bestStreak);
-  const bonus=state.risk?2:1;
-  state.points+=(q[1]==='dificil'?150:100)*bonus+Math.min(100,state.streak*10);
+  const bonus=(state.risk||q[8]?.surprise)?2:1;
+  const gain=q[8]?.surprise?500+Math.min(100,state.streak*10):(q[1]==='dificil'?150:100)*bonus+Math.min(100,state.streak*10);
+  state.points+=gain;
   if(state.mode==='classic'){state.pips[state.cat]=Math.min(3,state.pips[state.cat]+bonus);state.stars=state.pips.filter(n=>n===3).length}
   if(state.streak%4===0){state.shields=Math.min(2,state.shields+1);state.lastMessage='🔥 Cuatro aciertos seguidos: has ganado un escudo.'}
-  else state.lastMessage='+'+((q[1]==='dificil'?150:100)*bonus+Math.min(100,state.streak*10))+' puntos'+(state.risk?' y avance doble':'')+'.';
+  else state.lastMessage='+'+gain+' puntos'+(state.risk||q[8]?.surprise?' y avance doble':'')+'.';
  }else{
   soloVibrate([85,45,100]);
   const livesLost=(state.shields>0?0:1)+(state.risk?1:0);
@@ -362,7 +365,7 @@ function grade(answer,expired=false){
   else if(state.stars>beforeFx.stars)window.TRIVIA_FX.show('crown','👑','¡CORONA CONSEGUIDA!',state.stars+' de 6 categorías conquistadas');
   else if(state.shields>beforeFx.shields)window.TRIVIA_FX.show('shield','🛡️','¡ESCUDO GANADO!','La racha de cuatro aciertos te protege');
   else if(state.shields<beforeFx.shields)window.TRIVIA_FX.show('shield','🛡️','¡ESCUDO ACTIVADO!','Has evitado perder una vida');
-  else if(correct)window.TRIVIA_FX.show('right',state.streak>1?'🔥':'✨',state.streak>1?'¡RACHA DE '+state.streak+'!':'¡ACERTASTE!', '+'+(state.points-beforeFx.points)+' puntos');
+  else if(correct)window.TRIVIA_FX.show('right',q[8]?.surprise?'🎁':state.streak>1?'🔥':'✨',q[8]?.surprise?'¡SORPRESA ACERTADA!':state.streak>1?'¡RACHA DE '+state.streak+'!':'¡ACERTASTE!', '+'+(state.points-beforeFx.points)+' puntos');
   else window.TRIVIA_FX.show('wrong','✕',expired?'TIEMPO AGOTADO':'RESPUESTA INCORRECTA','Inténtalo en la siguiente');
  }
 }
@@ -429,7 +432,7 @@ root.addEventListener('click',e=>{
  if(cmd==='start'||cmd==='again'){
   chosenLevel=root.querySelector('#soloDifficulty')?.value||chosenLevel;
   cancelWheelAnimation();wheelRotation=0;
-  state={v:1,mode:chosenMode,diff:chosenLevel,points:0,lives:chosenMode==='classic'?5:3,streak:0,bestStreak:0,shields:0,aids:{hint:3,swap:2,shield:1},correct:0,asked:0,goal:15,stars:0,pips:[0,0,0,0,0,0],used:[],stage:'wheel',risk:false,cat:0,qid:-1};
+  state={v:1,mode:chosenMode,diff:chosenLevel,points:0,lives:chosenMode==='classic'?5:3,streak:0,bestStreak:0,shields:0,aids:{hint:3,swap:2,shield:1},correct:0,asked:0,goal:15,stars:0,pips:[0,0,0,0,0,0],used:[],surpriseSeen:false,stage:'wheel',risk:false,cat:0,qid:-1};
   save();render();return;
  }
  if(!state)return;
