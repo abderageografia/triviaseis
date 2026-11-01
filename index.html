@@ -2020,9 +2020,15 @@ function showRoom(){
   html+=`<div class="online-card"><div class="online-special">${finale?'👑 GRAN FINAL':r.steal?.accepted?'⚔️ RESULTADO DEL ROBO':r.defense?'🛡️ RESULTADO DE LA DEFENSA':'RESULTADO DE LA PREGUNTA'}</div>${qBlock(r)}<div class="online-feedback ${result.correct?'ok':'no'}">${result.correct?'✓ ¡CORRECTO!':result.expired?'⌛ TIEMPO AGOTADO':'✕ INCORRECTO'}<small>${result.correct?'La respuesta se contará como válida.':'Respuesta correcta: '+esc(BANK[r.qid][3])}</small></div>
   <p class="online-note">${esc(nameOf(r.turn))} respondió: «${esc(result.answer)}».</p>
   ${active?`${!result.correct&&!result.expired?'<button data-action="retry" class="online-btn ghost small" '+(me.jokers<=0||finale?'disabled':'')+'>🃏 Reintentar con comodín</button>':''}<button data-action="continue" class="online-btn">CONTINUAR →</button>`:'<p class="online-note">Esperando a que continúe tu rival…</p>'}</div>`;
+ }else if(r.phase==='counterQuestion'){
+  const answering=role===r.counter?.by;
+  html+='<div class="online-card"><div class="online-special">⚡ ROBO DE RESPUESTA · 8 SEGUNDOS</div><h2 class="online-heading">'+esc(nameOf(r.counter?.by))+' puede robar una sección</h2>'+qBlock(r)+(answering?'<form id="onlineCounterForm"><label class="online-label" for="onlineAnswer">Responde antes de que termine la cuenta atrás</label><input class="online-field" id="onlineAnswer" required autocomplete="off"><button class="online-btn" type="submit">⚡ ROBAR SECCIÓN</button></form>':'<p class="online-note">Tu rival tiene una última oportunidad. La solución sigue oculta.</p>')+'</div>';
+ }else if(r.phase==='counterReview'){
+  const counter=r.counter||{};
+  html+='<div class="online-card"><div class="online-special">⚡ RESULTADO DEL ROBO</div><h2 class="online-question">'+esc(BANK[r.qid][2])+'</h2><div class="online-feedback '+(counter.correct?'ok':'no')+'">'+(counter.correct?'✓ ¡SECCIÓN ROBADA!':'✕ NO HA CONSEGUIDO ROBAR')+'<small>Respuesta correcta: '+esc(BANK[r.qid][3])+'</small></div><p class="online-note">'+esc(nameOf(counter.by))+' respondió: '+esc(counter.answer||'Tiempo agotado')+'</p>'+(active?'<button class="online-btn" data-action="continue">CONTINUAR →</button>':'<p class="online-note">Esperando al jugador del turno…</p>')+'</div>';
  }else if(r.phase==='duel'){
   const answer=r.duelAnswers?.[role],both=r.duelAnswers?.host&&r.duelAnswers?.guest;
-  html+=`<div class="online-card"><div class="online-special">⚔️ DUELO SORPRESA</div><h2 class="online-heading">Los dos respondéis</h2>${qBlock(r)}
+  html+=`<div class="online-card"><div class="online-special">⚔️ DUELO POR EL QUESITO</div><h2 class="online-heading">Los dos respondéis · duelo con riesgo</h2><p class="online-note">El vencedor puede arrebatar el quesito entero; quien pierda arriesga una sección. Si ambos falláis, ambos perdéis una sección.</p>${qBlock(r)}
   ${answer?'<p class="online-note">Tu respuesta está enviada. Esperando al rival…</p>':`<form id="onlineDuelForm"><label class="online-label" for="onlineAnswer">Tu respuesta (no se mostrará hasta que ambos contestéis)</label><input id="onlineAnswer" class="online-field" required autocomplete="off" autocorrect="off"><button class="online-btn" type="submit">ENVIAR RESPUESTA</button></form>`}</div>`;
  }else if(r.phase==='duelReview'){
   const d=r.duelAnswers||{},correct=r.duelCorrect||{};
@@ -2528,8 +2534,9 @@ async function duelContinue(){await tx(r=>{
  if(r.turn!==role||r.phase!=='duelReview')return;
  const c=r.duelCorrect||{};
  const h=!!c.host,g=!!c.guest;
- if(h)r.players.host.done[r.cat]=Math.min(3,r.players.host.done[r.cat]+(g?1:2));
- if(g)r.players.guest.done[r.cat]=Math.min(3,r.players.guest.done[r.cat]+(h?1:2));
+ if(h&&g){for(const who of vsWho)r.players[who].done[r.cat]=Math.min(3,r.players[who].done[r.cat]+1)}
+ else if(h!==g){const winner=h?'host':'guest',loser=other(winner),a=r.players[winner],b=r.players[loser];if(b.done[r.cat]===3&&a.done[r.cat]<3){a.done[r.cat]=3;b.done[r.cat]=0}else{a.done[r.cat]=Math.min(3,a.done[r.cat]+2);b.done[r.cat]=Math.max(0,b.done[r.cat]-1)}}
+ else{for(const who of vsWho)r.players[who].done[r.cat]=Math.max(0,r.players[who].done[r.cat]-1)}
  const finalist=complete(r.players.host)===6?'host':complete(r.players.guest)===6?'guest':null;
  if(finalist)startFinalPick(r,finalist);else r.phase='spin';
  r.duelAnswers=null;r.duelCorrect=null;r.qid=-1;return r;
