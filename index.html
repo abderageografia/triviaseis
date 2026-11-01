@@ -1702,7 +1702,7 @@ function renderHome(){
  <div class="online-separator">ELIGE CÓMO QUIERES JUGAR</div>
   <button class="online-btn ghost" data-action="create">🎡 MODO RULETA · Por turnos</button>
   <button class="online-btn secondary" data-action="createVersus">⚔️ MODO VS · Los dos a la vez</button>
-  <p class="online-note" style="text-align:center">En VS: 10 rondas, puntos por rapidez, rachas, apuestas y muerte súbita.</p>
+  <p class="online-note" style="text-align:center">En VS: 10, 15 o 20 rondas, preguntas escritas, intrusos y ráfagas de dos opciones, apuestas y muerte súbita.</p>
  <p class="online-note">Para jugar los dos, solo el primer móvil debe crear la sala. El segundo tiene que unirse con el código.</p></div>`);
 }
 async function authReady(){
@@ -1859,7 +1859,7 @@ function spinGraphic(p,r){
 function roomHeader(r){return `<div class="online-card" style="padding:12px"><div class="online-flex"><span class="online-kicker">SALA ${esc(roomCode)}</span><button class="online-exit" data-action="share">Compartir código</button></div>${scoreboard(r)}<div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="online-exit" data-action="testVibration" type="button">📳 Probar vibración</button></div></div>`;}
 function normalStatus(r){return `<p class="online-note" style="text-align:center">${esc(nameOf(r.turn))} tiene el turno ${r.turn===role?'(tú)':'(tu rival)'}.</p>`}
 function qMedia(meta){
- if(!meta)return '';
+ if(!meta||meta.special_choice)return '';
  const source=meta.src||'';
  // La ficha original puede solicitar un fragmento ampliado, no la obra completa.
  const cropped=meta.fit==='cover' && Number(meta.zoom)>1.05;
@@ -2019,7 +2019,7 @@ function vsBonusBanner(r){
 }
 function vsFormatBanner(r){
  if(r.vsFormat==='rapid')return '<div class="vs-rapid-banner">⚡ RÁFAGA · 12 SEGUNDOS · 2 OPCIONES · PUNTOS x2</div>';
- if(r.vsFormat==='four')return '<div class="vs-format-label">🎯 RONDA DE ELECCIÓN · 4 OPCIONES</div>';
+ if(r.vsFormat==='four')return '<div class="vs-format-label">'+(BANK[r.qid]?.[8]?.special_choice?'🚫 DESCUBRE EL INTRUSO · 4 OPCIONES':'🎯 RONDA DE ELECCIÓN · 4 OPCIONES')+'</div>';
  return '<div class="vs-format-label">✍️ RESPUESTA ESCRITA · SIN OPCIONES</div>';
 }
 function vsAnswerControl(r){
@@ -2110,7 +2110,7 @@ function vsPickRound(r){
  const wantsHard=round>=vsTotal(r)||(!rapid&&Math.random()<.38);
  let id=-1,format='text',choices=[];
  if(rapid){
-  const pool=vsShuffle(byCat[cat].filter(i=>!r.used?.[i]&&!BANK[i][8]&&!BANK[i][8]?.special_choice));
+  const pool=vsShuffle(byCat[cat].filter(i=>!r.used?.[i]&&!BANK[i][8]&&String(BANK[i][2]||'').length<=125&&String(BANK[i][3]||'').length<=50));
   for(const candidate of pool.slice(0,35)){
    const possible=vsCreateChoices(BANK[candidate],2);
    if(possible.length===2){id=candidate;choices=possible;format='rapid';break}
