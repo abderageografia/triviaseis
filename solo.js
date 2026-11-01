@@ -131,19 +131,48 @@ css.textContent = `
 `;
 document.head.appendChild(css);
 let state = null, tick = 0, spinning = false, wheelRotation = 0, mediaTicket = 0, chosenMode = 'classic', chosenLevel = 'both';
+const HAPTIC_KEY='triviaSeisSoloHaptics';
+let hapticsOn=true;
+try{hapticsOn=localStorage.getItem(HAPTIC_KEY)!=='off'}catch{}
+let wheelFrame=0,wheelToken=0;
+function soloVibrate(pattern){
+ if(!hapticsOn||root.hidden||document.hidden||typeof navigator.vibrate!=='function')return false;
+ try{return navigator.vibrate(pattern)!==false}catch{return false}
+}
+function stopWheelVibration(){
+ try{if(typeof navigator.vibrate==='function')navigator.vibrate(0)}catch{}
+}
+function cancelWheelAnimation(){
+ wheelToken++;if(wheelFrame)cancelAnimationFrame(wheelFrame);
+ wheelFrame=0;spinning=false;stopWheelVibration();
+}
+
 const save=()=>{if(state)try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}};
 function load(){try{let old=JSON.parse(localStorage.getItem(KEY)||'null');if(old?.v===1&&Array.isArray(old.pips)&&Array.isArray(old.used)&&old.stage!=='finished')return old}catch{}return null}
 function resetSave(){try{localStorage.removeItem(KEY)}catch{}}
 function stopTimer(){if(tick){clearInterval(tick);tick=0}}
-function close(){stopTimer();root.hidden=true;document.body.style.overflow='';save()}
+function close(){stopTimer();cancelWheelAnimation();root.hidden=true;document.body.style.overflow='';save()}
 function open(){root.hidden=false;document.body.style.overflow='hidden';state=load();if(state&&state.stage==='question'&&Date.now()>Number(state.deadline))grade('',true);else render()}
 const currentCat=()=>state?.cat??0;
 const playerQuestion=()=>BANK[state?.qid]||null;
-function screen(content){root.innerHTML='<div class="solo-wrap"><div class="solo-top"><div class="solo-logo">🎯 TRIVIA·SEIS <span class="solo-small">EN SOLITARIO</span></div><button class="solo-back" data-solo="close">Salir</button></div>'+content+'</div>'}
+function screen(content){
+ const supported=typeof navigator.vibrate==='function';
+ const hapticButton='<button class="solo-vibrate" type="button" data-solo="haptics" aria-pressed="'+(hapticsOn?'true':'false')+'" title="'+(supported?'Activar o desactivar la vibración':'Este navegador no permite vibración')+'" '+(supported?'':'disabled')+'>'+(supported?(hapticsOn?'📳':'🔕'):'🔕')+' <span>Vibración</span></button>';
+ root.innerHTML='<div class="solo-wrap"><div class="solo-top"><div class="solo-logo">🎯 TRIVIA·SEIS <span class="solo-small">EN SOLITARIO</span></div>'+hapticButton+'<button class="solo-back" data-solo="close" type="button">Salir</button></div>'+content+'</div>';
+}
 function actionButton(cmd,title,cl='solo-cta'){return '<button class="'+cl+'" data-solo="'+cmd+'">'+title+'</button>'}
 function summary(){
- const pips=state.pips;
- return '<div class="solo-stats"><div class="solo-stat"><b>'+state.points+'</b><small>PUNTOS</small></div><div class="solo-stat"><b>'+('❤️'.repeat(state.lives)||'0')+'</b><small>VIDAS</small></div><div class="solo-stat"><b>🔥 '+state.streak+'</b><small>RACHA</small></div></div><div class="solo-pips">'+pips.map((n,i)=>'<div class="solo-pip"><span>'+icons[i]+'</span><div class="solo-circles">'+[0,1,2].map(j=>'<i class="'+(j<n?'on':'')+'" style="--cc:'+colors[i]+'"></i>').join('')+'</div><b>'+n+'/3</b></div>').join('')+'</div><p class="solo-note" style="margin:8px 0">🛡️ '+state.shields+' escudos · ⭐ '+state.stars+' coronas · ✅ '+state.correct+' aciertos'+(state.mode==='sprint'?' / '+state.goal+' preguntas':'')+'</p>';
+ const compact=state.stage!=='wheel';
+ const hearts=Array.from({length:state.mode==='sprint'?3:5},(_,i)=>'<span class="'+(i<state.lives?'':'lost')+'">♥</span>').join('');
+ const stats='<div class="solo-stats"><div class="solo-stat"><b>'+state.points+'</b><small>PUNTOS</small></div>'+
+   '<div class="solo-stat"><b class="solo-hearts" aria-label="'+state.lives+' vidas restantes">'+hearts+'</b><small>VIDAS</small></div>'+
+   '<div class="solo-stat"><b>🔥 '+state.streak+'</b><small>RACHA</small></div></div>';
+ const pips='<div class="solo-pips" aria-label="Progreso por categorías">'+state.pips.map((n,i)=>
+   '<div class="solo-pip '+(n===3?'complete':'')+'" style="--cc:'+colors[i]+'" title="'+names[i]+': '+n+' de 3">'+
+   '<span class="solo-pip-icon">'+icons[i]+'</span><div class="solo-circles">'+[0,1,2].map(j=>'<i class="'+(j<n?'on':'')+'"></i>').join('')+'</div><b>'+n+'/3</b></div>'
+ ).join('')+'</div>';
+ const inventory='<div class="solo-inventory"><span>🛡️ '+state.shields+' escudos</span><span>⭐ '+state.stars+' coronas</span><span>✅ '+state.correct+' aciertos'+(state.mode==='sprint'?' / '+state.goal:'')+'</span></div>';
+ return '<div class="solo-hud'+(compact?' compact':'')+'">'+stats+pips+inventory+'</div>';
 }
 function wheelSvg(){
  const step=2*Math.PI/6, cx=150,cy=150,r=145;
@@ -295,6 +324,18 @@ root.addEventListener('click',e=>{
  const btn=e.target.closest('[data-solo]');if(!btn||btn.disabled)return;
  const cmd=btn.dataset.solo;
  if(cmd==='close')return close();
+ if(cmd==='haptics'){
+  hapticsOn=!hapticsOn;
+  try{localStorage.setItem(HAPTIC_KEY,hapticsOn?'on':'off')}catch{}
+  if(hapticsOn)soloVibrate([65,40,100]);else stopWheelVibration();
+  render();return;
+ }
+ if(cmd==='testHaptics'){
+  const ok=soloVibrate([80,60,130]);
+  const info=root.querySelector('#soloHapticsMessage');
+  if(info)info.textContent=ok?'Vibración solicitada. Si no la notas, revisa los ajustes de respuesta táctil del móvil.':'Este navegador o dispositivo ha rechazado la vibración.';
+  return;
+ }
  if(cmd==='classic'||cmd==='sprint'){chosenMode=cmd;render();return}
  if(cmd==='start'||cmd==='again'){
   chosenLevel=root.querySelector('#soloDifficulty')?.value||chosenLevel;
