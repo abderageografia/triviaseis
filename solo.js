@@ -1,6 +1,6 @@
 (function SoloGame() {
 'use strict';
-const BANK = window.GAME_BANK || [];
+const BANK = (window.GAME_BANK || []).concat(window.TRIVIA_BONUS_QUIZ || []);
 const byCat = ['historia','arte','geo','cine','lit','mix'];
 const names = ['Historia','Arte','Geografía','Cine','Literatura','Miscelánea'];
 const icons = ['🏛️','🎨','🌍','🎬','📚','🎤'];
@@ -215,7 +215,7 @@ function render(){
  }else if(state.stage==='question'){
   const q=playerQuestion(); if(!q){state.stage='wheel';save();render();return}
   let seconds=Math.max(0,Math.ceil((state.deadline-Date.now())/1000));
-  main+='<div class="solo-panel solo-game-panel solo-question-panel"><div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+'</div><div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div><div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div><button class="solo-write" data-solo="write">Prefiero escribir la respuesta</button>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(state.aids.hint===0?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint"></p></div>';
+  main+='<div class="solo-panel solo-game-panel solo-question-panel"><div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+'</div><div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div><div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(state.aids.hint===0?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint"></p></div>';
  }else if(state.stage==='result'){
   main+='<div class="solo-panel solo-game-panel solo-result-panel"><div class="solo-kicker">'+(state.lastCorrect?'RESPUESTA CORRECTA':'RESPUESTA INCORRECTA')+'</div><h2>'+htmlEscape(state.lastQText)+'</h2><div class="'+(state.lastCorrect?'solo-ok':'solo-no')+'">'+(state.lastCorrect?'✓ ¡ACERTASTE!':'✕ FALLO')+'</div><p class="solo-note">Respuesta: <b style="color:#ffe094">'+htmlEscape(state.lastAnswer)+'</b></p><p class="solo-note">'+htmlEscape(state.lastMessage)+'</p>'+actionButton('next','CONTINUAR →')+'</div>';
  }else if(state.stage==='finished'){
@@ -229,6 +229,11 @@ function candidates(cat,level){
  return pool;
 }
 function createSoloOptions(q){
+ if(q?.[8]?.special_choice&&Array.isArray(q[8].options)&&q[8].options.length===4){
+  const options=[...q[8].options];
+  for(let i=options.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[options[i],options[j]]=[options[j],options[i]]}
+  return options;
+ }
  const norm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
  const answer=String(q[3]||''),sameKind=r=>r[0]===q[0]&&r[7]===q[7];
  const isYear=/^(?:c\.\s*)?\d{1,4}(?:\s*a\.\s*C\.)?$/.test(answer);
@@ -256,9 +261,13 @@ function startQuestion(){
  let pool=candidates(state.cat,state.risk?'dificil':state.diff);
  if(!pool.length){state.used=[];pool=candidates(state.cat,state.diff)}
  if(!pool.length){state.stage='wheel';save();render();return}
- const id=pool[Math.floor(Math.random()*pool.length)];
+ const specials=pool.filter(i=>BANK[i]?.[8]?.special_choice);
+ const id=specials.length&&Math.random()<.12?specials[Math.floor(Math.random()*specials.length)]:pool[Math.floor(Math.random()*pool.length)];
  state.qid=id;state.used.push(id);state.asked++;state.stage='question';state.seconds=state.mode==='sprint'?35:BANK[id][1]==='dificil'?60:45;state.deadline=Date.now()+state.seconds*1000;
- state.options=createSoloOptions(BANK[id]);state.hiddenChoices=[];
+ // La respuesta escrita es la regla. Las elecciones son una excepción difícil.
+ const question=BANK[id];
+ state.options=question[8]?.special_choice||(question[1]==='dificil'&&Math.random()<.17)?createSoloOptions(question):[];
+ state.hiddenChoices=[];
  save();render();
 }
 function spin(){
@@ -407,7 +416,6 @@ root.addEventListener('click',e=>{
  if(cmd==='normal'){state.risk=false;startQuestion();return}
  if(cmd==='next')return advance();
  if(cmd==='option'&&state.stage==='question'&&state.options?.length===4){const i=Number(btn.dataset.idx);if(Number.isInteger(i)&&i>=0&&i<4&&!state.hiddenChoices?.includes(i))grade(state.options[i]);return}
- if(cmd==='write'&&state.stage==='question'){state.options=[];save();render();return}
  if(cmd==='mediaFail'&&state.stage==='question'){state.used.pop();state.asked=Math.max(0,state.asked-1);startQuestion();return}
  if(cmd==='submit'){e.preventDefault();let input=root.querySelector('#soloAnswer');if(input?.value.trim())grade(input.value);return}
  if(cmd==='hint'&&state.stage==='question'&&state.aids.hint>0){
