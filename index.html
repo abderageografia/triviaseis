@@ -1743,7 +1743,7 @@ async function createRoom(mode='roulette'){
    for(let i=0;i<4;i++){
      const code=randomCode(),now=serverNow();
      const fresh={hostUid:uid,hostName:name,createdAt:now,updatedAt:now,lastActiveAt:now,rev:0,status:'waiting',phase:'waiting',mode,turn:'host',cat:-1,qid:-1,used:{},players:{host:newPlayer(),guest:newPlayer()}};
-   if(mode==='versus')Object.assign(fresh,{vsRound:0,vsMaxRounds:10,vsScores:{host:0,guest:0},vsStreaks:{host:0,guest:0},vsPowers:{host:{bets:2,hints:1},guest:{bets:2,hints:1}},vsPowerSchedule:vsNewPowerSchedule(),vsRematch:{host:false,guest:false},vsHistory:[]});
+   if(mode==='versus'){Object.assign(fresh,{vsRound:0,vsMaxRounds:10,vsScores:{host:0,guest:0},vsStreaks:{host:0,guest:0},vsPowers:{host:{bets:2,hints:1},guest:{bets:2,hints:1}},vsPowerSchedule:vsNewPowerSchedule(),vsRematch:{host:false,guest:false},vsHistory:[]});fresh.vsRapidSchedule=vsNewRapidSchedule(10,fresh.vsPowerSchedule);}
      try{await bounded(set(ref(db,'rooms/'+code),fresh),12000,'La base de datos no ha confirmado la creación de la sala.');enter(code);return}catch(e){if(i===3)throw e}
    }
  }catch(e){error(e)}finally{pending=false;working(mode==='versus'?'createVersus':'create',false)}
@@ -1934,6 +1934,54 @@ function showRoom(){
  basePage(html);attachMedia();
 }
 
+
+function vsShuffle(items){
+ const result=[...items];
+ for(let i=result.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]]}
+ return result;
+}
+// Ráfagas garantizadas: no aparecen en el primer turno ni en la final, ni consumen rondas con comodín.
+function vsNewRapidSchedule(total=10,powerSchedule={}){
+ const candidates=vsShuffle(Array.from({length:Math.max(0,total-2)},(_,i)=>i+2).filter(n=>!powerSchedule[n]&&n%4!==0));
+ const target=total===20?4:total===15?3:2, selected=[];
+ for(const round of candidates){if(selected.every(other=>Math.abs(other-round)>1))selected.push(round);if(selected.length===target)break}
+ if(selected.length<target)for(const round of candidates){if(!selected.includes(round))selected.push(round);if(selected.length===target)break}
+ return Object.fromEntries(selected.map(round=>[round,true]));
+}
+// Distractores del mismo ámbito y tipo de dato. Se seleccionan una sola vez y
+// se guardan en Firebase para que ambos jugadores vean exactamente el mismo orden.
+function vsCreateChoices(q,amount=4){
+ if(!q)return [];
+ const answer=String(q[3]||'');
+ if(!answer)return [];
+ if(q[8]?.special_choice&&Array.isArray(q[8].options)){
+  const options=q[8].options.map(String);
+  if(options.length!==4||!options.includes(answer)||new Set(options).size!==4)return [];
+  return amount===2?vsShuffle([answer,vsShuffle(options.filter(x=>x!==answer))[0]]):vsShuffle(options);
+ }
+ const norm=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+ const shape=t=>/^siglo\s/i.test(t)?'century':/^(?:c\.\s*)?\d{1,4}(?:\s*a\.\s*c\.)?$/i.test(t)?'year':/^\d+[,.]?\d*%$/.test(t)?'pct':'word';
+ const type=shape(answer),isBce=/a\.\s*c\./i.test(answer);
+ const suitable=x=>{
+  if(!x||x===q||x[0]!==q[0]||x[8]?.special_choice)return false;
+  const v=String(x[3]||'');
+  if(!v||norm(v)===norm(answer)||window.TRIVIA_MATCH?.(v,q)||shape(v)!==type)return false;
+  if(type!=='word'&&(/a\.\s*c\./i.test(v)!==isBce))return false;
+  if(type==='word'&&Math.abs(v.length-answer.length)>Math.max(13,answer.length*.85))return false;
+  return true;
+ };
+ const peers=BANK.filter(x=>suitable(x)&&x[7]===q[7]);
+ const sameEra=peers.filter(x=>x[6]===q[6]);
+ const preferred=sameEra.length>=amount-1?sameEra:peers;
+ const pool=[...new Set(preferred.map(x=>String(x[3])))];
+ if(pool.length<amount-1)for(const x of BANK){
+  if(suitable(x)&&!pool.includes(String(x[3])))pool.push(String(x[3]));
+  if(pool.length>=amount+12)break;
+ }
+ if(pool.length<amount-1)return [];
+ return vsShuffle([answer,...vsShuffle(pool).slice(0,amount-1)]);
+}
+
 const VS_TOTAL=10;
 let vsTickBusy=false;
 const vsTotal=r=>[10,15,20].includes(Number(r?.vsMaxRounds))?Number(r.vsMaxRounds):VS_TOTAL;
@@ -1957,7 +2005,7 @@ function vsPowerBanner(r){
 
 const vsWho=['host','guest'];
 const vsName=who=>who==='host'?(room?.hostName||'Jugador 1'):(room?.guestName||'Jugador 2');
-const vsMultiplier=r=>r.vsRound===vsTotal(r)?3:(r.vsRound>vsTotal(r)||r.vsRound%4===0?2:1);
+const vsMultiplier=r=>r.vsRound===vsTotal(r)?3:(r.vsFormat==='rapid'||r.vsRound>vsTotal(r)||r.vsRound%4===0?2:1);
 const vsAnswered=(r,who)=>!!r.vsAnswers?.[who];
 function vsScoreboard(r){
  return '<div class="vs-scoreboard">'+vsWho.map(w=>'<div class="vs-player '+(w===role?'self':'')+'"><div class="vs-name">'+esc(vsName(w))+(w===role?' · TÚ':'')+'</div><div class="vs-points">'+Number(r.vsScores?.[w]||0)+'</div><div class="vs-streak">🔥 Racha: '+Number(r.vsStreaks?.[w]||0)+' · '+(r.phase==='vsQuestion'?(vsAnswered(r,w)?'✅ Enviada':'✍️ Respondiendo'):'PUNTOS')+'</div></div>').join('')+'</div>';
@@ -2040,16 +2088,40 @@ function showVsRoom(r){
 }
 function vsPickRound(r){
  if(!r.vsPowerSchedule)r.vsPowerSchedule=vsNewPowerSchedule(vsTotal(r));
+ if(!r.vsRapidSchedule)r.vsRapidSchedule=vsNewRapidSchedule(vsTotal(r),r.vsPowerSchedule);
  const round=Number(r.vsRound||0)+1;
  const options=[0,1,2,3,4,5].filter(c=>c!==r.cat);
  const cat=options[Math.floor(Math.random()*options.length)];
- const wantsHard=round>=vsTotal(r);
- let id=sampleFrom(r,cat,wantsHard?'dificil':'both');
- if(id<0)id=sampleFrom(r,cat);
- if(id<0)return false;
- r.vsRound=round;r.cat=cat;r.qid=id;
+ const rapid=round<=vsTotal(r)&&r.vsRapidSchedule?.[round]===true;
+ const wantsHard=round>=vsTotal(r)||(!rapid&&Math.random()<.38);
+ let id=-1,format='text',choices=[];
+ if(rapid){
+  const pool=vsShuffle(byCat[cat].filter(i=>!r.used?.[i]&&!BANK[i][8]&&!BANK[i][8]?.special_choice));
+  for(const candidate of pool.slice(0,35)){
+   const possible=vsCreateChoices(BANK[candidate],2);
+   if(possible.length===2){id=candidate;choices=possible;format='rapid';break}
+  }
+ }
+ if(id<0&&!rapid&&Math.random()<.24){
+  const special=byCat[cat].filter(i=>!r.used?.[i]&&BANK[i][8]?.special_choice);
+  if(special.length){
+   const candidate=special[Math.floor(Math.random()*special.length)];
+   const possible=vsCreateChoices(BANK[candidate],4);
+   if(possible.length===4){id=candidate;choices=possible;format='four'}
+  }
+ }
+ if(id<0){
+  id=sampleFrom(r,cat,wantsHard?'dificil':'both');
+  if(id<0)id=sampleFrom(r,cat);
+  if(id<0)return false;
+  if(!rapid&&BANK[id][1]==='dificil'&&Math.random()<.45){
+   const possible=vsCreateChoices(BANK[id],4);
+   if(possible.length===4){choices=possible;format='four'}
+  }
+ }
+ r.vsRound=round;r.cat=cat;r.qid=id;r.vsFormat=format;r.vsChoices=choices;
  (r.used??={})[id]=true;
- r.vsSeconds=wantsHard||BANK[id][1]==='dificil'?55:40;
+ r.vsSeconds=format==='rapid'?12:(wantsHard||BANK[id][1]==='dificil'?55:40);
  r.vsStartAt=serverNow()+4500;
  r.vsDeadline=r.vsStartAt+1000*r.vsSeconds;
  r.vsAnswers={};r.vsBoost={host:false,guest:false};r.vsHints={host:false,guest:false};r.vsReady={host:false,guest:false};
@@ -2084,7 +2156,7 @@ async function vsSetLength(count){
  if(![10,15,20].includes(count))return;
  await tx(r=>{
   if(r.mode!=='versus'||r.phase!=='vsLobby'||role!=='host')return;
-  r.vsMaxRounds=count;r.vsPowerSchedule=vsNewPowerSchedule(count);
+  r.vsMaxRounds=count;r.vsPowerSchedule=vsNewPowerSchedule(count);r.vsRapidSchedule=vsNewRapidSchedule(count,r.vsPowerSchedule);
   const {bets,hints}=vsPowerCounts(count);
   r.vsPowers={host:{bets,hints},guest:{bets,hints}};
   return r;
@@ -2102,7 +2174,7 @@ function vsResetMatch(r){
  r.status='playing';r.phase='vsLobby';r.winner=null;r.cat=-1;r.qid=-1;
  r.vsRound=0;r.vsMaxRounds=total;r.vsScores={host:0,guest:0};r.vsStreaks={host:0,guest:0};
  r.vsPowers={host:{bets,hints},guest:{bets,hints}};
- r.vsPowerSchedule=vsNewPowerSchedule(total);r.vsHistory=[];r.vsRematch={host:false,guest:false};
+ r.vsPowerSchedule=vsNewPowerSchedule(total);r.vsRapidSchedule=vsNewRapidSchedule(total,r.vsPowerSchedule);r.vsHistory=[];r.vsRematch={host:false,guest:false};
  r.vsReady={host:false,guest:false};r.vsAnswers={};
  r.vsBoost={host:false,guest:false};r.vsHints={host:false,guest:false};
  r.vsGains={host:0,guest:0};r.vsPriorStreaks={host:0,guest:0};
@@ -2185,7 +2257,7 @@ function refreshVsClock(){
 }
 
 function sampleFrom(r,cat,level='both',filter=null){
- let ids=byCat[cat].filter(id=>!r.used?.[id] && (!filter||filter(BANK[id])));
+ let ids=byCat[cat].filter(id=>!r.used?.[id]&&!BANK[id]?.[8]?.special_choice&&(!filter||filter(BANK[id])));
  if(level!=='both'){const filtered=ids.filter(id=>BANK[id][1]===level);if(filtered.length)ids=filtered}
  if(!ids.length)return -1;
  // Diversificar las preguntas; favorecer ligeramente las imágenes sin saturar.
