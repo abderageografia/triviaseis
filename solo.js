@@ -238,33 +238,7 @@ function candidates(cat,level){
  return pool;
 }
 function createSoloOptions(q){
- if(q?.[8]?.special_choice&&Array.isArray(q[8].options)&&q[8].options.length===4){
-  const options=[...q[8].options];
-  for(let i=options.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[options[i],options[j]]=[options[j],options[i]]}
-  return options;
- }
- const norm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
- const answer=String(q[3]||''),sameKind=r=>r[0]===q[0]&&r[7]===q[7];
- const isYear=/^(?:c\.\s*)?\d{1,4}(?:\s*a\.\s*C\.)?$/.test(answer);
- const isCentury=/^siglo\s/i.test(answer);
- const bce=/a\.\s*C\./.test(answer);
- const fits=r=>{
-  const x=String(r?.[3]||'');
-  if(!x||norm(x)===norm(answer)||window.TRIVIA_MATCH?.(x,q))return false;
-  if(isYear)return /^(?:c\.\s*)?\d{1,4}(?:\s*a\.\s*C\.)?$/.test(x)&&(/a\.\s*C\./.test(x)===bce);
-  if(isCentury)return /^siglo\s/i.test(x)&&(/a\.\s*C\./.test(x)===bce);
-  if(/^\d+$/.test(x)||/^siglo\s/i.test(x))return false;
-  return Math.abs(x.length-answer.length)<Math.max(12,answer.length*.8);
- };
- let similar=BANK.filter(r=>r!==q&&sameKind(r)&&fits(r));
- const era=similar.filter(r=>r[6]===q[6]);if(era.length>=3)similar=era;
- let pool=[...new Set(similar.map(x=>x[3]))];
- if(pool.length<3)pool=[...new Set([...pool,...BANK.filter(r=>r[0]===q[0]&&fits(r)).map(r=>r[3])])];
- for(let i=pool.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}
- if(pool.length<3)return [];
- let opts=[answer,...pool.slice(0,3)];
- for(let i=3;i>0;i--){let j=Math.floor(Math.random()*(i+1));[opts[i],opts[j]]=[opts[j],opts[i]]}
- return opts;
+  return window.TRIVIA_OPTIONS?.make(q,BANK,4,(candidate,question)=>!!window.TRIVIA_MATCH?.(candidate,question))||[];
 }
 function startQuestion(){
  let pool=candidates(state.cat,state.risk?'dificil':state.diff);
