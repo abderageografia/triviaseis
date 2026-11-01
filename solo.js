@@ -518,9 +518,9 @@ function observeState(){
    const m=roundText.match(/RONDA\s+(\d+)\s*\/\s*(\d+)/i);
    if(m){
     const value=Number(m[1]),max=Number(m[2]);
-    const bar=progress(Math.max(0,value-1),max,'PROGRESO DEL DUELO');
+    const bar=progress(Math.min(value,max),max,'RONDA ACTUAL');
     const holder=view.querySelector('.vs-round-badge');
-    if(holder&&!holder.querySelector('.trivia-fx-progress'))holder.insertAdjacentHTML('afterend',bar);
+    if(holder&&!holder.nextElementSibling?.classList.contains('trivia-fx-progress'))holder.insertAdjacentHTML('afterend',bar);
    }
    const here=key+':vs';
    if(previousKey===here&&previousData){
