@@ -840,8 +840,14 @@ function stopSpinHaptics(){
  lastSpinHapticAt=-Infinity;
  try{if(typeof navigator.vibrate==='function')navigator.vibrate(0)}catch(e){}
 }
+const LOCAL_HAPTIC={
+ tap:6,spin:5,stop:[7,33,10],hint:[6,35,7],correct:[9,37,14],
+ streak:[8,32,12,38,17],wrong:[23,78,23],loss:[38,95,42],
+ crown:[11,37,16,43,22],shield:[7,33,7,38,12],win:[10,37,15,42,21,47,28]
+};
 function haptic(pattern){
- try{if($('hapticOn')?.checked && typeof navigator.vibrate==='function' && !document.hidden)navigator.vibrate(pattern)}catch(e){}
+ try{if($('hapticOn')?.checked && typeof navigator.vibrate==='function' && !document.hidden)
+  navigator.vibrate(typeof pattern==='string'?(LOCAL_HAPTIC[pattern]||LOCAL_HAPTIC.tap):pattern)}catch(e){}
 }
 function pulseDuringSpin(now,t){
  if(stage!=='spinning'||document.hidden||!$('hapticOn')?.checked||t>=0.96)return;
@@ -849,10 +855,10 @@ function pulseDuringSpin(now,t){
  // conforme baja la velocidad, la distancia entre pulsos crece hasta
  // ~450 ms. El mismo reloj requestAnimationFrame gobierna ambas cosas:
  // no se crean intervalos ni vibraciones en cola.
- const interval=100+420*t*t;
+ const interval=140+280*t*t;
  if(now-lastSpinHapticAt>=interval){
   lastSpinHapticAt=now;
-  haptic(14);
+  haptic('spin');
  }
 }
 // Desactivar la opción o salir de la pestaña corta inmediatamente la vibración.
@@ -906,20 +912,20 @@ function giveHint(){
  const words=answer.split(/\s+/).filter(Boolean);
  const mask=words.map(w=>w[0]+'·'.repeat(Math.min(w.length-1,9))).join(' ');
  $('jokerNote').textContent='💡 Empieza por: '+mask+' ('+words.length+(words.length===1?' palabra':' palabras')+')';
- saveGame();jokerUi();haptic(12);
+ saveGame();jokerUi();haptic('hint');
 }
 function switchQuestion(){
  if(stage!=='question'||finalRound)return;
  const p=players[turn];if(p.jokers<1)return;
  if(byCat[selectedCategory].filter(i=>!used.has(i)).length===0){$('jokerNote').textContent='No quedan preguntas nuevas de esta categoría.';return}
- p.jokers--;haptic(12);chooseQuestion(true);
+ p.jokers--;haptic('hint');chooseQuestion(true);
 }
 function retryAnswer(){
  if(stage!=='review'||lastCorrect||finalRound)return;
  const p=players[turn];if(p.jokers<1)return;
  p.jokers--;stage='question';
  // El jugador ya ha visto la solución fallada: la segunda oportunidad es con OTRA pregunta.
- haptic(12);chooseQuestion(true);
+ haptic('hint');chooseQuestion(true);
  $('jokerNote').textContent='🃏 Segunda oportunidad: nueva pregunta de la misma categoría.';
  saveGame();jokerUi();fitModalToViewport();
 }
@@ -985,6 +991,7 @@ function applyBonusLoss(){
  for(let i=all.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[all[j],all[i]]=[all[i],all[j]]}
  const lost=all.slice(0,challenge.loss);
  for(const i of lost)p.done[i]=0;
+ if(lost.length)haptic('loss');
  $('handoffDescription').textContent='⚡ El desafío te ha costado '+lost.length+' quesito'+(lost.length===1?'':'s')+'. Pasa el móvil al siguiente jugador.';
  saveGame();
 }
@@ -997,7 +1004,7 @@ function draw(preserveTransform=false){$('players').innerHTML=players.map((p,i)=
  $('spin').disabled=stage!=='ready';$('spinInfo').textContent=stage==='ready'?'Pulsa para descubrir tu categoría':'La ruleta está girando…';$('sessionCount').textContent=`${askedThisSession} preguntas en esta partida · ${Math.max(0,BANK.length-used.size)} preguntas sin utilizar`;}
 function setupCounters(){
  $('bankCount').innerHTML=cats.map((cat,i)=>{let avail=byCat[i].reduce((n,id)=>n+(!used.has(id)),0);return `<div class="counter">${cat.emoji} ${cat.name}<b>${avail} / ${byCat[i].length}</b></div>`}).join('')}
-function newGame(){selectedTopic=null;stopSpinHaptics();haptic(20);players=[{name:$('p0').value.trim()||'Jugador 1',done:[0,0,0,0,0,0],hits:0,jokers:3,shields:3,lastLanded:-1,streak:0},{name:$('p1').value.trim()||'Jugador 2',done:[0,0,0,0,0,0],hits:0,jokers:3,shields:3,lastLanded:-1,streak:0}];turn=0;rotation=0;stage='ready';selectedCategory=-1;askedThisSession=0;lastSpecialAt=-100;lastDuelAt=-100;surpriseSeen=false;challenge=null;duel=null;finalRound=null;$('exitLocal').hidden=false;$('setup').classList.add('hide');$('finish').classList.add('hide');$('game').classList.remove('hide');$('questionModal').classList.add('hide');$('handoff').classList.add('hide');$('categoryChoice').classList.add('hide');$('duelModal').classList.add('hide');$('finalPickModal').classList.add('hide');$('lastCat').classList.add('hide');saveGame();draw();window.scrollTo(0,0)}
+function newGame(){selectedTopic=null;stopSpinHaptics();haptic('tap');players=[{name:$('p0').value.trim()||'Jugador 1',done:[0,0,0,0,0,0],hits:0,jokers:3,shields:3,lastLanded:-1,streak:0},{name:$('p1').value.trim()||'Jugador 2',done:[0,0,0,0,0,0],hits:0,jokers:3,shields:3,lastLanded:-1,streak:0}];turn=0;rotation=0;stage='ready';selectedCategory=-1;askedThisSession=0;lastSpecialAt=-100;lastDuelAt=-100;surpriseSeen=false;challenge=null;duel=null;finalRound=null;$('exitLocal').hidden=false;$('setup').classList.add('hide');$('finish').classList.add('hide');$('game').classList.remove('hide');$('questionModal').classList.add('hide');$('handoff').classList.add('hide');$('categoryChoice').classList.add('hide');$('duelModal').classList.add('hide');$('finalPickModal').classList.add('hide');$('lastCat').classList.add('hide');saveGame();draw();window.scrollTo(0,0)}
 
 const lastKinds=[];
 function getQuestionKind(q){
@@ -1236,7 +1243,7 @@ function stepDuel(){
   const value=$('duelAnswer').value.trim();if(!value){$('duelAnswer').focus();return}
   d.answers[d.answerer]=value;
   d.accepted[d.answerer]=match(value,BANK[d.id]);
-  $('duelAnswer').blur();haptic(12);
+  $('duelAnswer').blur();haptic('hint');
   if(d.answerer===d.starter){d.answerer=1-d.starter;d.step='handoff'}
   else d.step='result';
   renderDuel();return;
@@ -1295,7 +1302,7 @@ function endVictory(index){
  $('winTitle').textContent='¡Gana '+players[index].name+'!';
  $('finalScore').textContent=players[index].hits+' respuestas correctas · Victoria en la gran final';
  try{localStorage.removeItem(SESSION_STORE)}catch{}
- burst();haptic([20,45,30]);
+ burst();haptic('win');
 }
 
 function chooseQuestion(changing=false){
@@ -1438,6 +1445,7 @@ function spin(protectedSpin=false){
   if(choiceOther>=0)offerCategoryChoice(selectedCategory,choiceOther);
   else if(topicEvent && offerTopicChoice(selectedCategory)){/* elegir tema y luego preguntar */}
   else if(!tryDuel() && !tryBonus())chooseQuestion();
+  haptic('stop');
  }
  requestAnimationFrame(frame);
 }
@@ -1454,18 +1462,18 @@ function applyCorrect(){
  p.streak=extra===2?0:Math.min(3,p.streak+1);
  const prev=p.done[selectedCategory];p.done[selectedCategory]=Math.min(3,prev+extra);
  const gained=p.done[selectedCategory]-prev;
- if(prev<3&&p.done[selectedCategory]===3){haptic([25,40,35]);$('cheeseReward').textContent=`${cats[selectedCategory].emoji} ¡QUESITO CONSEGUIDO! ◆${double?' · 🔥 RACHA DOBLE':''}`;$('cheeseReward').classList.remove('hide');burst()}
+ if(prev<3&&p.done[selectedCategory]===3){$('cheeseReward').textContent=`${cats[selectedCategory].emoji} ¡QUESITO CONSEGUIDO! ◆${double?' · 🔥 RACHA DOBLE':''}`;$('cheeseReward').classList.remove('hide');burst()}
  else if(prev<3){$('cheeseReward').textContent=(double?'🔥 ¡RACHA DOBLE! +'+gained+' secciones':'✦ Sección iluminada: '+p.done[selectedCategory]+'/3')+(p.streak===3?' · 🔥 Próximo acierto doble':'');$('cheeseReward').classList.remove('hide')}
  else{$('cheeseReward').textContent='Quesito completado anteriormente'+(p.streak===3?' · 🔥 Racha preparada':'');$('cheeseReward').classList.remove('hide')}
  if(isSurprise){$('cheeseReward').textContent='🎁 ¡SORPRESA! +'+gained+' SECCIONES · PREMIO DOBLE';$('cheeseReward').classList.remove('hide');burst()}
  saveGame();
 }
 
-function evaluate(){if(stage!=='question')return;if(!$('answer').value.trim()){ $('answer').focus();return}$('answer').blur();haptic(14);lastCorrect=match($('answer').value,BANK[qIndex]);$('answer').disabled=true;$('check').classList.add('hide');$('next').classList.remove('hide');if(lastCorrect){haptic([25,35,55]);applyCorrect()}else{haptic([95,50,90])}$('questionModal').classList.toggle('answered-right',!!lastCorrect);$('questionModal').classList.toggle('answered-wrong',!lastCorrect);let f=$('feedback');f.className='feedback '+(lastCorrect?'ok':'no');f.innerHTML=(lastCorrect?'✓ ¡CORRECTO!':'✕ INCORRECTO')+`<span>Respuesta: ${escapeHTML(BANK[qIndex][3])}</span>`;if(!lastCorrect){$('retryJoker').classList.toggle('hide',!!finalRound||players[turn].jokers<=0);if(challenge){$('jokerNote').textContent='⚠ Si continúas, perderás '+challenge.loss+' quesito'+(challenge.loss===1?'':'s')+'. Puedes corregir o reintentar.'}}else{$('retryJoker').classList.add('hide')};draw(true);stage='review';jokerUi();$('next').disabled=false;fitModalToViewport()}
+function evaluate(){if(stage!=='question')return;if(!$('answer').value.trim()){ $('answer').focus();return}$('answer').blur();lastCorrect=match($('answer').value,BANK[qIndex]);$('answer').disabled=true;$('check').classList.add('hide');$('next').classList.remove('hide');if(lastCorrect){const prevCheeses=cheeseCount(players[turn]);applyCorrect();haptic(cheeseCount(players[turn])>prevCheeses?'crown':players[turn].streak>=3?'streak':'correct')}else{haptic('wrong')}$('questionModal').classList.toggle('answered-right',!!lastCorrect);$('questionModal').classList.toggle('answered-wrong',!lastCorrect);let f=$('feedback');f.className='feedback '+(lastCorrect?'ok':'no');f.innerHTML=(lastCorrect?'✓ ¡CORRECTO!':'✕ INCORRECTO')+`<span>Respuesta: ${escapeHTML(BANK[qIndex][3])}</span>`;if(!lastCorrect){$('retryJoker').classList.toggle('hide',!!finalRound||players[turn].jokers<=0);if(challenge){$('jokerNote').textContent='⚠ Si continúas, perderás '+challenge.loss+' quesito'+(challenge.loss===1?'':'s')+'. Puedes corregir o reintentar.'}}else{$('retryJoker').classList.add('hide')};draw(true);stage='review';jokerUi();$('next').disabled=false;fitModalToViewport()}
 function continueGame(){
  if(stage!=='review')return;
  selectedTopic=null;
- haptic(15);closeQuestionLayout();$('questionModal').classList.add('hide');
+ haptic('tap');closeQuestionLayout();$('questionModal').classList.add('hide');
  $('questionModal').classList.remove('final-question');$('jokerRow').classList.remove('hide');
  if(finalRound){
   const contender=finalRound.contender;finalRound=null;
@@ -1474,14 +1482,14 @@ function continueGame(){
   // La final fallada cuesta una sección de un quesito, pero no los tres aciertos completos.
   const full=players[contender].done.map((x,i)=>x===3?i:-1).filter(i=>i>=0);
   const penalized=full[Math.floor(Math.random()*full.length)];
-  if(penalized!==undefined)players[contender].done[penalized]=2;
+  if(penalized!==undefined){players[contender].done[penalized]=2;haptic('loss');}
   turn=1-contender;stage='handoff';
   $('handoffTitle').textContent='Turno de '+players[turn].name;
   $('handoffDescription').textContent='👑 Final fallada: '+players[contender].name+' pierde una sección de '+(penalized===undefined?'su ruleta':cats[penalized].name)+'. ¡Todavía puede remontarse!';
   $('handoff').classList.remove('hide');saveGame();return;
  }
  if(challenge && !lastCorrect){applyBonusLoss()}
- if(defense&&!lastCorrect){players[turn].done[selectedCategory]=2;$('handoffDescription').textContent='🛡️ Defensa fallada: '+players[turn].name+' pierde una sección de '+cats[selectedCategory].name+'.'}
+ if(defense&&!lastCorrect){players[turn].done[selectedCategory]=2;haptic('loss');$('handoffDescription').textContent='🛡️ Defensa fallada: '+players[turn].name+' pierde una sección de '+cats[selectedCategory].name+'.'}
  defense=false;challenge=null;
  if(cheeseCount(players[turn])===6){enterGrandFinal();return}
  if(lastCorrect){stage='ready';saveGame();draw(true)}else{
@@ -1493,7 +1501,7 @@ function continueGame(){
  }
 }
 
-function handoff(){if(stage!=='handoff')return;stopSpinHaptics();haptic(20);$('handoff').classList.add('hide');$('handoffDescription').textContent='Pasa el móvil al siguiente jugador.';stage='ready';// El avance de cada jugador se muestra en su ruleta, sin desplazar la posición previa del puntero.
+function handoff(){if(stage!=='handoff')return;stopSpinHaptics();haptic('tap');$('handoff').classList.add('hide');$('handoffDescription').textContent='Pasa el móvil al siguiente jugador.';stage='ready';// El avance de cada jugador se muestra en su ruleta, sin desplazar la posición previa del puntero.
  rotation=0;$('lastCat').classList.add('hide');draw();saveGame();window.scrollTo(0,0)}
 function showStart(force=false){if(stage==='spinning'&&!force)return;stopSpinHaptics();closeQuestionLayout();if(!force&&stage!=='setup'&&stage!=='finished' && !confirm('¿Empezar una partida nueva? Se conserva el historial de preguntas.'))return;try{localStorage.removeItem(SESSION_STORE)}catch{}stage='setup';$('exitLocal').hidden=true;$('game').classList.add('hide');$('finish').classList.add('hide');$('questionModal').classList.add('hide');$('handoff').classList.add('hide');$('categoryChoice').classList.add('hide');$('topicChoice').classList.add('hide');selectedTopic=null;$('setup').classList.remove('hide');$('bonusOffer').classList.add('hide');$('duelModal').classList.add('hide');$('finalPickModal').classList.add('hide');$('questionModal').classList.remove('final-question');$('jokerRow').classList.remove('hide');duel=null;finalRound=null;challenge=null;defense=false;setupCounters()}
 $('exitLocal').addEventListener('click',()=>{
