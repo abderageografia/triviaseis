@@ -144,9 +144,17 @@ const HAPTIC_KEY='triviaSeisSoloHaptics';
 let hapticsOn=true;
 try{hapticsOn=localStorage.getItem(HAPTIC_KEY)!=='off'}catch{}
 let wheelFrame=0,wheelToken=0,landingTimer=0;
+// La Web Vibration API no expone potencia; los pulsos cortos se perciben como toques suaves.
+const SOLO_HAPTIC={
+ tap:6,spin:5,stop:[8,36,11],hint:[6,32,6],swap:[7,38,9],
+ correct:[9,42,15],streak:[9,33,12,39,17],wrong:[22,85,20],
+ life:[36,100,38],shield:[7,35,7,38,11],
+ crown:[11,36,16,40,22],win:[10,35,15,37,19,40,24],
+ gameover:[28,95,28,110,38],test:[6,45,10,45,15]
+};
 function soloVibrate(pattern){
  if(!hapticsOn||root.hidden||document.hidden||typeof navigator.vibrate!=='function')return false;
- try{return navigator.vibrate(pattern)!==false}catch{return false}
+ try{return navigator.vibrate(typeof pattern==='string'?(SOLO_HAPTIC[pattern]||SOLO_HAPTIC.tap):pattern)!==false}catch{return false}
 }
 function stopWheelVibration(){
  try{if(typeof navigator.vibrate==='function')navigator.vibrate(0)}catch{}
@@ -321,7 +329,7 @@ function spin(){
  if(btn){btn.disabled=true;btn.textContent='GIRANDO…'}
  if(status){status.classList.add('spinning');status.textContent='La ruleta está eligiendo una categoría…'}
  // Este primer pulso se solicita directamente desde el toque del jugador.
- soloVibrate([50,35,50]);
+ soloVibrate('tap');
  let started=null,lastPulse=-Infinity,lastSection=Math.floor((startAngle+30)/60);
  function frame(now){
   if(token!==wheelToken||!state||root.hidden||state.stage!=='wheel')return;
@@ -332,14 +340,14 @@ function spin(){
   paintWheel(wheelRotation);
   // Pulsos breves al pasar a otro sector, con mayor separación al frenar.
   const section=Math.floor((wheelRotation+30)/60);
-  if(section!==lastSection&&now-lastPulse>=110&&t<0.97){
-   soloVibrate(t>0.7?34:24);
+  if(section!==lastSection&&now-lastPulse>=130+240*t*t&&t<0.97){
+   soloVibrate('spin');
    lastPulse=now;
   }
   lastSection=section;
   if(t<1){wheelFrame=requestAnimationFrame(frame);return}
   wheelFrame=0;wheelRotation=finishAngle;paintWheel(wheelRotation);
-  stopWheelVibration();soloVibrate([65,45,90]);
+  stopWheelVibration();soloVibrate('stop');
   if(status){status.classList.remove('spinning');status.textContent=icons[selected]+' '+names[selected]+' · ¡categoría elegida!'}
   landingTimer=setTimeout(()=>{
    landingTimer=0;
@@ -360,7 +368,6 @@ function grade(answer,expired=false){
  const beforeFx={lives:state.lives,shields:state.shields,stars:state.stars,points:state.points,streak:state.streak};
  state.lastCorrect=correct;state.lastQText=q[2];state.lastAnswer=q[3];state.lastMessage='';
  if(correct){
-  soloVibrate([30,40,65]);
   state.correct++;state.streak++;state.bestStreak=Math.max(state.streak,state.bestStreak);
   const bonus=(state.risk||q[8]?.surprise||state.bomb)?2:1;
   const fire=state.streak>=3?2:1;
@@ -373,7 +380,6 @@ function grade(answer,expired=false){
   if(state.correct>=20)soloMedal('correct20','Veinte respuestas acertadas');
   if(state.correct>=50)soloMedal('correct50','Cincuenta respuestas acertadas');
  }else{
-  soloVibrate([85,45,100]);
   const penalty=1+Number(!!state.risk)+Number(!!state.bomb);
   const shielded=state.shields>0?1:0;
   const livesLost=Math.min(state.lives,Math.max(0,penalty-shielded));
@@ -385,6 +391,12 @@ function grade(answer,expired=false){
    (state.lives===0?' No te quedan vidas.':' Te quedan '+state.lives+' vida'+(state.lives===1?'':'s')+'.');
  }
  state.stage='result';state.risk=false;state.bomb=false;save();render();
+ if(correct){
+  if(state.stars>beforeFx.stars)soloVibrate('crown');
+  else if(state.shields>beforeFx.shields)soloVibrate('shield');
+  else soloVibrate(state.streak>=3?'streak':'correct');
+ }else if(state.shields<beforeFx.shields)soloVibrate('shield');
+ else soloVibrate(state.lives<beforeFx.lives?'life':'wrong');
  if(window.TRIVIA_FX){
   if(state.lives<beforeFx.lives)window.TRIVIA_FX.show('life','💔','VIDA PERDIDA',state.lives+' vidas restantes');
   else if(state.stars>beforeFx.stars)window.TRIVIA_FX.show('crown','👑','¡CORONA CONSEGUIDA!',state.stars+' de 6 categorías conquistadas');
@@ -394,7 +406,7 @@ function grade(answer,expired=false){
   else window.TRIVIA_FX.show('wrong','✕',expired?'TIEMPO AGOTADO':'RESPUESTA INCORRECTA','Inténtalo en la siguiente');
  }
 }
-function end(message){stopTimer();state.endReason=message;state.stage='finished';saveSoloRecord();save();render();window.TRIVIA_FX?.show(state.lives&&state.mode==='classic'&&state.stars===6?'win':'end',state.lives&&state.mode==='classic'&&state.stars===6?'🏆':'🏁',state.lives&&state.mode==='classic'&&state.stars===6?'¡LOS SEIS QUESITOS!':'PARTIDA TERMINADA',message)}
+function end(message){stopTimer();state.endReason=message;state.stage='finished';saveSoloRecord();save();render();soloVibrate(state.lives&&state.mode==='classic'&&state.stars===6?'win':'gameover');window.TRIVIA_FX?.show(state.lives&&state.mode==='classic'&&state.stars===6?'win':'end',state.lives&&state.mode==='classic'&&state.stars===6?'🏆':'🏁',state.lives&&state.mode==='classic'&&state.stars===6?'¡LOS SEIS QUESITOS!':'PARTIDA TERMINADA',message)}
 function advance(){
  if(!state||state.stage!=='result')return;
  if(!state.lives){end('Te has quedado sin vidas');return}
@@ -429,7 +441,7 @@ async function loadPhoto(){
 }
 function swapQuestion(){
  if(!state||state.stage!=='question'||state.aids.swap<1)return;
- state.aids.swap--;state.used.pop();state.asked=Math.max(0,state.asked-1);startQuestion();
+ soloVibrate('swap');state.aids.swap--;state.used.pop();state.asked=Math.max(0,state.asked-1);startQuestion();
 }
 root.addEventListener('click',e=>{
  const btn=e.target.closest('[data-solo]');if(!btn||btn.disabled)return;
@@ -438,7 +450,7 @@ root.addEventListener('click',e=>{
  if(cmd==='haptics'){
   hapticsOn=!hapticsOn;
   try{localStorage.setItem(HAPTIC_KEY,hapticsOn?'on':'off')}catch{}
-  if(hapticsOn)soloVibrate([65,40,100]);else stopWheelVibration();
+  if(hapticsOn)soloVibrate('tap');else stopWheelVibration();
   const toggle=root.querySelector('[data-solo="haptics"]');
   if(toggle){toggle.setAttribute('aria-pressed',hapticsOn?'true':'false');toggle.innerHTML=(hapticsOn?'📳':'🔕')+' <span>Vibración</span>';}
   const info=root.querySelector('#soloHapticsMessage');
@@ -448,7 +460,7 @@ root.addEventListener('click',e=>{
   return;
  }
  if(cmd==='testHaptics'){
-  const ok=soloVibrate([80,60,130]);
+  const ok=soloVibrate('test');
   const info=root.querySelector('#soloHapticsMessage');
   if(info)info.textContent=ok?'Vibración solicitada. Si no la notas, revisa los ajustes de respuesta táctil del móvil.':'Este navegador o dispositivo ha rechazado la vibración.';
   return;
@@ -462,14 +474,14 @@ root.addEventListener('click',e=>{
  }
  if(!state)return;
  if(cmd==='spin')return spin();
- if(cmd==='risk'){state.risk=true;startQuestion();return}
- if(cmd==='normal'){state.risk=false;startQuestion();return}
- if(cmd==='next')return advance();
+ if(cmd==='risk'){soloVibrate('tap');state.risk=true;startQuestion();return}
+ if(cmd==='normal'){soloVibrate('tap');state.risk=false;startQuestion();return}
+ if(cmd==='next'){soloVibrate('tap');return advance()}
  if(cmd==='option'&&state.stage==='question'&&state.options?.length===4){const i=Number(btn.dataset.idx);if(Number.isInteger(i)&&i>=0&&i<4&&!state.hiddenChoices?.includes(i))grade(state.options[i]);return}
  if(cmd==='mediaFail'&&state.stage==='question'){state.used.pop();state.asked=Math.max(0,state.asked-1);startQuestion();return}
  if(cmd==='submit'){e.preventDefault();let input=root.querySelector('#soloAnswer');if(input?.value.trim())grade(input.value);return}
  if(cmd==='hint'&&canUseSoloHint()){
-  state.aids.hint--;
+  soloVibrate('hint');state.aids.hint--;
   if(state.options?.length===4){
    const wrong=state.options.map((v,i)=>({v,i})).filter(x=>!window.TRIVIA_MATCH(x.v,playerQuestion())&&!state.hiddenChoices.includes(x.i));
    for(const x of wrong.slice(0,2)){state.hiddenChoices.push(x.i);const btn=root.querySelector('[data-solo="option"][data-idx="'+x.i+'"]');if(btn)btn.disabled=true}
@@ -491,7 +503,7 @@ root.addEventListener('click',e=>{
   return;
  }
  if(cmd==='swap')return swapQuestion();
- if(cmd==='shield'&&state.stage==='question'&&state.aids.shield>0){state.aids.shield--;state.shields++;save();window.TRIVIA_FX?.show('shield','🛡️','ESCUDO EQUIPADO','Tu próximo fallo estará protegido');const b=root.querySelector('[data-solo="shield"]');if(b)b.textContent='🛡️ Escudo · '+state.aids.shield;const n=root.querySelector('#soloHint');if(n)n.textContent='Escudo activado para tu próximo fallo.';return}
+ if(cmd==='shield'&&state.stage==='question'&&state.aids.shield>0){soloVibrate('shield');state.aids.shield--;state.shields++;save();window.TRIVIA_FX?.show('shield','🛡️','ESCUDO EQUIPADO','Tu próximo fallo estará protegido');const b=root.querySelector('[data-solo="shield"]');if(b)b.textContent='🛡️ Escudo · '+state.aids.shield;const n=root.querySelector('#soloHint');if(n)n.textContent='Escudo activado para tu próximo fallo.';return}
 });
 root.addEventListener('submit',e=>{if(e.target.id==='soloAnswerForm'){e.preventDefault();const v=root.querySelector('#soloAnswer')?.value;if(v?.trim())grade(v)}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopWheelVibration()});
