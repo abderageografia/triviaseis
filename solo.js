@@ -160,7 +160,7 @@ function cancelWheelAnimation(){
 const save=()=>{if(state)try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}};
 function load(){try{
  let old=JSON.parse(localStorage.getItem(KEY)||'null');
- if(old?.v===1&&Array.isArray(old.pips)&&Array.isArray(old.used)&&old.stage!=='finished'){
+ if(old?.v===2&&Array.isArray(old.pips)&&Array.isArray(old.used)&&old.stage!=='finished'){
   // Compatibilidad con partidas que ya habían gastado pistas en la versión antigua.
   if(!Array.isArray(old.hintPositions)){
    old.hintPositions=[];
@@ -222,9 +222,9 @@ function summary(){
    '<span class="solo-pip-icon">'+icons[i]+'</span><div class="solo-circles">'+[0,1,2].map(j=>'<i class="'+(j<n?'on':'')+'"></i>').join('')+'</div><b>'+n+'/3</b></div>'
  ).join('')+'</div>';
  const inventory='<div class="solo-inventory"><span>🛡️ '+state.shields+' escudos</span><span>⭐ '+state.stars+' coronas</span><span>✅ '+state.correct+' aciertos'+(state.mode==='sprint'?' / '+state.goal:'')+'</span></div>';
- const value=state.mode==='classic'?state.pips.reduce((a,n)=>a+n,0):state.mode==='survival'?state.correct:Math.min(state.goal,state.asked);
+ const value=state.mode==='classic'?state.pips.reduce((a,n)=>a+n,0):state.mode==='survival'?state.correct:Math.min(state.goal,state.correct);
  const goal=state.mode==='classic'?18:state.mode==='survival'?Math.max(10,Math.ceil((state.correct+1)/10)*10):state.goal;
- const prog='<div class="solo-progress" role="group" aria-label="Progreso de la partida"><div class="solo-progress-label"><span>'+(state.mode==='classic'?'👑 CONQUISTA':'⚡ DESAFÍO')+'</span><strong>'+value+' / '+goal+'</strong></div><div class="solo-progress-track" role="progressbar" aria-valuenow="'+value+'" aria-valuemin="0" aria-valuemax="'+goal+'"><span style="width:'+(value/goal*100)+'%"></span></div><div class="solo-progress-foot">'+(state.mode==='classic'?state.stars+' de 6 coronas completadas':state.mode==='survival'?state.asked+' preguntas resistidas':Math.max(0,state.goal-state.asked)+' preguntas restantes')+'</div></div>';
+ const prog='<div class="solo-progress" role="group" aria-label="Progreso de la partida"><div class="solo-progress-label"><span>'+(state.mode==='classic'?'👑 CONQUISTA':'⚡ DESAFÍO')+'</span><strong>'+value+' / '+goal+'</strong></div><div class="solo-progress-track" role="progressbar" aria-valuenow="'+value+'" aria-valuemin="0" aria-valuemax="'+goal+'"><span style="width:'+(value/goal*100)+'%"></span></div><div class="solo-progress-foot">'+(state.mode==='classic'?state.stars+' de 6 coronas completadas':state.mode==='survival'?state.asked+' preguntas resistidas':Math.max(0,state.goal-state.correct)+' aciertos para completar el desafío')+'</div></div>';
  return '<div class="solo-hud'+(compact?' compact':'')+'">'+stats+prog+pips+inventory+(state.medals?.length?'<div class="solo-inventory">🏅 '+state.medals.length+' logros conseguidos</div>':'')+'</div>';
 }
 function wheelSvg(){
@@ -257,12 +257,12 @@ function render(){
  stopTimer();
  if(!state){
   const record=soloRecords()[chosenMode]||{};
-  screen('<div class="solo-panel solo-game-panel"><div class="solo-kicker">UN JUGADOR · SIN FIREBASE</div><h2>Tu ruleta. Tu desafío.</h2><div class="solo-choices"><button class="solo-choice '+(chosenMode==='classic'?'active':'')+'" data-solo="classic"><b>👑 Conquista</b><small>Completa las seis coronas, una por categoría. Cinco vidas.</small></button><button class="solo-choice '+(chosenMode==='sprint'?'active':'')+'" data-solo="sprint"><b>⚡ Desafío 15</b><small>15 preguntas, tres vidas y puntuación final.</small></button><button class="solo-choice '+(chosenMode==='survival'?'active':'')+'" data-solo="survival"><b>💀 Supervivencia</b><small>Tres vidas. Juega hasta fallar. Compite por tu mejor récord.</small></button></div><label class="solo-note" style="display:block;margin-top:17px">Dificultad</label><select id="soloDifficulty" class="solo-select"><option value="both">Media y difícil</option><option value="media">Media</option><option value="dificil">Difícil</option></select>'+(record.plays?'<p class="solo-note" style="margin:12px 0 4px">🏆 Récord de este modo: <b>'+Number(record.points||0)+' puntos</b> · 🔥 Mejor racha: <b>'+Number(record.streak||0)+'</b> · Partidas: '+Number(record.plays||0)+'</p>':'')+actionButton('start','EMPEZAR →')+'<p class="solo-note">Rachas x2, preguntas bomba, récords locales, supervivencia, escudos y comodines. El progreso queda guardado en este móvil.</p><div class="solo-haptics-help" id="soloHapticsMessage">'+(typeof navigator.vibrate==='function'?(hapticsOn?'La vibración está activada.':'La vibración está desactivada.')+' <button type="button" data-solo="testHaptics" '+(hapticsOn?'':'disabled')+'>Probar vibración</button>':'Tu navegador no admite vibración. En Chrome para Android suele estar disponible.')+'</div></div>');
+  screen('<div class="solo-panel solo-game-panel"><div class="solo-kicker">UN JUGADOR · SIN FIREBASE</div><h2>Tu ruleta. Tu desafío.</h2><div class="solo-choices"><button class="solo-choice '+(chosenMode==='classic'?'active':'')+'" data-solo="classic"><b>👑 Conquista</b><small>Completa las seis coronas, una por categoría. Cinco vidas.</small></button><button class="solo-choice '+(chosenMode==='sprint'?'active':'')+'" data-solo="sprint"><b>⚡ Desafío 15</b><small>Consigue 15 aciertos antes de perder las tres vidas.</small></button><button class="solo-choice '+(chosenMode==='survival'?'active':'')+'" data-solo="survival"><b>💀 Supervivencia</b><small>Tres vidas. Juega hasta fallar. Compite por tu mejor récord.</small></button></div><label class="solo-note" style="display:block;margin-top:17px">Dificultad</label><select id="soloDifficulty" class="solo-select"><option value="both">Media y difícil</option><option value="media">Media</option><option value="dificil">Difícil</option></select>'+(record.plays?'<p class="solo-note" style="margin:12px 0 4px">🏆 Récord de este modo: <b>'+Number(record.points||0)+' puntos</b> · 🔥 Mejor racha: <b>'+Number(record.streak||0)+'</b> · Partidas: '+Number(record.plays||0)+'</p>':'')+actionButton('start','EMPEZAR →')+'<p class="solo-note">Rachas x2, preguntas bomba, récords locales, supervivencia, escudos y comodines. El progreso queda guardado en este móvil.</p><div class="solo-haptics-help" id="soloHapticsMessage">'+(typeof navigator.vibrate==='function'?(hapticsOn?'La vibración está activada.':'La vibración está desactivada.')+' <button type="button" data-solo="testHaptics" '+(hapticsOn?'':'disabled')+'>Probar vibración</button>':'Tu navegador no admite vibración. En Chrome para Android suele estar disponible.')+'</div></div>');
   const selector=root.querySelector('#soloDifficulty');if(selector)selector.value=chosenLevel;return;
  }
  let main=summary();
  if(state.stage==='wheel'){
-  main+='<div class="solo-panel solo-game-panel solo-wheel-panel"><div class="solo-kicker">'+(state.mode==='classic'?'CONQUISTA LAS SEIS CORONAS':state.mode==='survival'?'SUPERVIVENCIA · SIN LÍMITE':'DESAFÍO DE 15 PREGUNTAS')+'</div><h2>Gira la ruleta</h2><div class="solo-wheel-wrap"><div class="solo-pointer"></div><div id="soloDisc" class="solo-disc">'+wheelSvg()+'</div>'+wheelIconsHtml()+'<button class="solo-wheel-center solo-wheel-action" data-solo="spin" type="button" aria-label="Girar la ruleta"><span aria-hidden="true">↻</span><b>GIRAR</b></button></div><div id="soloSpinStatus" class="solo-spin-status" aria-live="polite">Pulsa GIRAR para descubrir tu próxima categoría</div>'+'<p class="solo-note">Los aciertos mantienen tu racha. Cada cuarta respuesta correcta añade un escudo.</p></div>';
+  main+='<div class="solo-panel solo-game-panel solo-wheel-panel"><div class="solo-kicker">'+(state.mode==='classic'?'CONQUISTA LAS SEIS CORONAS':state.mode==='survival'?'SUPERVIVENCIA · SIN LÍMITE':'DESAFÍO DE 15 ACIERTOS')+'</div><h2>Gira la ruleta</h2><div class="solo-wheel-wrap"><div class="solo-pointer"></div><div id="soloDisc" class="solo-disc">'+wheelSvg()+'</div>'+wheelIconsHtml()+'<button class="solo-wheel-center solo-wheel-action" data-solo="spin" type="button" aria-label="Girar la ruleta"><span aria-hidden="true">↻</span><b>GIRAR</b></button></div><div id="soloSpinStatus" class="solo-spin-status" aria-live="polite">Pulsa GIRAR para descubrir tu próxima categoría</div>'+'<p class="solo-note">Los aciertos mantienen tu racha. Cada cuarta respuesta correcta añade un escudo.</p></div>';
  }else if(state.stage==='offer'){
   main+='<div class="solo-panel solo-game-panel"><div class="solo-kicker">⚡ DESAFÍO ESPECIAL</div><h2>¿Te arriesgas?</h2><p class="solo-note">La siguiente pregunta será de <b>'+names[state.cat]+'</b>. Si aceptas, conseguirás doble avance y puntos extra al acertar. Si fallas perderás una vida adicional.</p>'+actionButton('risk','ACEPTAR EL RETO ⚡')+actionButton('normal','PREGUNTA NORMAL','solo-cta solo-secondary')+'</div>';
  }else if(state.stage==='question'){
@@ -374,12 +374,15 @@ function grade(answer,expired=false){
   if(state.correct>=50)soloMedal('correct50','Cincuenta respuestas acertadas');
  }else{
   soloVibrate([85,45,100]);
-  const livesLost=(state.shields>0?0:1)+(state.risk?1:0)+(state.bomb?1:0);
-  if(state.shields>0){state.shields--;state.lastMessage='El escudo evita perder una vida.'}
-  else state.lastMessage=expired?'Se ha agotado el tiempo.':'Pierdes una vida.';
-  if(state.risk)state.lastMessage+=' El reto fallido cuesta una vida adicional.';
-  if(state.bomb)state.lastMessage+=' 💣 La pregunta bomba cuesta una vida adicional.';
+  const penalty=1+Number(!!state.risk)+Number(!!state.bomb);
+  const shielded=state.shields>0?1:0;
+  const livesLost=Math.min(state.lives,Math.max(0,penalty-shielded));
+  if(shielded)state.shields--;
   state.lives=Math.max(0,state.lives-livesLost);state.streak=0;
+  const cause=state.bomb?' (fallo + penalización de pregunta bomba)':state.risk?' (fallo + penalización del reto)':'';
+  state.lastMessage=(expired?'Se ha agotado el tiempo. ':'')+(shielded?'🛡️ El escudo ha bloqueado una penalización. ':'')+
+   (livesLost===0?'No has perdido ninguna vida.':'Has perdido '+livesLost+' vida'+(livesLost===1?'':'s')+cause+'.')+
+   (state.lives===0?' No te quedan vidas.':' Te quedan '+state.lives+' vida'+(state.lives===1?'':'s')+'.');
  }
  state.stage='result';state.risk=false;state.bomb=false;save();render();
  if(window.TRIVIA_FX){
@@ -396,7 +399,7 @@ function advance(){
  if(!state||state.stage!=='result')return;
  if(!state.lives){end('Te has quedado sin vidas');return}
  if(state.mode==='classic'&&state.pips.every(n=>n===3)){end('¡Has conseguido los seis quesitos!');return}
- if(state.mode==='sprint'&&state.asked>=state.goal){end('¡Has completado las 15 preguntas!');return}
+ if(state.mode==='sprint'&&state.correct>=state.goal){end('¡Has conseguido 15 aciertos!');return}
  state.stage='wheel';save();render();
 }
 function startTimer(){
@@ -454,7 +457,7 @@ root.addEventListener('click',e=>{
  if(cmd==='start'||cmd==='again'){
   chosenLevel=root.querySelector('#soloDifficulty')?.value||chosenLevel;
   cancelWheelAnimation();wheelRotation=0;
-  state={v:1,mode:chosenMode,diff:chosenLevel,points:0,lives:chosenMode==='classic'?5:3,streak:0,bestStreak:0,shields:0,aids:{hint:3,swap:2,shield:1},correct:0,asked:0,goal:15,stars:0,pips:[0,0,0,0,0,0],used:[],surpriseSeen:false,stage:'wheel',risk:false,bomb:false,medals:[],cat:0,qid:-1};
+  state={v:2,mode:chosenMode,diff:chosenLevel,points:0,lives:chosenMode==='classic'?5:3,streak:0,bestStreak:0,shields:0,aids:{hint:3,swap:2,shield:1},correct:0,asked:0,goal:15,stars:0,pips:[0,0,0,0,0,0],used:[],surpriseSeen:false,stage:'wheel',risk:false,bomb:false,medals:[],cat:0,qid:-1};
   save();render();return;
  }
  if(!state)return;
