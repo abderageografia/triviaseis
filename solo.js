@@ -395,8 +395,9 @@ function grade(answer,expired=false){
   if(state.stars>beforeFx.stars)soloVibrate('crown');
   else if(state.shields>beforeFx.shields)soloVibrate('shield');
   else soloVibrate(state.streak>=3?'streak':'correct');
- }else if(state.shields<beforeFx.shields)soloVibrate('shield');
- else soloVibrate(state.lives<beforeFx.lives?'life':'wrong');
+ }else if(state.lives<beforeFx.lives)soloVibrate('life');
+ else if(state.shields<beforeFx.shields)soloVibrate('shield');
+ else soloVibrate('wrong');
  if(window.TRIVIA_FX){
   if(state.lives<beforeFx.lives)window.TRIVIA_FX.show('life','💔','VIDA PERDIDA',state.lives+' vidas restantes');
   else if(state.stars>beforeFx.stars)window.TRIVIA_FX.show('crown','👑','¡CORONA CONSEGUIDA!',state.stars+' de 6 categorías conquistadas');
