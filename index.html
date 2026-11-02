@@ -535,6 +535,7 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
 .online-root.vs-playing .vs-answer-dock .online-feedback{font-size:14px;padding:8px;margin:0}
 .online-root.vs-playing .vs-answer-dock .online-feedback small{font-size:11px}
 .vs-speed-winner{color:#82f0d9;font-size:11px;font-weight:850;margin:5px 0}
+.vs-answer-timing{color:#c3d0e9;font-size:11px;margin-top:5px;font-variant-numeric:tabular-nums}
 .online-root.online-keyboard.vs-playing .vs-answer-dock{max-height:72%}
 .online-root.online-keyboard.vs-playing .vs-live-header .online-flex{display:none}
 .online-root.online-keyboard.vs-playing .vs-live-header .vs-streak{display:none}
@@ -2399,7 +2400,9 @@ function vsResultCell(r,w){
  const answer=a?.text||'Tiempo agotado';
  const points=Number(r.vsGains?.[w]||0);
  const fast=r.vsFirst===w&&good?'<div class="vs-speed-winner">⚡ RESPONDIÓ ANTES · +'+Number(r.vsSpeedBonus?.[w]||0)+' pts de rapidez</div>':'';
- return '<div class="vs-result-player"><div style="font-size:12px;color:#c2cfee">'+esc(vsName(w))+'</div><strong class="'+(good?'vs-correct':'vs-wrong')+'">'+(good?'✓ ACERTÓ':'✕ FALLÓ')+'</strong><div class="vs-answer-text">'+esc(answer)+'</div>'+fast+'<strong>'+(points>=0?'+':'')+points+' pts</strong></div>';
+ const time=Number(vsElapsedMs(r,a));
+ const timing=a&&Number.isFinite(time)?'<div class="vs-answer-timing">⏱ '+(time/1000).toFixed(1)+' s desde el inicio</div>':'';
+ return '<div class="vs-result-player"><div style="font-size:12px;color:#c2cfee">'+esc(vsName(w))+'</div><strong class="'+(good?'vs-correct':'vs-wrong')+'">'+(good?'✓ ACERTÓ':'✕ FALLÓ')+'</strong><div class="vs-answer-text">'+esc(answer)+'</div>'+timing+fast+'<strong>'+(points>=0?'+':'')+points+' pts</strong></div>';
 }
 function showVsRoom(r){
  root.classList.toggle('vs-playing',r.phase==='vsQuestion');
