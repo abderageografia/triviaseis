@@ -666,6 +666,26 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
 .online-root.online-keyboard.vs-playing .vs-answer-dock .online-btn{
   min-height:41px;
 }
+
+.vs-player .vs-cheese-score{color:#ffe1a2;font-size:clamp(12px,3.6vw,15px);font-weight:900;margin-top:3px}
+.vs-player .vs-cheese-icons{font-size:clamp(14px,4vw,18px);min-height:19px;line-height:1.2}
+.vs-twist-banner{border:2px solid #f7bc80;border-radius:13px;background:#402c38;color:#ffe5c4;text-align:center;font-size:clamp(12px,3.4vw,15px);font-weight:950;padding:10px;margin:7px 0;animation:vs-event-enter .65s ease-out}
+.vs-twist-banner small{display:block;font-weight:650;font-size:clamp(11px,3vw,13px);line-height:1.35;margin-top:4px;color:#f0d6ce}
+.vs-twist-banner.penalty{border-color:#f17d96;background:#442334;color:#ffccd5}
+.vs-impact-list{display:grid;gap:8px;margin:11px 0}
+.vs-impact{padding:11px;border-radius:12px;border:1px solid #71b8ab;background:#1d3a3a;color:#bbffe9;font-size:clamp(12px,3.5vw,15px);font-weight:850;text-align:left;animation:vs-event-enter .65s ease-out}
+.vs-impact.raid{border-color:#ffb870;background:#3d2b34;color:#ffe2bc}
+.vs-impact.penalty{border-color:#f27c95;background:#412638;color:#ffd2dc}
+.vs-rules-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+.vs-rule{border:1px solid #657ca7;background:#192d4a;border-radius:11px;text-align:left;padding:10px;font-size:clamp(11px,3.2vw,13px);line-height:1.35;color:#e0ecff}
+.vs-rule strong{display:block;color:#ffe3aa;font-size:clamp(12px,3.6vw,15px);margin-bottom:3px}
+.vs-pista-text,.online-hint-expanded{font-size:clamp(16px,4.7vw,21px)!important;line-height:1.43!important;font-weight:850!important;color:#eafff6!important;background:#1c3953;border:1px solid #70c9b3;border-radius:13px;padding:10px 12px;text-align:left;overflow-wrap:anywhere}
+.online-root.vs-playing .vs-live-meta .vs-twist-banner{flex:1 1 100%;padding:6px;margin:0;font-size:12px;animation:none}
+.online-root.vs-playing .vs-live-meta .vs-twist-banner small{font-size:11px}
+.online-root.vs-playing .vs-question-scroll .vs-pista-text{font-size:clamp(16px,4.4vw,19px)!important}
+@keyframes vs-event-enter{from{opacity:.2;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.vs-twist-banner,.vs-impact{animation:none!important}}
+
 </style></head><body><div class="app"><header><h1>TRIVIA<span class="yellow">·</span>SEIS</h1><button id="newgame" class="topbtn" type="button">↻ Nueva partida</button><button id="exitLocal" type="button" hidden>✕ Salir y borrar</button></header>
 <section id="setup" class="pane setup-compact">
   <div class="setup-brand"><span class="setup-kicker">🎯 DUELO DE TRIVIAL</span><span class="setup-total">6.263 preguntas</span></div>
@@ -1688,7 +1708,7 @@ setupCounters();restoreGame();
 
 window.TRIVIA_MATCH = match;
 </script>
-<script src="./solo.js?v=sync-20261102-vsfix14"></script>
+<script src="./solo.js?v=20261102-vs-quesitos-v4"></script>
 
 <div id="onlineRoot" class="online-root" hidden aria-live="polite">
   <div class="online-toolbar"><div class="online-logo">🌐 TRIVIA<span>·</span>SEIS <small style="font-size:11px;color:#9ce6e9">ONLINE</small></div><div style="display:flex;gap:6px"><button id="onlineSwitchRoom" class="online-exit" type="button" hidden>Otra sala (borra)</button><button id="onlineExit" class="online-exit" type="button">Salir</button></div></div>
@@ -2015,7 +2035,7 @@ function renderHome(){
   <button class="online-btn ghost" data-action="create">🎡 MODO RULETA · Por turnos</button>
   <button class="online-btn secondary" data-action="createVersus">⚔️ MODO VS · Los dos a la vez</button>
   <button class="online-btn ghost" data-action="createGrid">🧩 TRES EN RAYA · Conquista casillas</button>
-  <p class="online-note" style="text-align:center">En VS: 10, 15 o 20 rondas, preguntas escritas, intrusos y ráfagas de dos opciones, apuestas y muerte súbita.</p>
+  <p class="online-note" style="text-align:center">En VS: 10, 15 o 20 rondas, quesitos por categoría, asaltos para robar, penalizaciones de puntos, dobles ráfagas de 9 segundos y muerte súbita.</p>
  <p class="online-note">Para jugar los dos, solo el primer móvil debe crear la sala. El segundo tiene que unirse con el código.</p></div>`);
 }
 async function authReady(){
@@ -2178,7 +2198,7 @@ function enter(code){
  if(unsubscribe)unsubscribe();roomCode=code;saveLocal();rememberRoom(code);lastRender='';
  const change=$('onlineSwitchRoom');if(change)change.hidden=false;
  const exit=$('onlineExit');if(exit)exit.textContent='Salir y borrar';
- history.replaceState(null,'',location.pathname+'?sala='+code+'&v=13'+location.hash);
+ history.replaceState(null,'',location.pathname+'?sala='+code+'&v=14'+location.hash);
  let previousSnapshot=null;
  unsubscribe=onValue(ref(db,'rooms/'+code),snap=>{
   if(root.hidden||roomCode!==code||leavingRoom)return;
@@ -2220,7 +2240,7 @@ function qMedia(meta){
  return `<div id="onlineMediaSlot" class="online-media" data-wiki="${esc(meta.wiki||'')}" data-lang="${esc(meta.lang||'es')}">
  ${open}${source?`<img class="online-photo" src="${esc(source)}" alt="Imagen de la pregunta" loading="eager"/>`:'<p class="online-note">Cargando imagen de la pregunta…</p>'}${close}</div>`;
 }
-function qBlock(r){const q=BANK[r.qid];return `<div class="online-special" style="color:${colors[r.cat]}">${q[8]?.surprise?'🎁 PREGUNTA SORPRESA · AVANCE DOBLE':q[8]?.mythology?'🏺 HISTORIA · MITOLOGÍA · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA'):emojis[r.cat]+' '+labels[r.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')}${r.topic?' · '+esc(r.topic):''}${r.bonus?.accepted?' · ⚡ RIESGO':''}</div>${clockHTML(r)}<h2 class="online-question">${esc(q[2])}</h2>${q[8]?.continent?`<div class="online-special">🌍 CONTINENTE: ${esc(q[8].continent)}</div>`:''}${q[8]?.extraClue?`<p class="online-note" style="color:#b8f2e5">🔎 PISTA: ${esc(q[8].extraClue)}</p>`:''}${qMedia(q[8])}`}
+function qBlock(r){const q=BANK[r.qid];return `<div class="online-special" style="color:${colors[r.cat]}">${q[8]?.surprise?'🎁 PREGUNTA SORPRESA · AVANCE DOBLE':q[8]?.mythology?'🏺 HISTORIA · MITOLOGÍA · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA'):emojis[r.cat]+' '+labels[r.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')}${r.topic?' · '+esc(r.topic):''}${r.bonus?.accepted?' · ⚡ RIESGO':''}</div>${clockHTML(r)}<h2 class="online-question">${esc(q[2])}</h2>${q[8]?.continent?`<div class="online-special">🌍 CONTINENTE: ${esc(q[8].continent)}</div>`:''}${q[8]?.extraClue?`<p class="online-note online-hint-expanded">🔎 PISTA: ${esc(q[8].extraClue)}</p>`:''}${qMedia(q[8])}`}
 async function attachMedia(){
  const slot=$('onlineMediaSlot');if(!slot||slot.querySelector('img'))return;
  const ticket=++questionImageTicket;
@@ -2344,7 +2364,7 @@ function showRoom(){
   ${active?`<form id="onlineAnswerForm"><label for="onlineAnswer" class="online-label">Tu respuesta</label><input id="onlineAnswer" class="online-field" placeholder="Escribe aquí…" autocomplete="off" autocorrect="off" autocapitalize="sentences" required><button type="submit" class="online-btn">COMPROBAR ✓</button></form>
   <div class="online-shields"><span>🃏 ${me.jokers} comodines</span><span>🔥 ${me.streak} aciertos seguidos</span></div>
   ${finale?'':`<div class="online-flex"><button class="online-btn ghost small" data-action="hint" ${me.jokers<=0||r.hint?'disabled':''}>💡 Pista</button><button class="online-btn ghost small" data-action="change" ${me.jokers<=0?'disabled':''}>🔄 Cambiar</button></div>`}
-  ${r.hint?`<p class="online-note">💡 La respuesta empieza por «${esc(BANK[r.qid][3].slice(0,2))}…»</p>`:''}`:'<p class="online-note">Tu rival está respondiendo… La solución aparecerá después.</p>'}</div>`;
+  ${r.hint?`<p class="online-note online-hint-expanded">💡 La respuesta empieza por «${esc(BANK[r.qid][3].slice(0,2))}…»</p>`:''}`:'<p class="online-note">Tu rival está respondiendo… La solución aparecerá después.</p>'}</div>`;
  }else if(r.phase==='review'||r.phase==='finalReview'){
   const result=r.result||{correct:false,answer:''},finale=r.phase==='finalReview';
   html+=`<div class="online-card"><div class="online-special">${finale?'👑 GRAN FINAL':r.steal?.accepted?'⚔️ RESULTADO DEL ROBO':r.defense?'🛡️ RESULTADO DE LA DEFENSA':'RESULTADO DE LA PREGUNTA'}</div>${qBlock(r)}<div class="online-feedback ${result.correct?'ok':'no'}">${result.correct?'✓ ¡CORRECTO!':result.expired?'⌛ TIEMPO AGOTADO':'✕ INCORRECTO'}<small>${result.correct?'La respuesta se contará como válida.':'Respuesta correcta: '+esc(BANK[r.qid][3])}</small></div>
@@ -2508,11 +2528,25 @@ const vsName=who=>who==='host'?(room?.hostName||'Jugador 1'):(room?.guestName||'
 const vsMultiplier=r=>r.vsRound===vsTotal(r)?3:(r.vsFormat==='rapid'||r.vsRound>vsTotal(r)||r.vsRound%4===0?2:1);
 const vsAnswered=(r,who)=>!!r.vsAnswers?.[who];
 function vsScoreboard(r){
- return '<div class="vs-scoreboard">'+vsWho.map(w=>'<div class="vs-player '+(w===role?'self':'')+'"><div class="vs-name">'+esc(vsName(w))+(w===role?' · TÚ':'')+'</div><div class="vs-points">'+Number(r.vsScores?.[w]||0)+'</div><div class="vs-streak">🔥 Racha: '+Number(r.vsStreaks?.[w]||0)+' · '+(r.phase==='vsQuestion'?(vsAnswered(r,w)?'✅ Enviada':'✍️ Respondiendo'):'PUNTOS')+'</div></div>').join('')+'</div>';
+ return '<div class="vs-scoreboard">'+vsWho.map(w=>{
+  const owned=vsOwnedCheeses(r,w);
+  return '<div class="vs-player '+(w===role?'self':'')+'"><div class="vs-name">'+esc(vsName(w))+(w===role?' · TÚ':'')+'</div><div class="vs-points">'+Number(r.vsScores?.[w]||0)+'</div>'+
+   '<div class="vs-cheese-score">🧀 '+owned.length+'/6 quesitos</div><div class="vs-cheese-icons" title="Categorías conquistadas">'+(owned.length?owned.map(i=>emojis[i]).join(' '):'—')+'</div>'+
+   '<div class="vs-streak">🔥 Racha: '+Number(r.vsStreaks?.[w]||0)+' · '+(r.phase==='vsQuestion'?(vsAnswered(r,w)?'✅ Enviada':'✍️ Respondiendo'):'PUNTOS')+'</div></div>';
+ }).join('')+'</div>';
 }
 function vsHeader(r){
  const live=r.phase==='vsQuestion';
  return '<div class="online-card '+(live?'vs-live-header':'')+'" style="padding:12px"><div class="online-flex"><span class="online-kicker">⚔️ VS · SALA '+esc(roomCode)+'</span><button class="online-exit" data-action="share">Compartir código</button></div>'+vsScoreboard(r)+'<div class="vs-round-badge">'+(r.vsRound?'RONDA '+r.vsRound+(r.vsRound>vsTotal(r)?' · MUERTE SÚBITA':' / '+vsTotal(r)):'DUELO SIMULTÁNEO')+'</div></div>';
+}
+function vsTwistBanner(r){
+ if(r.vsRaidActive)return '<div class="vs-twist-banner raid">⚔️ ASALTO DE QUESITOS<small>El ganador roba un quesito del rival si tiene alguno. Si no tiene, recibe +120 puntos y puede conquistar una categoría libre.</small></div>';
+ if(r.vsPenaltyActive)return '<div class="vs-twist-banner penalty">💥 RONDA DE PENALIZACIÓN<small>Quien falle o no responda pierde hasta 100 puntos. Si ambos fallan, ambos pierden.</small></div>';
+ return '';
+}
+function vsImpactHtml(r){
+ const events=Array.isArray(r.vsEffects)?r.vsEffects:[];
+ return events.length?'<div class="vs-impact-list" aria-label="Cambios de la ronda">'+events.map(x=>'<div class="vs-impact '+(x.kind==='raid'?'raid':x.kind==='penalty'?'penalty':'')+'">'+esc(x.text)+'</div>').join('')+'</div>':'';
 }
 function vsBonusBanner(r){
  if(vsRoomQuestion(r)?.[8]?.surprise)return '<div class="vs-special" style="border-color:#f9d06f;background:#41305f">🎁 ¡PREGUNTA SORPRESA! · PUNTOS x3</div>';
@@ -2520,7 +2554,7 @@ function vsBonusBanner(r){
  return m>1?'<div class="vs-special">⚡ '+(r.vsRound>vsTotal(r)?'MUERTE SÚBITA · ':r.vsRound===vsTotal(r)?'RONDA FINAL · ':'RONDA ESPECIAL · ')+'PUNTOS x'+m+'</div>':'';
 }
 function vsFormatBanner(r){
- if(r.vsFormat==='rapid')return '<div class="vs-rapid-banner">⚡ RÁFAGA · 12 SEGUNDOS · 2 OPCIONES · PUNTOS x2</div>';
+ if(r.vsFormat==='rapid')return '<div class="vs-rapid-banner">⚡ '+(r.vsRapidSchedule?.[r.vsRound-1]||r.vsRapidSchedule?.[r.vsRound+1]?'DOBLE RÁFAGA':'RÁFAGA')+' · 9 SEGUNDOS · 2 OPCIONES · PUNTOS x2</div>';
  if(r.vsFormat==='four')return '<div class="vs-format-label">'+(vsRoomQuestion(r)?.[8]?.special_choice?((vsRoomQuestion(r)?.[8]?.variant==='intruso'||vsRoomQuestion(r)?.[8]?.variant==='asociacion-falsa')?'🚫 DESCUBRE EL INTRUSO · 4 OPCIONES':'🎯 PREGUNTA ESPECIAL · 4 OPCIONES'):'🎯 RONDA DE ELECCIÓN · 4 OPCIONES')+'</div>';
  return '<div class="vs-format-label">✍️ RESPUESTA ESCRITA · SIN OPCIONES</div>';
 }
@@ -2536,11 +2570,11 @@ function vsAnswerControl(r){
 function vsQuestionContent(r){
  const q=vsRoomQuestion(r);
  if(!q)return '<p class="online-note online-error-notice">⚠️ Esta ronda se creó con una versión anterior del juego y no puede corregirse con seguridad. Salid y cread una partida nueva con la página actualizada.</p>';
- return '<div class="online-special" style="color:'+colors[r.cat]+'">'+(q[8]?.surprise?'🎁 SORPRESA · RESPUESTA ESCRITA':q[8]?.mythology?'🏺 HISTORIA · MITOLOGÍA · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA'):emojis[r.cat]+' '+esc(labels[r.cat]).toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA'))+'</div><h2 class="online-question">'+esc(q[2])+'</h2>'+(q[8]?.continent?'<div class="online-special">🌍 CONTINENTE: '+esc(q[8].continent)+'</div>':'')+(q[8]?.extraClue?'<p class="online-note" style="color:#b8f2e5">🔎 PISTA: '+esc(q[8].extraClue)+'</p>':'')+qMedia(q[8]);
+ return '<div class="online-special" style="color:'+colors[r.cat]+'">'+(q[8]?.surprise?'🎁 SORPRESA · RESPUESTA ESCRITA':q[8]?.mythology?'🏺 HISTORIA · MITOLOGÍA · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA'):emojis[r.cat]+' '+esc(labels[r.cat]).toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA'))+'</div><h2 class="online-question">'+esc(q[2])+'</h2>'+(q[8]?.continent?'<div class="online-special">🌍 CONTINENTE: '+esc(q[8].continent)+'</div>':'')+(q[8]?.extraClue?'<p class="online-note online-hint-expanded">🔎 PISTA: '+esc(q[8].extraClue)+'</p>':'')+qMedia(q[8]);
 }
 function vsClockHTML(r){
  const time=Math.max(0,Math.ceil((Number(r.vsDeadline||0)-serverNow())/1000));
- return '<div class="vs-clock-label">⏳ '+(r.vsFormat==='rapid'?'RÁFAGA DE 12 SEGUNDOS':'TIEMPO PARA RESPONDER')+'</div><div id="vsClock" class="vs-clock '+(time<=(r.vsFormat==='rapid'?4:10)?'danger':'')+'">'+time+' s</div><div class="online-timer-track" style="height:7px;border-radius:9px;background:#344362;overflow:hidden"><div id="vsTimeBar" class="online-timer-bar" style="height:100%;width:'+Math.max(0,Math.min(100,100*(Number(r.vsDeadline)-serverNow())/(Number(r.vsSeconds||40)*1000)))+'%;background:#76ddce"></div></div>';
+ return '<div class="vs-clock-label">⏳ '+(r.vsFormat==='rapid'?'RÁFAGA DE 9 SEGUNDOS':'TIEMPO PARA RESPONDER')+'</div><div id="vsClock" class="vs-clock '+(time<=(r.vsFormat==='rapid'?4:10)?'danger':'')+'">'+time+' s</div><div class="online-timer-track" style="height:7px;border-radius:9px;background:#344362;overflow:hidden"><div id="vsTimeBar" class="online-timer-bar" style="height:100%;width:'+Math.max(0,Math.min(100,100*(Number(r.vsDeadline)-serverNow())/(Number(r.vsSeconds||40)*1000)))+'%;background:#76ddce"></div></div>';
 }
 function vsResultCell(r,w){
  const a=r.vsAnswers?.[w],good=!!a?.correct;
@@ -2561,11 +2595,15 @@ function showVsRoom(r){
   const chooser=role==='host'?'<div class="vs-round-badge" style="margin:14px 0 8px">ELIGE EL NÚMERO DE PREGUNTAS</div><div class="vs-power-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">'+[10,15,20].map(n=>'<button type="button" class="vs-power '+(total===n?'active':'')+'" data-action="vsLength" data-count="'+n+'" style="min-height:52px;font-size:20px">'+n+'</button>').join('')+'</div>':
     '<p class="vs-ready-state">📋 '+total+' preguntas seleccionadas. Esperando a que el anfitrión confirme.</p>';
   html+='<div class="vs-mode-card"><div class="vs-title">⚔️ DUELO DE SABERES</div><p class="vs-subtitle">Misma pregunta, mismo momento. '+total+' rondas para decidir quién gana.</p>'+chooser+
-  '<div class="vs-legend">✅ Escribir es lo habitual · 🎯 Algunas preguntas difíciles tienen cuatro opciones · ⚡ Ráfagas sorpresa de 12 segundos con dos alternativas y puntos x2 · 🔥 Tres aciertos seguidos activan puntos x2 · 💣 Preguntas bomba · 🎯 Categoría maldita · ⚡ Cada 4.ª ronda x2 y la última x3 · 🎲 '+powers.bets+' rondas de apuestas · 💡 '+powers.hints+' rondas con pista · 🏆 Desempate por muerte súbita</div>'+
+  '<div class="vs-rules-grid"><div class="vs-rule"><strong>🧀 Conquista quesitos</strong>La primera victoria en una categoría da su quesito y +90 puntos. Si ambos aciertan, cuenta la rapidez.</div>'+
+  '<div class="vs-rule"><strong>⚔️ Asalto</strong>El vencedor roba un quesito del rival y gana +120 puntos; el rival pierde hasta 100. Si no tiene, gana un botín.</div>'+
+  '<div class="vs-rule"><strong>💥 Penalización</strong>En rondas anunciadas, fallar o no contestar resta hasta 100 puntos.</div>'+
+  '<div class="vs-rule"><strong>⚡ Doble ráfaga</strong>Dos rondas rápidas seguidas: 9 segundos, dos opciones, puntos x2.</div></div>'+
+  '<p class="vs-legend">🏆 Gana quien sume más puntos. También hay apuestas, bombas, rachas x2, pistas y muerte súbita. Los quesitos se pueden robar en asaltos.</p>'+
   (role==='host'?'<button class="online-btn" data-action="vsStart">EMPEZAR '+total+' PREGUNTAS →</button>':'<p class="vs-ready-state">Esperando a que el anfitrión empiece…</p>')+'</div>';
  }else if(r.phase==='vsCountdown'){
   const remains=Math.max(0,Math.ceil((Number(r.vsStartAt)-serverNow())/1000));
-  html+='<div class="vs-mode-card"><div class="vs-title">'+emojis[r.cat]+' '+esc(labels[r.cat])+'</div>'+vsBonusBanner(r)+vsPowerBanner(r)+vsFormatBanner(r)+'<p class="vs-subtitle">Los dos recibiréis la misma pregunta</p><div id="vsIntroCountdown" class="vs-clock">'+remains+'</div><div class="vs-clock-label">PREPARADOS…</div></div>';
+  html+='<div class="vs-mode-card"><div class="vs-title">'+emojis[r.cat]+' '+esc(labels[r.cat])+'</div>'+vsBonusBanner(r)+vsPowerBanner(r)+vsTwistBanner(r)+vsFormatBanner(r)+'<p class="vs-subtitle">Los dos recibiréis la misma pregunta</p><div id="vsIntroCountdown" class="vs-clock">'+remains+'</div><div class="vs-clock-label">PREPARADOS…</div></div>';
  }else if(r.phase==='vsQuestion'){
   if(!vsRoomQuestion(r)){
    html+='<div class="vs-mode-card"><p class="online-note online-error-notice">⚠️ Esta partida procede de una versión anterior, con índices de preguntas incompatibles. Para evitar puntuaciones erróneas, salid y cread una sala nueva tras recargar ambos móviles.</p></div>';
@@ -2578,20 +2616,20 @@ function showVsRoom(r){
   const hasChoices=!answered && (r.vsFormat==='rapid'||r.vsFormat==='four') && vsChoicesValid(q,r.vsChoices,r.vsFormat==='rapid'?2:4);
   const powerButton=kind==='bet'?'<button class="vs-power '+(bet?'active':'')+'" data-action="vsBet" '+(bet||!power.bets?'disabled':'')+'>🎲 '+(bet?'APUESTA ACTIVADA':'APOSTAR x2')+'<br><small>'+Number(power.bets||0)+' disponibles · -75 si fallas</small></button>':
     kind==='hint'?'<button class="vs-power '+(hint?'active':'')+'" data-action="vsHint" '+(hint||!power.hints?'disabled':'')+'>💡 '+(hint?'PISTA UTILIZADA':'REVELAR PISTA')+'<br><small>'+Number(power.hints||0)+' disponibles · -35 puntos si aciertas</small></button>':'';
-  html+='<div class="vs-mode-card vs-live-card'+(hasChoices?' vs-has-options':'')+'"><div class="vs-live-meta">'+vsBonusBanner(r)+vsPowerBanner(r)+vsFormatBanner(r)+'</div>'+vsClockHTML(r)+
+  html+='<div class="vs-mode-card vs-live-card'+(hasChoices?' vs-has-options':'')+'"><div class="vs-live-meta">'+vsBonusBanner(r)+vsPowerBanner(r)+vsTwistBanner(r)+vsFormatBanner(r)+'</div>'+vsClockHTML(r)+
    '<div class="vs-question-scroll">'+vsQuestionContent(r)+
    (powerButton&&!answered?'<div class="vs-power-grid">'+powerButton+'</div>':'')+
    (bet?'<p class="vs-ready-state">🎲 Apuesta activada: x2 si aciertas, -75 si fallas.</p>':'')+
-   (hint?'<p class="vs-ready-state">💡 La respuesta empieza por «'+esc(String(q[3]||'').slice(0,2))+'…»</p>':'')+
+   (hint?'<p class="vs-ready-state vs-pista-text">💡 La respuesta empieza por «'+esc(String(q[3]||'').slice(0,2))+'…»</p>':'')+
    '</div><div class="vs-answer-dock">'+
    (answered?'<div class="online-feedback ok">✅ RESPUESTA ENVIADA<small>Tu respuesta está guardada. '+(vsAnswered(r,other(role))?'Los dos habéis respondido.':'Esperando al otro jugador o al final de la cuenta atrás.')+'</small></div>':vsAnswerControl(r))+
    '</div></div>';
  }else if(r.phase==='vsReview'){
   const mine=r.vsAnswers?.[role],ready=r.vsReady?.[role]===true;
   const tie=Number(r.vsScores?.host||0)===Number(r.vsScores?.guest||0);
-  html+='<div class="vs-mode-card"><div class="vs-round-badge">RESULTADO · RONDA '+r.vsRound+'</div>'+vsBonusBanner(r)+vsFormatBanner(r)+
+  html+='<div class="vs-mode-card"><div class="vs-round-badge">RESULTADO · RONDA '+r.vsRound+'</div>'+vsBonusBanner(r)+vsTwistBanner(r)+vsFormatBanner(r)+
   '<h2 class="online-question">'+esc(vsRoomQuestion(r)?.[2]||'Pregunta sin datos sincronizados')+'</h2><p class="vs-subtitle">Respuesta correcta: <b style="color:#ffe29a">'+esc(vsRoomQuestion(r)?.[3]||'No verificable')+'</b></p>'+
-  vsPowerBanner(r)+'<div class="vs-result-row">'+vsResultCell(r,'host')+vsResultCell(r,'guest')+'</div>'+
+  vsPowerBanner(r)+'<div class="vs-result-row">'+vsResultCell(r,'host')+vsResultCell(r,'guest')+'</div>'+vsImpactHtml(r)+
   
   (r.vsRound>=vsTotal(r)&&tie?'<p class="vs-ready-state">⚡ ¡EMPATE! La siguiente será de MUERTE SÚBITA.</p>':'')+
   (ready?'<p class="vs-ready-state">✅ Listo. Esperando al rival…</p>':'<button class="online-btn" data-action="vsReady">LISTO PARA LA SIGUIENTE →</button>')+
