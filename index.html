@@ -2077,7 +2077,7 @@ async function createRoom(mode='roulette'){
      const code=randomCode(),now=serverNow();
      const fresh={hostUid:uid,hostName:name,createdAt:now,updatedAt:now,lastActiveAt:now,rev:0,status:'waiting',phase:'waiting',mode,turn:'host',cat:-1,qid:-1,used:{},surpriseSeen:false,players:{host:newPlayer(),guest:newPlayer()}};
    if(mode==='grid'){Object.assign(fresh,{gridCells:Array.from({length:9},()=>({owner:null,power:0})),gridMoves:0,gridRematch:{host:false,guest:false},gridLast:null});}
-   if(mode==='versus'){Object.assign(fresh,{vsRound:0,vsMaxRounds:10,vsScores:{host:0,guest:0},vsStreaks:{host:0,guest:0},vsPowers:{host:{bets:2,hints:1},guest:{bets:2,hints:1}},vsBombSchedule:vsNewBombSchedule(10),vsRematch:{host:false,guest:false},vsHistory:[]});fresh.vsPowerSchedule=vsNewPowerSchedule(10,fresh.vsBombSchedule);fresh.vsRapidSchedule=vsNewRapidSchedule(10,fresh.vsPowerSchedule,fresh.vsBombSchedule);fresh.vsCurseRound=vsCurseTurn(10,fresh.vsBombSchedule,fresh.vsPowerSchedule,fresh.vsRapidSchedule);fresh.vsCategoryStats={host:{},guest:{}};fresh.vsCheeses=Array(6).fill(null);fresh.vsTwists=vsNewTwistSchedule(10,fresh.vsBombSchedule,fresh.vsPowerSchedule,fresh.vsRapidSchedule,fresh.vsCurseRound);fresh.vsEffects=[];}
+   if(mode==='versus'){Object.assign(fresh,{vsRound:0,vsMaxRounds:10,vsScores:{host:0,guest:0},vsStreaks:{host:0,guest:0},vsPowers:{host:{bets:2,hints:1},guest:{bets:2,hints:1}},vsBombSchedule:vsNewBombSchedule(10),vsRematch:{host:false,guest:false},vsHistory:[]});fresh.vsPowerSchedule=vsNewPowerSchedule(10,fresh.vsBombSchedule);fresh.vsRapidSchedule=vsNewRapidSchedule(10,fresh.vsPowerSchedule,fresh.vsBombSchedule);fresh.vsCurseRound=vsCurseTurn(10,fresh.vsBombSchedule,fresh.vsPowerSchedule,fresh.vsRapidSchedule);fresh.vsCategoryStats={host:{},guest:{}};fresh.vsCheeses={};fresh.vsTwists=vsNewTwistSchedule(10,fresh.vsBombSchedule,fresh.vsPowerSchedule,fresh.vsRapidSchedule,fresh.vsCurseRound);fresh.vsEffects=[];}
      try{await bounded(set(ref(db,'rooms/'+code),fresh),12000,'La base de datos no ha confirmado la creación de la sala.');enter(code);return}catch(e){if(i===3)throw e}
    }
  }catch(e){error(e)}finally{pending=false;working(mode==='versus'?'createVersus':mode==='grid'?'createGrid':'create',false)}
@@ -2479,7 +2479,8 @@ function vsRoundWinner(r){
  return null;
 }
 function vsOwnedCheeses(r,w){
- return (Array.isArray(r.vsCheeses)?r.vsCheeses:[]).map((owner,i)=>owner===w?i:-1).filter(i=>i>=0);
+ // RTDB puede devolver un mapa numérico en vez de un array si hay huecos.
+ return Object.entries(r.vsCheeses||{}).filter(([cat,owner])=>owner===w&&/^[0-5]$/.test(cat)).map(([cat])=>Number(cat)).sort((a,b)=>a-b);
 }
 function vsModifyScore(r,w,delta){
  const previous=Math.max(0,Number(r.vsScores?.[w]||0));
@@ -2656,7 +2657,7 @@ function vsPickRound(r){
  if(!r.vsRapidSchedule)r.vsRapidSchedule=vsNewRapidSchedule(vsTotal(r),r.vsPowerSchedule,r.vsBombSchedule);
  if(!r.vsCurseRound)r.vsCurseRound=vsCurseTurn(vsTotal(r),r.vsBombSchedule,r.vsPowerSchedule,r.vsRapidSchedule);
  if(!r.vsTwists)r.vsTwists=vsNewTwistSchedule(vsTotal(r),r.vsBombSchedule,r.vsPowerSchedule,r.vsRapidSchedule,r.vsCurseRound);
- if(!Array.isArray(r.vsCheeses))r.vsCheeses=Array(6).fill(null);
+ if(!r.vsCheeses||typeof r.vsCheeses!=='object')r.vsCheeses={};
  const round=Number(r.vsRound||0)+1;
  const options=[0,1,2,3,4,5].filter(c=>c!==r.cat);
  let cat=options[Math.floor(Math.random()*options.length)];
@@ -2780,7 +2781,7 @@ function vsSettle(r){
  }
  // La primera victoria en cada categoría conquista su quesito; las rondas de asalto permiten robárselo al rival.
  if(r.vsRound<=vsTotal(r)){
-  if(!Array.isArray(r.vsCheeses))r.vsCheeses=Array(6).fill(null);
+  if(!r.vsCheeses||typeof r.vsCheeses!=='object')r.vsCheeses={};
   r.vsEffects=[];
   const winner=vsRoundWinner(r);
   if(winner){
@@ -2830,7 +2831,7 @@ async function vsSetLength(count){
  if(![10,15,20].includes(count))return;
  await tx(r=>{
   if(r.mode!=='versus'||r.phase!=='vsLobby'||role!=='host')return;
-  r.vsMaxRounds=count;r.vsBombSchedule=vsNewBombSchedule(count);r.vsPowerSchedule=vsNewPowerSchedule(count,r.vsBombSchedule);r.vsRapidSchedule=vsNewRapidSchedule(count,r.vsPowerSchedule,r.vsBombSchedule);r.vsCurseRound=vsCurseTurn(count,r.vsBombSchedule,r.vsPowerSchedule,r.vsRapidSchedule);r.vsTwists=vsNewTwistSchedule(count,r.vsBombSchedule,r.vsPowerSchedule,r.vsRapidSchedule,r.vsCurseRound);r.vsCategoryStats={host:{},guest:{}};r.vsCheeses=Array(6).fill(null);r.vsEffects=[];
+  r.vsMaxRounds=count;r.vsBombSchedule=vsNewBombSchedule(count);r.vsPowerSchedule=vsNewPowerSchedule(count,r.vsBombSchedule);r.vsRapidSchedule=vsNewRapidSchedule(count,r.vsPowerSchedule,r.vsBombSchedule);r.vsCurseRound=vsCurseTurn(count,r.vsBombSchedule,r.vsPowerSchedule,r.vsRapidSchedule);r.vsTwists=vsNewTwistSchedule(count,r.vsBombSchedule,r.vsPowerSchedule,r.vsRapidSchedule,r.vsCurseRound);r.vsCategoryStats={host:{},guest:{}};r.vsCheeses={};r.vsEffects=[];
   const {bets,hints}=vsPowerCounts(count);
   r.vsPowers={host:{bets,hints},guest:{bets,hints}};
   return r;
@@ -2848,7 +2849,7 @@ function vsResetMatch(r){
  r.status='playing';r.phase='vsLobby';r.winner=null;r.cat=-1;r.qid=-1;
  r.vsRound=0;r.surpriseSeen=false;r.vsMaxRounds=total;r.vsScores={host:0,guest:0};r.vsStreaks={host:0,guest:0};
  r.vsPowers={host:{bets,hints},guest:{bets,hints}};
- r.vsBombSchedule=vsNewBombSchedule(total);r.vsPowerSchedule=vsNewPowerSchedule(total,r.vsBombSchedule);r.vsRapidSchedule=vsNewRapidSchedule(total,r.vsPowerSchedule,r.vsBombSchedule);r.vsCurseRound=vsCurseTurn(total,r.vsBombSchedule,r.vsPowerSchedule,r.vsRapidSchedule);r.vsTwists=vsNewTwistSchedule(total,r.vsBombSchedule,r.vsPowerSchedule,r.vsRapidSchedule,r.vsCurseRound);r.vsCategoryStats={host:{},guest:{}};r.vsCheeses=Array(6).fill(null);r.vsEffects=[];r.vsRaidActive=false;r.vsPenaltyActive=false;r.vsHistory=[];r.vsRematch={host:false,guest:false};
+ r.vsBombSchedule=vsNewBombSchedule(total);r.vsPowerSchedule=vsNewPowerSchedule(total,r.vsBombSchedule);r.vsRapidSchedule=vsNewRapidSchedule(total,r.vsPowerSchedule,r.vsBombSchedule);r.vsCurseRound=vsCurseTurn(total,r.vsBombSchedule,r.vsPowerSchedule,r.vsRapidSchedule);r.vsTwists=vsNewTwistSchedule(total,r.vsBombSchedule,r.vsPowerSchedule,r.vsRapidSchedule,r.vsCurseRound);r.vsCategoryStats={host:{},guest:{}};r.vsCheeses={};r.vsEffects=[];r.vsRaidActive=false;r.vsPenaltyActive=false;r.vsHistory=[];r.vsRematch={host:false,guest:false};
  r.vsReady={host:false,guest:false};r.vsAnswers={};
  r.vsBoost={host:false,guest:false};r.vsHints={host:false,guest:false};
  r.vsGains={host:0,guest:0};r.vsPriorStreaks={host:0,guest:0};
