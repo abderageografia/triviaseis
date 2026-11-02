@@ -496,6 +496,7 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
 .online-btn.online-busy{opacity:.80;box-shadow:0 2px 0 #332876}
 
 /* VS simultáneo, versión móvil: respuestas siempre disponibles y zona de lectura independiente */
+.online-root[hidden]{display:none!important}
 .online-root.vs-playing{display:flex;flex-direction:column;overflow:hidden;min-height:0;padding-bottom:calc(7px + env(safe-area-inset-bottom))}
 .online-root.vs-playing .online-toolbar{flex:none;margin-bottom:4px}
 .online-root.vs-playing #onlineView{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0;overflow:hidden}
@@ -534,6 +535,13 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
 .online-root.vs-playing .vs-answer-dock .online-feedback{font-size:14px;padding:8px;margin:0}
 .online-root.vs-playing .vs-answer-dock .online-feedback small{font-size:11px}
 .vs-speed-winner{color:#82f0d9;font-size:11px;font-weight:850;margin:5px 0}
+.online-root.online-keyboard.vs-playing .vs-answer-dock{max-height:72%}
+.online-root.online-keyboard.vs-playing .vs-live-header .online-flex{display:none}
+.online-root.online-keyboard.vs-playing .vs-live-header .vs-streak{display:none}
+.online-root.online-keyboard.vs-playing .vs-live-header .vs-player{padding:3px 5px}
+.online-root.online-keyboard.vs-playing .vs-live-card .vs-clock{font-size:20px}
+.online-root.online-keyboard.vs-playing .vs-question-scroll .online-question{font-size:17px;line-height:1.14}
+
 @media(max-width:600px){
  .online-root.vs-playing{padding-top:calc(3px + env(safe-area-inset-top));padding-left:9px;padding-right:9px}
  .online-root.vs-playing #onlineSwitchRoom{display:none}
@@ -1815,6 +1823,7 @@ function error(e){
 
 function openOnline(){root.hidden=false;document.body.style.overflow='hidden';fitOnline();renderHome();if(uid)tryResume();else authReady().catch(error)}
 function forgetOnlineRoom(){
+ root.classList.remove('vs-playing');
  resumeEpoch++; // Evita reentradas tras una comprobación asíncrona antigua.
  if(unsubscribe){unsubscribe();unsubscribe=null;}
  onlineStopSpinHaptics();
