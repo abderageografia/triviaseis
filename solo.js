@@ -138,6 +138,7 @@ css.textContent = `
 @media(max-width:370px){#soloRoot{padding-left:8px;padding-right:8px}.solo-panel{padding:12px}.solo-logo{font-size:15px}.solo-small{font-size:9px}.solo-back,.solo-vibrate{padding:7px 8px;font-size:11px}.solo-wheel-wrap{width:clamp(176px,min(75vw,35dvh),298px)}.solo-inventory{gap:3px}.solo-inventory span{padding:4px 6px}}
 @media(max-height:640px){.solo-panel{margin:7px 0}.solo-wheel-wrap{width:clamp(160px,min(69vw,32dvh),280px);margin:5px auto 9px}.solo-game-panel h2{margin:4px 0}.solo-stat{min-height:69px}.solo-stat b{font-size:23px}.solo-inventory{font-size:10px}.solo-cta{min-height:46px;padding:10px}}
 `;
+css.textContent += "\n.solo-result-answers{display:grid;gap:8px;margin:14px 0 11px;text-align:left}\n.solo-answer-row{display:grid;grid-template-columns:minmax(90px,32%) minmax(0,1fr);gap:9px;align-items:center;padding:12px;border:1px solid #64769c;border-radius:14px;background:#11213c}\n.solo-answer-row .solo-answer-label{font-size:11px;letter-spacing:.5px;font-weight:900;color:#b0c5e5;text-transform:uppercase}\n.solo-answer-row .solo-answer-value{font-size:clamp(14px,4vw,17px);line-height:1.3;overflow-wrap:anywhere;color:#f4f7ff}\n.solo-answer-row.correct{border-color:#4b9e87;background:#133535}\n.solo-answer-row.correct .solo-answer-value{color:#a2ffce}\n.solo-answer-row.user-wrong{border-color:#a46483;background:#38243b}\n.solo-answer-row.user-wrong .solo-answer-value{color:#ffbbca}\n.solo-answer-row .solo-empty{font-weight:600;font-style:italic;color:#d5bed1}\n.solo-effect-log{display:flex;justify-content:center;flex-wrap:wrap;gap:7px;margin:13px 0 3px}\n.solo-effect-tag{display:inline-flex;align-items:center;gap:5px;padding:8px 11px;border-radius:12px;border:1px solid #7184a9;background:#172640;font-size:12px;font-weight:850;line-height:1.22;animation:solo-event-arrive .42s cubic-bezier(.15,.75,.22,1) both}\n.solo-effect-tag:nth-child(2){animation-delay:.14s}.solo-effect-tag:nth-child(3){animation-delay:.28s}\n.solo-effect-tag.shield-gain,.solo-effect-tag.life-gain{border-color:#6fe7bb;color:#9fffd6;background:#153b39}\n.solo-effect-tag.shield-use{border-color:#e9b377;color:#ffe0a5;background:#3b302b}\n.solo-effect-tag.life-loss{border-color:#f07b95;color:#ffc0c9;background:#442538}\n.solo-effect-tag.crown-gain{border-color:#f4d17b;color:#ffedae;background:#42371d}\n.solo-inventory button.solo-crown-info{border:1px solid #7d719e;border-radius:99px;background:#262342;color:#ffdf98;padding:5px 9px;font:inherit;font-size:11px;cursor:pointer}\n.solo-crown-tip{font-size:11px;color:#e7d8ae;text-align:center;line-height:1.35;margin:0 5px}\n.solo-hearts .solo-heart-just-lost{animation:solo-life-fall 1.15s ease both;display:inline-block}\n.solo-hearts .solo-heart-just-gained{animation:solo-life-return 1.25s cubic-bezier(.1,.75,.2,1) both;display:inline-block}\n.solo-stat.solo-life-loss{animation:solo-life-box-loss 1.2s ease}\n.solo-stat.solo-life-gain{animation:solo-life-box-gain 1.2s ease}\n.solo-shield-stat.solo-shield-gain{animation:solo-shield-box-gain 1.3s ease}\n.solo-shield-stat.solo-shield-use{animation:solo-shield-box-use 1.2s ease}\n@keyframes solo-event-arrive{from{opacity:0;transform:translateY(10px) scale(.95)}to{opacity:1;transform:none}}\n@keyframes solo-life-fall{0%{transform:scale(1);color:#ff6c85;opacity:1}33%{transform:scale(1.5) rotate(-15deg);color:#ff3268;opacity:1}100%{transform:translateY(12px) scale(.75) rotate(18deg);opacity:.58}}\n@keyframes solo-life-return{0%{transform:translateY(18px) scale(.3);opacity:.2;color:#d45365}40%{transform:translateY(-6px) scale(1.45);opacity:1;color:#fff1ef}100%{transform:none;opacity:1;color:#ff7689}}\n@keyframes solo-life-box-loss{0%,100%{border-color:#536e98}25%,65%{border-color:#ff637b;box-shadow:0 0 23px #f04e7473}}\n@keyframes solo-life-box-gain{0%,100%{border-color:#536e98}25%,65%{border-color:#7df3bb;box-shadow:0 0 23px #53e39c92}}\n@keyframes solo-shield-box-gain{0%,100%{box-shadow:none}30%,65%{box-shadow:0 0 17px #63dceaad;transform:scale(1.12)}}\n@keyframes solo-shield-box-use{0%,100%{box-shadow:none;opacity:1}30%{box-shadow:0 0 18px #f4ab608a;transform:scale(.91);opacity:.65}}\n@media(prefers-reduced-motion:reduce){.solo-effect-tag,.solo-hearts .solo-heart-just-lost,.solo-hearts .solo-heart-just-gained,.solo-stat.solo-life-loss,.solo-stat.solo-life-gain,.solo-shield-stat.solo-shield-gain,.solo-shield-stat.solo-shield-use{animation:none!important}}\n";
 document.head.appendChild(css);
 let state = null, tick = 0, spinning = false, wheelRotation = 0, mediaTicket = 0, chosenMode = 'classic', chosenLevel = 'both';
 const HAPTIC_KEY='triviaSeisSoloHaptics';
@@ -148,7 +149,7 @@ let wheelFrame=0,wheelToken=0,landingTimer=0;
 const SOLO_HAPTIC={
  tap:6,spin:5,stop:[8,36,11],hint:[6,32,6],swap:[7,38,9],
  correct:[9,42,15],streak:[9,33,12,39,17],wrong:[22,85,20],
- life:[36,100,38],shield:[7,35,7,38,11],
+ life:[36,100,38],lifeGain:[8,37,14,40,20],shield:[7,35,7,38,11],shieldUse:[19,85,12],
  crown:[11,36,16,40,22],win:[10,35,15,37,19,40,24],
  gameover:[28,95,28,110,38],test:[6,45,10,45,15]
 };
@@ -187,6 +188,7 @@ function close(){
  // Salir descarta la partida, no la suspende.
  if(state&&state.stage!=='finished'&&!confirm('¿Salir del modo individual y eliminar la partida actual? No podrás recuperarla.'))return;
  stopTimer();cancelWheelAnimation();mediaTicket++;
+ window.TRIVIA_FX?.cancel?.();
  resetSave();state=null;root.hidden=true;document.body.style.overflow='';
 }
 function open(){root.hidden=false;document.body.style.overflow='hidden';state=load();if(state&&state.stage==='question'&&Date.now()>Number(state.deadline))grade('',true);else render()}
@@ -221,19 +223,35 @@ function soloHintText(){
 }
 function summary(){
  const compact=state.stage!=='wheel';
- const hearts=Array.from({length:state.mode==='classic'?5:3},(_,i)=>'<span class="'+(i<state.lives?'':'lost')+'">♥</span>').join('');
+ const maxLives=state.mode==='classic'?5:3;
+ const recent=state.stage==='result'?state.lastChange||{}:{};
+ const prevLives=recent.livesBefore??state.lives;
+ const prevShields=recent.shieldsBefore??state.shields;
+ const livesDelta=state.lives-prevLives;
+ const shieldsDelta=state.shields-prevShields;
+ const hearts=Array.from({length:maxLives},(_,i)=>{
+  const lost=i>=state.lives;
+  const changedToLost=state.stage==='result'&&i>=state.lives&&i<prevLives;
+  const changedToFull=state.stage==='result'&&i>=prevLives&&i<state.lives;
+  return '<span class="'+(lost?'lost ':'')+(changedToLost?'solo-heart-just-lost ':'')+(changedToFull?'solo-heart-just-gained':'')+'">♥</span>';
+ }).join('');
+ const lifePulse=livesDelta<0?'solo-life-loss':livesDelta>0?'solo-life-gain':'';
+ const shieldPulse=shieldsDelta<0?'solo-shield-use':shieldsDelta>0?'solo-shield-gain':'';
  const stats='<div class="solo-stats"><div class="solo-stat"><b>'+state.points+'</b><small>PUNTOS</small></div>'+
-   '<div class="solo-stat"><b class="solo-hearts" aria-label="'+state.lives+' vidas restantes">'+hearts+'</b><small>VIDAS</small></div>'+
-   '<div class="solo-stat"><b>🔥 '+state.streak+'</b><small>RACHA</small></div></div>';
- const pips='<div class="solo-pips" aria-label="Progreso por categorías">'+state.pips.map((n,i)=>
-   '<div class="solo-pip '+(n===3?'complete':'')+'" style="--cc:'+colors[i]+'" title="'+names[i]+': '+n+' de 3">'+
-   '<span class="solo-pip-icon">'+icons[i]+'</span><div class="solo-circles">'+[0,1,2].map(j=>'<i class="'+(j<n?'on':'')+'"></i>').join('')+'</div><b>'+n+'/3</b></div>'
- ).join('')+'</div>';
- const inventory='<div class="solo-inventory"><span>🛡️ '+state.shields+' escudos</span><span>⭐ '+state.stars+' coronas</span><span>✅ '+state.correct+' aciertos'+(state.mode==='sprint'?' / '+state.goal:'')+'</span></div>';
+  '<div class="solo-stat '+lifePulse+'"><b class="solo-hearts" aria-label="'+state.lives+' vidas restantes">'+hearts+'</b><small>VIDAS</small></div>'+
+  '<div class="solo-stat"><b>🔥 '+state.streak+'</b><small>RACHA</small></div></div>';
+ const pips=state.mode==='classic'?'<div class="solo-pips" aria-label="Progreso por categorías">'+state.pips.map((n,i)=>
+  '<div class="solo-pip '+(n===3?'complete':'')+'" style="--cc:'+colors[i]+'" title="'+names[i]+': '+n+' de 3">'+
+  '<span class="solo-pip-icon">'+icons[i]+'</span><div class="solo-circles">'+[0,1,2].map(j=>'<i class="'+(j<n?'on':'')+'"></i>').join('')+'</div><b>'+n+'/3</b></div>'
+ ).join('')+'</div>':'';
+ const inventory='<div class="solo-inventory"><span class="solo-shield-stat '+shieldPulse+'" data-solo-stat="shields" aria-label="'+state.shields+' escudos disponibles">🛡️ '+state.shields+' escudos</span>'+
+  (state.mode==='classic'?'<button class="solo-crown-info" type="button" data-solo="crownInfo" aria-label="Explicar para qué sirven las coronas">👑 '+state.stars+'/6 coronas ⓘ</button>':'')+
+  '<span>✅ '+state.correct+' aciertos'+(state.mode==='sprint'?' / '+state.goal:'')+'</span></div>';
  const value=state.mode==='classic'?state.pips.reduce((a,n)=>a+n,0):state.mode==='survival'?state.correct:Math.min(state.goal,state.correct);
  const goal=state.mode==='classic'?18:state.mode==='survival'?Math.max(10,Math.ceil((state.correct+1)/10)*10):state.goal;
  const prog='<div class="solo-progress" role="group" aria-label="Progreso de la partida"><div class="solo-progress-label"><span>'+(state.mode==='classic'?'👑 CONQUISTA':'⚡ DESAFÍO')+'</span><strong>'+value+' / '+goal+'</strong></div><div class="solo-progress-track" role="progressbar" aria-valuenow="'+value+'" aria-valuemin="0" aria-valuemax="'+goal+'"><span style="width:'+(value/goal*100)+'%"></span></div><div class="solo-progress-foot">'+(state.mode==='classic'?state.stars+' de 6 coronas completadas':state.mode==='survival'?state.asked+' preguntas resistidas':Math.max(0,state.goal-state.correct)+' aciertos para completar el desafío')+'</div></div>';
- return '<div class="solo-hud'+(compact?' compact':'')+'">'+stats+prog+pips+inventory+(state.medals?.length?'<div class="solo-inventory">🏅 '+state.medals.length+' logros conseguidos</div>':'')+'</div>';
+ const crownTip=state.mode==='classic'&&state.stage==='wheel'?'<div class="solo-crown-tip">👑 Completa 3 avances en cada categoría para ganar su corona. Consigue las 6.</div>':'';
+ return '<div class="solo-hud'+(compact?' compact':'')+'">'+stats+prog+pips+inventory+crownTip+(state.medals?.length?'<div class="solo-inventory">🏅 '+state.medals.length+' logros conseguidos</div>':'')+'</div>';
 }
 function wheelSvg(){
  const step=2*Math.PI/6,cx=150,cy=150,r=145;
@@ -265,22 +283,30 @@ function render(){
  stopTimer();
  if(!state){
   const record=soloRecords()[chosenMode]||{};
-  screen('<div class="solo-panel solo-game-panel"><div class="solo-kicker">UN JUGADOR · SIN FIREBASE</div><h2>Tu ruleta. Tu desafío.</h2><div class="solo-choices"><button class="solo-choice '+(chosenMode==='classic'?'active':'')+'" data-solo="classic"><b>👑 Conquista</b><small>Completa las seis coronas, una por categoría. Cinco vidas.</small></button><button class="solo-choice '+(chosenMode==='sprint'?'active':'')+'" data-solo="sprint"><b>⚡ Desafío 15</b><small>Consigue 15 aciertos antes de perder las tres vidas.</small></button><button class="solo-choice '+(chosenMode==='survival'?'active':'')+'" data-solo="survival"><b>💀 Supervivencia</b><small>Tres vidas. Juega hasta fallar. Compite por tu mejor récord.</small></button></div><label class="solo-note" style="display:block;margin-top:17px">Dificultad</label><select id="soloDifficulty" class="solo-select"><option value="both">Media y difícil</option><option value="media">Media</option><option value="dificil">Difícil</option></select>'+(record.plays?'<p class="solo-note" style="margin:12px 0 4px">🏆 Récord de este modo: <b>'+Number(record.points||0)+' puntos</b> · 🔥 Mejor racha: <b>'+Number(record.streak||0)+'</b> · Partidas: '+Number(record.plays||0)+'</p>':'')+actionButton('start','EMPEZAR →')+'<p class="solo-note">Rachas x2, preguntas bomba, récords locales, supervivencia, escudos y comodines. El progreso queda guardado en este móvil.</p><div class="solo-haptics-help" id="soloHapticsMessage">'+(typeof navigator.vibrate==='function'?(hapticsOn?'La vibración está activada.':'La vibración está desactivada.')+' <button type="button" data-solo="testHaptics" '+(hapticsOn?'':'disabled')+'>Probar vibración</button>':'Tu navegador no admite vibración. En Chrome para Android suele estar disponible.')+'</div></div>');
+  screen('<div class="solo-panel solo-game-panel"><div class="solo-kicker">UN JUGADOR · SIN FIREBASE</div><h2>Tu ruleta. Tu desafío.</h2><div class="solo-choices"><button class="solo-choice '+(chosenMode==='classic'?'active':'')+'" data-solo="classic"><b>👑 Conquista</b><small>Tres avances por categoría dan una corona. Consigue las seis. Cinco vidas.</small></button><button class="solo-choice '+(chosenMode==='sprint'?'active':'')+'" data-solo="sprint"><b>⚡ Desafío 15</b><small>Consigue 15 aciertos antes de perder las tres vidas.</small></button><button class="solo-choice '+(chosenMode==='survival'?'active':'')+'" data-solo="survival"><b>💀 Supervivencia</b><small>Tres vidas. Juega hasta fallar. Compite por tu mejor récord.</small></button></div><label class="solo-note" style="display:block;margin-top:17px">Dificultad</label><select id="soloDifficulty" class="solo-select"><option value="both">Media y difícil</option><option value="media">Media</option><option value="dificil">Difícil</option></select>'+(record.plays?'<p class="solo-note" style="margin:12px 0 4px">🏆 Récord de este modo: <b>'+Number(record.points||0)+' puntos</b> · 🔥 Mejor racha: <b>'+Number(record.streak||0)+'</b> · Partidas: '+Number(record.plays||0)+'</p>':'')+actionButton('start','EMPEZAR →')+'<p class="solo-note">Rachas x2, preguntas bomba, récords locales, supervivencia, escudos y comodines. El progreso queda guardado en este móvil.</p><div class="solo-haptics-help" id="soloHapticsMessage">'+(typeof navigator.vibrate==='function'?(hapticsOn?'La vibración está activada.':'La vibración está desactivada.')+' <button type="button" data-solo="testHaptics" '+(hapticsOn?'':'disabled')+'>Probar vibración</button>':'Tu navegador no admite vibración. En Chrome para Android suele estar disponible.')+'</div></div>');
   const selector=root.querySelector('#soloDifficulty');if(selector)selector.value=chosenLevel;return;
  }
  let main=summary();
  if(state.stage==='wheel'){
-  main+='<div class="solo-panel solo-game-panel solo-wheel-panel"><div class="solo-kicker">'+(state.mode==='classic'?'CONQUISTA LAS SEIS CORONAS':state.mode==='survival'?'SUPERVIVENCIA · SIN LÍMITE':'DESAFÍO DE 15 ACIERTOS')+'</div><h2>Gira la ruleta</h2><div class="solo-wheel-wrap"><div class="solo-pointer"></div><div id="soloDisc" class="solo-disc">'+wheelSvg()+'</div>'+wheelIconsHtml()+'<button class="solo-wheel-center solo-wheel-action" data-solo="spin" type="button" aria-label="Girar la ruleta"><span aria-hidden="true">↻</span><b>GIRAR</b></button></div><div id="soloSpinStatus" class="solo-spin-status" aria-live="polite">Pulsa GIRAR para descubrir tu próxima categoría</div>'+'<p class="solo-note">Los aciertos mantienen tu racha. Cada cuarta respuesta correcta añade un escudo.</p></div>';
+  main+='<div class="solo-panel solo-game-panel solo-wheel-panel"><div class="solo-kicker">'+(state.mode==='classic'?'CONQUISTA LAS SEIS CORONAS':state.mode==='survival'?'SUPERVIVENCIA · SIN LÍMITE':'DESAFÍO DE 15 ACIERTOS')+'</div><h2>Gira la ruleta</h2><div class="solo-wheel-wrap"><div class="solo-pointer"></div><div id="soloDisc" class="solo-disc">'+wheelSvg()+'</div>'+wheelIconsHtml()+'<button class="solo-wheel-center solo-wheel-action" data-solo="spin" type="button" aria-label="Girar la ruleta"><span aria-hidden="true">↻</span><b>GIRAR</b></button></div><div id="soloSpinStatus" class="solo-spin-status" aria-live="polite">Pulsa GIRAR para descubrir tu próxima categoría</div>'+'<p class="solo-note">Los aciertos mantienen tu racha. Cada cuatro aciertos seguidos recuperas un escudo (máximo dos). Cada diez seguidos recuperas una vida, si te falta.</p></div>';
  }else if(state.stage==='offer'){
   main+='<div class="solo-panel solo-game-panel"><div class="solo-kicker">⚡ DESAFÍO ESPECIAL</div><h2>¿Te arriesgas?</h2><p class="solo-note">La siguiente pregunta será de <b>'+names[state.cat]+'</b>. Si aceptas, conseguirás doble avance y puntos extra al acertar. Si fallas perderás una vida adicional.</p>'+actionButton('risk','ACEPTAR EL RETO ⚡')+actionButton('normal','PREGUNTA NORMAL','solo-cta solo-secondary')+'</div>';
  }else if(state.stage==='question'){
   const q=playerQuestion(); if(!q){state.stage='wheel';save();render();return}
   let seconds=Math.max(0,Math.ceil((state.deadline-Date.now())/1000));
-  main+='<div class="solo-panel solo-game-panel solo-question-panel">'+(q[8]?.surprise?'<div class="solo-kicker" style="color:#ffe59c;font-size:16px;margin-bottom:10px">🎁 ¡PREGUNTA SORPRESA! · 500 PUNTOS · AVANCE DOBLE</div>':'')+'<div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+(state.bomb?' · 💣 PREGUNTA BOMBA':'')+(q[8]?.mythology?' · 🏺 MITOLOGÍA':'')+'</div><div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div>'+(state.options?.length===4?'<div class="solo-quiz-type">'+(q[8]?.special_choice?((q[8]?.variant==='intruso'||q[8]?.variant==='asociacion-falsa')?'🚫 ENCUENTRA EL INTRUSO':'🎯 PREGUNTA ESPECIAL · 4 OPCIONES'):'🎯 RONDA ESPECIAL · 4 OPCIONES')+'</div>':'')+'<div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(!canUseSoloHint()?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint">'+htmlEscape(soloHintText())+'</p></div>';
+  main+='<div class="solo-panel solo-game-panel solo-question-panel">'+(q[8]?.surprise?'<div class="solo-kicker" style="color:#ffe59c;font-size:16px;margin-bottom:10px">🎁 ¡PREGUNTA SORPRESA! · 500 PUNTOS · AVANCE DOBLE</div>':'')+'<div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+(state.bomb?' · 💣 PREGUNTA BOMBA':'')+(q[8]?.mythology?' · 🏺 MITOLOGÍA':'')+'</div><div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div>'+(state.options?.length===4?'<div class="solo-quiz-type">'+(q[8]?.special_choice?((q[8]?.variant==='intruso'||q[8]?.variant==='asociacion-falsa')?'🚫 ENCUENTRA EL INTRUSO':'🎯 PREGUNTA ESPECIAL · 4 OPCIONES'):'🎯 RONDA ESPECIAL · 4 OPCIONES')+'</div>':'')+'<div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(!canUseSoloHint()?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0||state.shields>=2?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint">'+htmlEscape(soloHintText())+'</p></div>';
  }else if(state.stage==='result'){
-  main+='<div class="solo-panel solo-game-panel solo-result-panel"><div class="solo-kicker">'+(state.lastCorrect?'RESPUESTA CORRECTA':'RESPUESTA INCORRECTA')+'</div><h2>'+htmlEscape(state.lastQText)+'</h2><div class="'+(state.lastCorrect?'solo-ok':'solo-no')+'">'+(state.lastCorrect?'✓ ¡ACERTASTE!':'✕ FALLO')+'</div><p class="solo-note">Respuesta: <b style="color:#ffe094">'+htmlEscape(state.lastAnswer)+'</b></p><p class="solo-note">'+htmlEscape(state.lastMessage)+'</p>'+actionButton('next','CONTINUAR →')+'</div>';
+  const entered=String(state.lastUserAnswer??'').trim();
+  const own=entered?htmlEscape(entered):'<span class="solo-empty">'+(state.lastExpired?'Sin responder (tiempo agotado)':'Sin respuesta')+'</span>';
+  const events=(state.lastEffects||[]).map(item=>'<span class="solo-effect-tag '+htmlEscape(item.kind)+'">'+htmlEscape(item.symbol)+' '+htmlEscape(item.short)+'</span>').join('');
+  main+='<div class="solo-panel solo-game-panel solo-result-panel"><div class="solo-kicker">'+(state.lastCorrect?'RESPUESTA CORRECTA':'RESPUESTA INCORRECTA')+'</div><h2>'+htmlEscape(state.lastQText)+'</h2>'+
+    '<div class="'+(state.lastCorrect?'solo-ok':'solo-no')+'">'+(state.lastCorrect?'✓ ¡ACERTASTE!':'✕ FALLO')+'</div>'+
+    '<div class="solo-result-answers"><div class="solo-answer-row '+(state.lastCorrect?'':'user-wrong')+'"><span class="solo-answer-label">Tu respuesta</span><strong class="solo-answer-value">'+own+'</strong></div>'+
+    '<div class="solo-answer-row correct"><span class="solo-answer-label">Respuesta correcta</span><strong class="solo-answer-value">'+htmlEscape(state.lastAnswer)+'</strong></div></div>'+
+    (events?'<div class="solo-effect-log" aria-label="Cambios de vidas, escudos y coronas">'+events+'</div>':'')+
+    '<p class="solo-note">'+htmlEscape(state.lastMessage)+'</p>'+actionButton('next','CONTINUAR →')+'</div>';
  }else if(state.stage==='finished'){
-  main+='<div class="solo-panel solo-game-panel solo-result-panel"><div class="solo-kicker">🏆 FIN DEL RETO</div><h2>'+htmlEscape(state.endReason||'Partida terminada')+'</h2><p class="solo-note">Has conseguido <b>'+state.points+' puntos</b> con '+state.correct+' aciertos en '+state.asked+' preguntas. Máxima racha: '+state.bestStreak+'. Coronas: '+state.stars+'/6. Logros: '+(state.medals?.length||0)+'. Récord del modo: '+Number(soloRecords()[state.mode]?.points||0)+' puntos.</p>'+actionButton('again','VOLVER A JUGAR ↻')+'</div>';
+  main+='<div class="solo-panel solo-game-panel solo-result-panel"><div class="solo-kicker">🏆 FIN DEL RETO</div><h2>'+htmlEscape(state.endReason||'Partida terminada')+'</h2><p class="solo-note">Has conseguido <b>'+state.points+' puntos</b> con '+state.correct+' aciertos en '+state.asked+' preguntas. Máxima racha: '+state.bestStreak+'. '+(state.mode==='classic'?'Coronas: '+state.stars+'/6. ':'')+'Logros: '+(state.medals?.length||0)+'. Récord del modo: '+Number(soloRecords()[state.mode]?.points||0)+' puntos.</p>'+actionButton('again','VOLVER A JUGAR ↻')+'</div>';
  }
  screen(main);if(state.stage==='wheel')paintWheel(wheelRotation);if(state.stage==='question'){loadPhoto();startTimer()}
 }
@@ -364,9 +390,16 @@ function grade(answer,expired=false){
  if(!state||state.stage!=='question')return;
  stopTimer();
  const q=playerQuestion();
- const correct=!expired && !!answer.trim() && !!window.TRIVIA_MATCH?.(answer,q);
+ if(!q)return;
+ const typed=String(answer??'').trim();
+ const correct=!expired&&!!typed&&!!window.TRIVIA_MATCH?.(typed,q);
  const beforeFx={lives:state.lives,shields:state.shields,stars:state.stars,points:state.points,streak:state.streak};
- state.lastCorrect=correct;state.lastQText=q[2];state.lastAnswer=q[3];state.lastMessage='';
+ state.lastCorrect=correct;
+ state.lastQText=q[2];
+ state.lastAnswer=q[3];
+ state.lastUserAnswer=typed;
+ state.lastExpired=!!expired;
+ state.lastMessage='';
  if(correct){
   state.correct++;state.streak++;state.bestStreak=Math.max(state.streak,state.bestStreak);
   const bonus=(state.risk||q[8]?.surprise||state.bomb)?2:1;
@@ -374,8 +407,10 @@ function grade(answer,expired=false){
   const gain=(q[8]?.surprise?500+Math.min(100,state.streak*10):(q[1]==='dificil'?150:100)*bonus+Math.min(100,state.streak*10))*fire+(state.bomb?200:0);
   state.points+=gain;
   if(state.mode==='classic'){state.pips[state.cat]=Math.min(3,state.pips[state.cat]+bonus);state.stars=state.pips.filter(n=>n===3).length}
-  if(state.streak%4===0){state.shields=Math.min(2,state.shields+1);state.lastMessage='🔥 Cuatro aciertos seguidos: has ganado un escudo.'}
-  else state.lastMessage='+'+gain+' puntos'+(state.risk||q[8]?.surprise||state.bomb?' y avance doble':'')+(fire===2?' · 🔥 RACHA x2':'')+'.';
+  const messages=['+'+gain+' puntos'+(state.risk||q[8]?.surprise||state.bomb?' y avance doble':'')+(fire===2?' · 🔥 RACHA x2':'')];
+  if(state.streak%4===0&&state.shields<2){state.shields++;messages.push('🛡️ Recuperas un escudo')}
+  if(state.streak%10===0&&state.lives<(state.mode==='classic'?5:3)){state.lives++;messages.push('❤️ Recuperas una vida por diez aciertos seguidos')}
+  state.lastMessage=messages.join(' · ')+'.';
   if(state.streak>=5)soloMedal('streak5','Cinco aciertos seguidos');
   if(state.correct>=20)soloMedal('correct20','Veinte respuestas acertadas');
   if(state.correct>=50)soloMedal('correct50','Cincuenta respuestas acertadas');
@@ -386,30 +421,39 @@ function grade(answer,expired=false){
   if(shielded)state.shields--;
   state.lives=Math.max(0,state.lives-livesLost);state.streak=0;
   const cause=state.bomb?' (fallo + penalización de pregunta bomba)':state.risk?' (fallo + penalización del reto)':'';
-  state.lastMessage=(expired?'Se ha agotado el tiempo. ':'')+(shielded?'🛡️ El escudo ha bloqueado una penalización. ':'')+
+  state.lastMessage=(expired?'Se ha agotado el tiempo. ':'')+(shielded?'🛡️ Un escudo ha absorbido una penalización. ':'')+
    (livesLost===0?'No has perdido ninguna vida.':'Has perdido '+livesLost+' vida'+(livesLost===1?'':'s')+cause+'.')+
    (state.lives===0?' No te quedan vidas.':' Te quedan '+state.lives+' vida'+(state.lives===1?'':'s')+'.');
  }
- state.stage='result';state.risk=false;state.bomb=false;save();render();
- if(correct){
-  if(state.stars>beforeFx.stars)soloVibrate('crown');
-  else if(state.shields>beforeFx.shields)soloVibrate('shield');
-  else soloVibrate(state.streak>=3?'streak':'correct');
- }else if(state.lives<beforeFx.lives)soloVibrate('life');
- else if(state.shields<beforeFx.shields)soloVibrate('shield');
- else soloVibrate('wrong');
+ const events=[];
+ const add=(kind,type,symbol,title,short,description)=>events.push({kind,type,symbol,title,short,description});
+ if(state.shields<beforeFx.shields)add('shield-use','shieldUsed','🛡️','ESCUDO UTILIZADO','−1 escudo utilizado','Ha bloqueado una penalización');
+ if(state.lives<beforeFx.lives)add('life-loss','life','💔','VIDA PERDIDA','−'+(beforeFx.lives-state.lives)+' vida'+(beforeFx.lives-state.lives===1?'':'s'),state.lives+' vidas restantes');
+ if(state.shields>beforeFx.shields)add('shield-gain','shield','🛡️','ESCUDO RECUPERADO','+1 escudo recuperado',state.shields+' de 2 escudos disponibles');
+ if(state.lives>beforeFx.lives)add('life-gain','lifeEarned','❤️','VIDA RECUPERADA','+1 vida recuperada',state.lives+' vidas disponibles');
+ if(state.stars>beforeFx.stars)add('crown-gain','crown','👑','¡CORONA CONSEGUIDA!','+1 corona',state.stars+' de 6 categorías conquistadas');
+ state.lastEffects=events;
+ state.lastChange={livesBefore:beforeFx.lives,shieldsBefore:beforeFx.shields};
+ state.stage='result';state.risk=false;state.bomb=false;
+ save();render();
+ if(state.lives<beforeFx.lives)soloVibrate('life');
+ else if(state.shields<beforeFx.shields)soloVibrate('shieldUse');
+ else if(state.lives>beforeFx.lives)soloVibrate('lifeGain');
+ else if(state.shields>beforeFx.shields)soloVibrate('shield');
+ else if(state.stars>beforeFx.stars)soloVibrate('crown');
+ else soloVibrate(correct?(state.streak>=3?'streak':'correct'):'wrong');
  if(window.TRIVIA_FX){
-  if(state.lives<beforeFx.lives)window.TRIVIA_FX.show('life','💔','VIDA PERDIDA',state.lives+' vidas restantes');
-  else if(state.stars>beforeFx.stars)window.TRIVIA_FX.show('crown','👑','¡CORONA CONSEGUIDA!',state.stars+' de 6 categorías conquistadas');
-  else if(state.shields>beforeFx.shields)window.TRIVIA_FX.show('shield','🛡️','¡ESCUDO GANADO!','La racha de cuatro aciertos te protege');
-  else if(state.shields<beforeFx.shields)window.TRIVIA_FX.show('shield','🛡️','¡ESCUDO ACTIVADO!','Has evitado perder una vida');
-  else if(correct)window.TRIVIA_FX.show('right',q[8]?.surprise?'🎁':state.streak>1?'🔥':'✨',q[8]?.surprise?'¡SORPRESA ACERTADA!':state.streak>1?'¡RACHA DE '+state.streak+'!':'¡ACERTASTE!', '+'+(state.points-beforeFx.points)+' puntos');
+  if(events.length){
+   if(window.TRIVIA_FX.play)window.TRIVIA_FX.play(events);
+   else {const event=events[0];window.TRIVIA_FX.show(event.type,event.symbol,event.title,event.description)}
+  }else if(correct)window.TRIVIA_FX.show('right',q[8]?.surprise?'🎁':state.streak>1?'🔥':'✨',q[8]?.surprise?'¡SORPRESA ACERTADA!':state.streak>1?'¡RACHA DE '+state.streak+'!':'¡ACERTASTE!','+'+(state.points-beforeFx.points)+' puntos');
   else window.TRIVIA_FX.show('wrong','✕',expired?'TIEMPO AGOTADO':'RESPUESTA INCORRECTA','Inténtalo en la siguiente');
  }
 }
 function end(message){stopTimer();state.endReason=message;state.stage='finished';saveSoloRecord();save();render();soloVibrate(state.lives&&state.mode==='classic'&&state.stars===6?'win':'gameover');window.TRIVIA_FX?.show(state.lives&&state.mode==='classic'&&state.stars===6?'win':'end',state.lives&&state.mode==='classic'&&state.stars===6?'🏆':'🏁',state.lives&&state.mode==='classic'&&state.stars===6?'¡LOS SEIS QUESITOS!':'PARTIDA TERMINADA',message)}
 function advance(){
  if(!state||state.stage!=='result')return;
+ window.TRIVIA_FX?.cancel?.();
  if(!state.lives){end('Te has quedado sin vidas');return}
  if(state.mode==='classic'&&state.pips.every(n=>n===3)){end('¡Has conseguido los seis quesitos!');return}
  if(state.mode==='sprint'&&state.correct>=state.goal){end('¡Has conseguido 15 aciertos!');return}
@@ -423,7 +467,7 @@ function startTimer(){
   const label=root.querySelector('#soloCountdown'),bar=root.querySelector('#soloBar');
   if(label)label.textContent='⏳ '+secs+' SEGUNDOS';
   if(bar)bar.style.width=Math.min(100,Math.max(0,left/state.seconds/1000*100))+'%';
-  if(left<=0)grade('',true);
+  if(left<=0)grade(root.querySelector('#soloAnswer')?.value||'',true);
  },250);
 }
 async function loadPhoto(){
@@ -467,6 +511,7 @@ root.addEventListener('click',e=>{
   return;
  }
  if(cmd==='classic'||cmd==='sprint'||cmd==='survival'){chosenMode=cmd;render();return}
+ if(cmd==='crownInfo'){window.TRIVIA_FX?.show('crown','👑','¿PARA QUÉ SIRVEN?','Cada categoría necesita tres avances. Completa las seis coronas para ganar Conquista.');return}
  if(cmd==='start'||cmd==='again'){
   chosenLevel=root.querySelector('#soloDifficulty')?.value||chosenLevel;
   cancelWheelAnimation();wheelRotation=0;
@@ -504,7 +549,15 @@ root.addEventListener('click',e=>{
   return;
  }
  if(cmd==='swap')return swapQuestion();
- if(cmd==='shield'&&state.stage==='question'&&state.aids.shield>0){soloVibrate('shield');state.aids.shield--;state.shields++;save();window.TRIVIA_FX?.show('shield','🛡️','ESCUDO EQUIPADO','Tu próximo fallo estará protegido');const b=root.querySelector('[data-solo="shield"]');if(b)b.textContent='🛡️ Escudo · '+state.aids.shield;const n=root.querySelector('#soloHint');if(n)n.textContent='Escudo activado para tu próximo fallo.';return}
+ if(cmd==='shield'&&state.stage==='question'&&state.aids.shield>0&&state.shields<2){
+  soloVibrate('shield');state.aids.shield--;state.shields++;save();
+  window.TRIVIA_FX?.show('shield','🛡️','ESCUDO ACTIVADO','+1 escudo: tu próximo fallo estará protegido');
+  const chip=root.querySelector('[data-solo-stat="shields"]');
+  if(chip){chip.textContent='🛡️ '+state.shields+' escudos';chip.setAttribute('aria-label',state.shields+' escudos disponibles');chip.classList.remove('solo-shield-gain');void chip.offsetWidth;chip.classList.add('solo-shield-gain')}
+  const b=root.querySelector('[data-solo="shield"]');if(b){b.textContent='🛡️ Escudo · '+state.aids.shield;b.disabled=state.aids.shield===0||state.shields>=2}
+  const n=root.querySelector('#soloHint');if(n)n.textContent='🛡️ Escudo activado (+1). Te protegerá al fallar.';
+  return;
+ }
 });
 root.addEventListener('submit',e=>{if(e.target.id==='soloAnswerForm'){e.preventDefault();const v=root.querySelector('#soloAnswer')?.value;if(v?.trim())grade(v)}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopWheelVibration()});
@@ -516,8 +569,9 @@ document.getElementById('soloLaunch')?.addEventListener('click',open);
 const style=document.createElement('style');
 style.textContent="\n/* Feedback visual compartido entre solitario, ruleta y VS */\n.solo-progress{padding:10px 12px 9px;margin:10px 0 12px;border:1px solid #52688e;background:#0e1c35;border-radius:15px}\n.solo-progress-label{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#c8dafa;font-weight:900;letter-spacing:.9px}\n.solo-progress-label strong{color:#ffe295;font-size:13px;letter-spacing:0}\n.solo-progress-track,.trivia-fx-track{height:10px;border-radius:20px;background:#0a1326;border:1px solid #52658d;overflow:hidden;position:relative}\n.solo-progress-track{margin:8px 0 4px}\n.solo-progress-track>span,.trivia-fx-track>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#58c9d4,#a48bff,#ffd47f);box-shadow:0 0 12px #9cceff88;transition:width .7s cubic-bezier(.2,.8,.2,1)}\n.solo-progress-foot{font-size:10px;color:#a4b9db;text-align:right}\n.solo-pip.complete{animation:trivia-pip-glow 1s ease-out}\n.trivia-fx-progress{margin:7px 0 0;padding:0 4px 2px}\n.trivia-fx-caption{font-size:10px;font-weight:800;letter-spacing:.6px;color:#c9d5f0;display:flex;justify-content:space-between;margin-bottom:5px}\n.trivia-fx-track{height:8px}\n.trivia-fx-layer{position:fixed;inset:0;pointer-events:none;z-index:25000;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:16px;animation:trivia-overlay-enter .16s ease-out}\n.trivia-fx-shade{position:absolute;inset:0;background:radial-gradient(circle,#12183300 5%,#0b112350 90%);animation:trivia-overlay-fade 1.6s ease-out forwards}\n.trivia-fx-card{position:relative;isolation:isolate;min-width:min(78vw,285px);max-width:min(90vw,390px);text-align:center;border:2px solid var(--fx-color);border-radius:26px;background:linear-gradient(150deg,#263451f7,#0e1932f7);padding:20px 21px 21px;color:#fff;box-shadow:0 14px 60px #000c,0 0 45px var(--fx-glow);animation:trivia-reward-pop 1.62s ease-in-out both}\n.trivia-fx-symbol{font-size:clamp(57px,16vw,86px);line-height:1.1;display:block;margin:2px auto 8px;filter:drop-shadow(0 7px 12px var(--fx-glow));animation:trivia-symbol-bounce .8s ease-out}\n.trivia-fx-title{font-size:clamp(21px,6vw,31px);font-weight:1000;line-height:1.13;text-wrap:balance;letter-spacing:.3px}\n.trivia-fx-sub{font-size:14px;color:#dbe7ff;font-weight:650;margin-top:8px;line-height:1.25}\n.trivia-fx-layer.life .trivia-fx-card,.trivia-fx-layer.wrong .trivia-fx-card{animation:trivia-loss-pop 1.48s ease-in-out both}\n.trivia-fx-particle{position:absolute;left:50%;top:48%;width:8px;height:13px;border-radius:2px;background:var(--c);transform:translate(-50%,-50%);animation:trivia-confetti var(--t) cubic-bezier(.17,.65,.36,1) both;animation-delay:var(--delay)}\n.trivia-fx-layer.life .trivia-fx-symbol{animation:trivia-broken-heart .65s ease-out}\n.trivia-fx-layer.shield .trivia-fx-symbol{animation:trivia-shield-shine .8s ease-out}\n.trivia-fx-layer.crown .trivia-fx-symbol,.trivia-fx-layer.win .trivia-fx-symbol{animation:trivia-crown-rise .85s cubic-bezier(.1,.7,.2,1)}\n@keyframes trivia-overlay-enter{from{opacity:0}to{opacity:1}}\n@keyframes trivia-overlay-fade{0%{opacity:1}90%,100%{opacity:0}}\n@keyframes trivia-reward-pop{0%{opacity:0;transform:scale(.45) translateY(30px)}17%{opacity:1;transform:scale(1.10) translateY(-5px)}27%{transform:scale(1)}72%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.9) translateY(-20px)}}\n@keyframes trivia-loss-pop{0%{opacity:0;transform:scale(1.2)}15%{opacity:1;transform:scale(.95)}22%{transform:translateX(-11px)}30%{transform:translateX(10px)}38%{transform:translateX(-7px)}48%{transform:none}80%{opacity:1}100%{opacity:0;transform:scale(.95)}}\n@keyframes trivia-symbol-bounce{0%{transform:scale(.3) rotate(-20deg)}55%{transform:scale(1.2) rotate(9deg)}100%{transform:none}}\n@keyframes trivia-broken-heart{0%{transform:scale(1.3)}45%{transform:scale(.87) rotate(-17deg)}100%{transform:scale(1) rotate(0)}}\n@keyframes trivia-shield-shine{0%{transform:scale(.5) rotate(-17deg);filter:brightness(3)}60%{transform:scale(1.22) rotate(8deg)}100%{transform:scale(1)}}\n@keyframes trivia-crown-rise{0%{transform:translateY(50px) rotate(-15deg) scale(.5)}65%{transform:translateY(-12px) scale(1.2)}100%{transform:translateY(0) scale(1)}}\n@keyframes trivia-confetti{0%{opacity:1;transform:translate(-50%,-50%) rotate(0)}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) rotate(var(--rot))}}\n@keyframes trivia-pip-glow{0%{filter:brightness(1)}35%{filter:brightness(1.9)}100%{filter:brightness(1)}}\n@media(prefers-reduced-motion:reduce){.trivia-fx-card,.trivia-fx-symbol,.trivia-fx-particle,.trivia-fx-shade,.solo-pip.complete{animation:none!important}.trivia-fx-layer{animation:none}.solo-progress-track>span,.trivia-fx-track>span{transition:none!important}}\n";
 style.textContent+=' #players .trivia-fx-progress{margin:4px 0 0;padding:0} #players .trivia-fx-caption{font-size:9px;margin-bottom:2px} #players .trivia-fx-track{height:5px}';
+style.textContent += "\n.trivia-fx-layer.shieldUsed .trivia-fx-card{animation:trivia-loss-pop 1.48s ease-in-out both}\n.trivia-fx-layer.shieldUsed .trivia-fx-symbol{animation:trivia-shield-break .7s ease-out both}\n.trivia-fx-layer.lifeEarned .trivia-fx-symbol{animation:trivia-heart-revive .85s cubic-bezier(.12,.72,.2,1) both}\n@keyframes trivia-shield-break{0%{transform:scale(1.25);filter:brightness(2)}44%{transform:scale(.89) rotate(-20deg);opacity:.7}100%{transform:scale(1) rotate(0);opacity:1}}\n@keyframes trivia-heart-revive{0%{transform:translateY(36px) scale(.4);opacity:.3}50%{transform:translateY(-12px) scale(1.35);opacity:1}100%{transform:none;opacity:1}}\n@media(prefers-reduced-motion:reduce){.trivia-fx-layer.shieldUsed .trivia-fx-card,.trivia-fx-layer.shieldUsed .trivia-fx-symbol,.trivia-fx-layer.lifeEarned .trivia-fx-symbol{animation:none!important}}\n";
 document.head.appendChild(style);
-const colors={shield:['#6edcf1','#6edcf155'],crown:['#ffd676','#ffcf535c'],win:['#ffd676','#ffcf535c'],life:['#ff788d','#f756775b'],wrong:['#ff788d','#f756775b'],right:['#67ecc0','#67ecc05b'],round:['#a99aff','#aa99ff50'],end:['#a5b8dd','#9dabdd45']};
+const colors={shield:['#6edcf1','#6edcf155'],crown:['#ffd676','#ffcf535c'],win:['#ffd676','#ffcf535c'],life:['#ff788d','#f756775b'],lifeEarned:['#82f3c6','#5ee5ac7a'],shieldUsed:['#f5b774','#f5b77470'],wrong:['#ff788d','#f756775b'],right:['#67ecc0','#67ecc05b'],round:['#a99aff','#aa99ff50'],end:['#a5b8dd','#9dabdd45']};
 let cleanup=0,notificationToken=0;
 function show(type,symbol,title,description){
  const tone=colors[type]||colors.round;
@@ -533,7 +587,7 @@ function show(type,symbol,title,description){
   const node=document.createElement('div');node.className=cls;node.textContent=content;card.append(node);
  }
  layer.append(card);
- if(!matchMedia('(prefers-reduced-motion: reduce)').matches&&['crown','shield','win','right','round'].includes(type)){
+ if(!matchMedia('(prefers-reduced-motion: reduce)').matches&&['crown','shield','lifeEarned','win','right','round'].includes(type)){
   for(let i=0;i<30;i++){
    const particle=document.createElement('i');particle.className='trivia-fx-particle';
    const angle=Math.PI*2*i/30,spread=70+Math.random()*Math.min(200,innerWidth*.28);
@@ -550,7 +604,22 @@ function show(type,symbol,title,description){
  const token=++notificationToken;
  cleanup=setTimeout(()=>{if(token===notificationToken)layer.remove();cleanup=0},1800);
 }
-window.TRIVIA_FX={show};
+let sequenceTimers=[];
+function cancel(){
+ sequenceTimers.forEach(clearTimeout);sequenceTimers=[];
+ if(cleanup){clearTimeout(cleanup);cleanup=0}
+ document.querySelectorAll('.trivia-fx-layer').forEach(el=>el.remove());
+}
+function play(events){
+ cancel();
+ const items=Array.isArray(events)?events.filter(Boolean):[];
+ items.forEach((event,i)=>{
+  const display=()=>show(event.type,event.symbol,event.title,event.description);
+  if(i===0)display();
+  else sequenceTimers.push(setTimeout(display,i*1700));
+ });
+}
+window.TRIVIA_FX={show,play,cancel};
 const progress=(value,max,label)=>{
  const n=Math.max(0,Math.min(max,Number(value)||0));
  return '<div class="trivia-fx-progress"><div class="trivia-fx-caption"><span>'+label+'</span><span>'+n+' / '+max+'</span></div><div class="trivia-fx-track" role="progressbar" aria-valuenow="'+n+'" aria-valuemin="0" aria-valuemax="'+max+'"><span style="width:'+(n/max*100)+'%"></span></div></div>';
