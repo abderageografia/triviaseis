@@ -8,6 +8,8 @@ const shapes=v=>/^siglo\s/i.test(v)?'siglo':numeric(v)?'año':/^\d+(?:[,.]\d+)?\
 function semantic(q){
  const a=clean(q[3]),t=clean(q[2]).toLocaleLowerCase('es'),tag=clean(q[7]).toLowerCase(),sh=shapes(a);
  if(sh!=='texto')return sh;
+ // Un cargo deportivo necesita alternativas del mismo ámbito y función.
+ if(/(?:federaci[oó]n espa[nñ]ola de f[uú]tbol|\brfef\b)/i.test(t)&&/presidente|presidenta|dirigi[oó]/i.test(t))return 'futbol:dirigente';
  if(/¿en qué (?:año|siglo|década)|¿de qué (?:siglo|año)/.test(t))return 'fecha';
  if(/¿cómo se (?:apellida|apellidaba)|¿cuál es el apellido/.test(t))return 'apellido';
  const bravo=/housewives|rhoslc|rhobh|rhonj|rhori|rhony|bravo-(bh|slc|ri)/i.test(t+' '+tag);
@@ -43,6 +45,22 @@ function semantic(q){
  if(/¿qu[eé] (?:instituci[oó]n|organismo|tribunal|empresa|plataforma)/.test(t))return 'organizacion';
  return null;
 }
+function domain(q){
+ const t=clean(q[2]).toLocaleLowerCase('es');
+ const tag=clean(q[7]).toLocaleLowerCase('es');
+ if(/housewives|real housewives|rhobh|rhoslc|rhonj|rhony|rhori|bravo-/.test(t+' '+tag))return 'bravo';
+ if(/f[uú]tbol|futbolist|mundial femenino|selecci[oó]n espa[nñ]ola|bal[oó]n de oro|\\brfef\\b|laliga|liga de campeones|champions|premier league|\\bfifa\\b|\\buefa\\b/.test(t))return 'futbol';
+ if(/tenis|wimbledon|baloncesto|\\bnba\\b|f[oó]rmula 1|motogp|olimpiad|deportista/.test(t))return 'deporte';
+ if(/president|primer ministro|gobierno|congreso|senado|parlamento|partido pol[ií]tico|elecciones|alcald|monarc|diputad/.test(t))return 'politica';
+ if(/m[uú]sica|canci[oó]n|disco|[aá]lbum|cantante|grammy|eurosi[oó]n|eurovisi[oó]n|raper|\\bdj\\b/.test(t))return 'musica';
+ if(/serie de televisi[oó]n|programa de televisi[oó]n|reality|presentador|presentadora|concurso televisivo|netflix|telecinco|antena 3|rtve|la 1|serie /.test(t))return 'television';
+ if(/pel[ií]cula|cine|oscar|director de cine|actriz|actor|film|largometraje/.test(t))return 'cine';
+ if(/influencer|tiktoker|streamer|youtuber|instagram|twitch/.test(t))return 'internet';
+ return null;
+}
+const curated={
+ 'futbol:dirigente':['Ángel María Villar','Pedro Rocha','Rafael Louzán','Javier Tebas']
+};
 function family(k){
  if(['persona','actor','presentador','interprete-musical','bravo:persona'].includes(k))return 'persona';
  if(k==='bravo:ubicacion')return 'ubicacion';
@@ -64,16 +82,30 @@ function choose(q,bank,amount=4,validFn=null){
  }
  const kind=semantic(q);
  if(!kind)return [];  // Ante la duda, respuesta escrita.
+ if(curated[kind]){
+  const pool=curated[kind].filter(v=>N(v)!==N(a)&&!(validFn&&validFn(v,q))).slice(0,amount-1);
+  if(pool.length!==amount-1)return [];
+  const picks=[a,...pool];
+  for(let i=picks.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[picks[i],picks[j]]=[picks[j],picks[i]]}
+  return picks;
+ }
  const shape=shapes(a),cat=q[0];
  const candidates=[],used=new Set([N(a)]);
  const topic = /bravo:/.test(kind)?'bravo':/^(?:interprete-musical|cancion|album|grupo)$/.test(kind)?'musica':/^(?:presentador|actor|programa)$/.test(kind)?'tv':null;
+ const personKinds=new Set(['persona','actor','presentador','interprete-musical','bravo:persona']);
+ const requestDomain=domain(q);
  const sameTopic=p=>{
   const k=semantic(p);
   if(!k)return false;
-  if(k===kind)return true;
-  if(topic==='bravo')return false;
-  if(family(k)===family(kind)&&family(kind)==='persona')return true;
-  return false;
+  // Un actor, un presidente y un futbolista no son distractores intercambiables.
+  if(personKinds.has(kind)){
+   if(topic==='bravo')return k===kind;
+   if(!requestDomain||domain(p)!==requestDomain)return false;
+   if(k===kind)return true;
+   // En el mismo ámbito se permite un perfil parecido, nunca otra temática.
+   return family(k)===family(kind)&&family(kind)==='persona'&&requestDomain!=='politica';
+  }
+  return k===kind;
  };
  for(const peer of bank){
   if(!peer||peer===q||peer[0]!==cat||peer[8]?.special_choice)continue;
