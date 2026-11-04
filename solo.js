@@ -245,6 +245,38 @@
  window.TRIVIA_LAST_QUALITY_AUDIT={shorter,phrases,aliases};
 })();
 
+
+/* Agrupación semántica entre partidas y modos: una misma obra/película
+   no se repite por tener preguntas redactadas de forma distinta. */
+window.TRIVIA_QUESTION_TOPIC=function triviaQuestionTopic(q){
+ if(!Array.isArray(q)||!q[2])return '';
+ const normalize=x=>String(x??'').toLowerCase().normalize('NFD')
+  .replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+ const c=q[0],prompt=normalize(q[2]),answer=normalize(q[3]);
+ const title=q[2].match(/«([^»]+)»/);
+ if(c==='cine'){
+  if(/\bnader y simin\b|\buna separacion\b/.test(prompt+' '+answer))return 'cine:pelicula:nader-simin';
+  if(title&&normalize(title[1]).length>=5)return 'cine:pelicula:'+normalize(title[1]);
+  if(/^(?:que|cual|en que) (?:pelicula|filme|cinta|largometraje)/.test(prompt)
+    && answer.length>=5&&!/^\d+$/.test(answer))return 'cine:pelicula:'+answer;
+ }
+ if(c==='arte'){
+  if(title&&normalize(title[1]).length>=6)return 'arte:obra:'+normalize(title[1]);
+  if(q[7]==='obra'&&answer.length>=8)return 'arte:obra:'+answer;
+  if(q[8]?.wiki && answer.length>=6)return 'arte:obra:'+answer;
+ }
+ if(c==='lit'){
+  if(title&&normalize(title[1]).length>=6)return 'lit:obra:'+normalize(title[1]);
+  if(/^(?:que|cual|en que) (?:novela|obra literaria|libro|poema)/.test(prompt)&&answer.length>=8)return 'lit:obra:'+answer;
+ }
+ if(c==='mix'){
+  if(title&&normalize(title[1]).length>=6)return 'mix:referencia:'+normalize(title[1]);
+  if(/musica.interprete|pop.ampliacion|albumes/.test(String(q[6]||'')+' '+String(q[7]||''))&&answer.length>=5&&!/^\d+$/.test(answer))
+    return 'mix:artista:'+answer;
+ }
+ return '';
+};
+
 const BANK = (window.GAME_BANK || []).concat(window.TRIVIA_BONUS_QUIZ || []);
 
 /* CLARIDAD_DE_ENUNCIADOS_2026_11
@@ -719,6 +751,8 @@ const soloNorm=v=>String(v??'').toLocaleLowerCase('es').normalize('NFD')
  .replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 function soloQuestionTopic(q){
  if(!q)return '';
+ const common=window.TRIVIA_QUESTION_TOPIC?.(q);
+ if(common)return common;
  const prompt=soloNorm(q[2]),answer=soloNorm(q[3]);
  if(q[0]==='cine'){
   if(/\bnader y simin\b|\buna separacion\b/.test(prompt+' '+answer))return 'cine:pelicula:nader-simin';
