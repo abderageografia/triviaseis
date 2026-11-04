@@ -1513,6 +1513,10 @@ function chooseQuestion(changing=false){
   let level=(finalRound||challenge||defense)?'dificil':$('difficulty').value;
  let base=byCat[selectedCategory].filter(id=>!used.has(id) && (!finalRound || ((!BANK[id][8]||BANK[id][8]?.mythology) && BANK[id][1]==='dificil')) && !unavailableVisualIds.has(id) && (navigator.onLine || !BANK[id][8] || !!BANK[id][8].src || !!BANK[id][8].mythology) && (!remoteImagesDisabled || !BANK[id][8]?.wiki));
  if(selectedTopic)base=base.filter(id=>selectedTopic.ids.has(id));
+ // Evitar repetir obras, películas o libros durante una partida.
+ const prevTopics=new Set([...used].map(i=>window.TRIVIA_QUESTION_TOPIC?.(BANK[i])).filter(Boolean));
+ const diverseBase=base.filter(i=>{const t=window.TRIVIA_QUESTION_TOPIC?.(BANK[i]);return !t||!prevTopics.has(t)});
+ if(diverseBase.length)base=diverseBase;
  if(!base.length){if(finalRound){const winner=finalRound.contender;finalRound=null;endVictory(winner);return} $('spinInfo').textContent='No quedan preguntas inéditas de esta categoría. Gira otra vez.';stage='ready';challenge=null;draw();return}
  let pool=level==='both'?base:base.filter(id=>BANK[id][1]===level);if(!pool.length)pool=base;
  const surpriseId=(!changing&&!finalRound&&!challenge&&!defense)?(window.TRIVIA_SURPRISE_PICK?.(used,surpriseSeen)??-1):-1;
@@ -2967,8 +2971,14 @@ function refreshVsClock(){
  }
 }
 
+function vsNewTopicAllowed(r,id){
+ const key=window.TRIVIA_QUESTION_TOPIC?.(BANK[id]);
+ if(!key)return true;
+ return !Object.keys(r.used||{}).some(prev=>key===window.TRIVIA_QUESTION_TOPIC?.(BANK[Number(prev)]));
+}
 function sampleFrom(r,cat,level='both',filter=null){
  let ids=byCat[cat].filter(id=>!r.used?.[id]&&!BANK[id]?.[8]?.special_choice&&(!filter||filter(BANK[id])));
+ const diverse=ids.filter(id=>vsNewTopicAllowed(r,id));if(diverse.length)ids=diverse;
  if(level!=='both'){const filtered=ids.filter(id=>BANK[id][1]===level);if(filtered.length)ids=filtered}
  if(!ids.length)return -1;
  // Diversificar las preguntas; favorecer ligeramente las imágenes sin saturar.
