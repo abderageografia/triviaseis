@@ -87,6 +87,22 @@ window.TRIVIA_BANK_PATCHES.push(function(){
   return;
  }
  bank.push(...selected);
+ // Aceptar abreviaturas inequívocas y consolidadas en preguntas literarias.
+ // El cotejo general sigue siendo estricto para que no valga cualquier fragmento.
+ const shortForms={
+  'molinos de viento':['Molinos'],
+  'dulcinea del toboso':['Dulcinea'],
+  'autor anonimo':['Anónimo'],
+  'don quijote de la mancha':['Quijote','El Quijote']
+ };
+ for(const item of bank){
+  if(item[0]!=='lit'||!Array.isArray(item[4]))continue;
+  const synonyms=shortForms[norm(item[3])];
+  if(!synonyms)continue;
+  for(const synonym of synonyms){
+   if(!item[4].some(x=>norm(x)===norm(synonym)))item[4].push(synonym);
+  }
+ }
  window.TRIVIA_LITPOL_COUNTS={
   total:selected.length,
   politica:selected.filter(q=>q[7]!=='literatura-facil').length,
