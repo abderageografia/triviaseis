@@ -208,6 +208,43 @@
  window.TRIVIA_FINAL_EDITORIAL_AUDIT=recorded;
 })();
 
+
+/* EDITORIAL_ULTIMO_FILTRO_20261104:
+   nueve respuestas restantes de más de 35 caracteres y alias Kafka. */
+(function(){
+ const rows=(window.GAME_BANK||[]).concat(window.TRIVIA_BONUS_QUIZ||[]);
+ const replacements=new Map([
+  ['Redacción de las Doce Tablas romanas','Ley de las Doce Tablas'],
+  ['Quema de libros ordenada por los Qin','Quema de libros'],
+  ['Fracaso del asedio de Constantinopla','Fin del asedio de Constantinopla'],
+  ['Inicio de la Guerra de los Cien Años','Guerra de los Cien Años'],
+  ['Final de la primera circunnavegación','Primera vuelta al mundo'],
+  ['Saqueo de Roma por tropas imperiales','Saco de Roma'],
+  ['Declaración Universal de Derechos Humanos','Declaración Universal']
+ ]);
+ let shorter=0,phrases=0,aliases=0;
+ for(const q of rows){
+  if(!Array.isArray(q)||typeof q[2]!=='string'||typeof q[3]!=='string'||q[8]?.special_choice)continue;
+  if(!Array.isArray(q[4]))q[4]=[];
+  const old=q[3];
+  if(replacements.has(old)){q[3]=replacements.get(old);q[4].push(old);shorter++}
+  if(q[2]==='¿Qué obra corresponde a esta descripción: una escultura policromada de un Cristo muerto con fuerte realismo anatómico?'){
+   q[2]='¿Qué escultor barroco castellano realizó célebres Cristos yacentes de madera policromada y gran realismo?';
+   q[3]='Gregorio Fernández';q[4]=['Gregorio Fernandez','Fernández'];phrases++;
+  }
+  if(q[2]==='¿Qué obra encaja con la descripción «una cúpula decorada con el milagro de un santo ante un gentío popular»?'){
+   q[2]='¿Qué pintor español decoró la cúpula de la ermita madrileña de San Antonio de la Florida?';
+   q[3]='Francisco de Goya';q[4]=['Goya'];phrases++;
+  }
+  if(/(?:gregor|gregorio)\s+samsa/i.test(q[2]) && /^(?:un )?insecto(?: monstruoso)?$/i.test(q[3])){
+    for(const alt of ['Cucaracha','Escarabajo','Bicho','Un insecto','Un escarabajo','Una cucaracha']){
+      if(!q[4].some(x=>x.toLowerCase()===alt.toLowerCase())){q[4].push(alt);aliases++}
+    }
+  }
+ }
+ window.TRIVIA_LAST_QUALITY_AUDIT={shorter,phrases,aliases};
+})();
+
 const BANK = (window.GAME_BANK || []).concat(window.TRIVIA_BONUS_QUIZ || []);
 
 /* CLARIDAD_DE_ENUNCIADOS_2026_11
