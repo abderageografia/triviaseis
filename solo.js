@@ -98,6 +98,116 @@
  window.TRIVIA_GLOBAL_QUALITY_AUDIT=updated;
 })();
 
+
+/* EDITORIAL_PASADA_FINAL_20261104 — eliminar filtraciones de respuestas
+   y aumentar tolerancia a títulos largos sin falsear el concepto. */
+(function(){
+ const bank=(window.GAME_BANK||[]).concat(window.TRIVIA_BONUS_QUIZ||[]);
+ const normalize=v=>String(v??'').toLowerCase().normalize('NFD')
+  .replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+ // Formato: enunciado antiguo, nuevo, solución, alternativas válidas.
+ const repairs=[
+  ['¿Qué bodegón de Zurbarán presenta limones, naranjas y una rosa?',
+   '¿Qué pintor barroco español realizó en 1633 un célebre bodegón de limones, naranjas y una rosa?','Francisco de Zurbarán',['Zurbarán']],
+  ['¿Qué película de los hermanos Lumière muestra la llegada de un tren a una estación?',
+   '¿Qué hermanos pioneros del cine rodaron la célebre llegada de un tren a una estación francesa?','Hermanos Lumière',['Lumière','Lumiere','Los Lumière']],
+  ['¿Qué personaje histórico se relaciona con las reformas legislativas de Solón en Atenas?',
+   '¿Qué legislador ateniense del siglo VI a. C. impulsó reformas sociales y políticas contra los abusos aristocráticos?','Solón'],
+  ['¿Qué personaje histórico se relaciona con la batalla de Heraclea entre Roma y Pirro?',
+   '¿Qué rey de Epiro derrotó a un ejército romano en la batalla de Heraclea (280 a. C.)?','Pirro'],
+  ['¿En qué país actual tuvo lugar la unificación de China bajo los Qin?',
+   '¿Qué dinastía fundó el primer imperio chino unificado en el siglo III a. C.?','Qin',['Dinastía Qin']],
+  ['¿Qué personaje histórico se relaciona con el incendio de Roma en época de Nerón?',
+   '¿Qué emperador romano reinaba cuando se produjo el gran incendio de Roma en el año 64?','Nerón',['Neron']],
+  ['¿En qué país actual tuvo lugar el primer intento mongol de invadir Japón?',
+   '¿Qué kan mongol ordenó la primera expedición de invasión de Japón en 1274?','Kublai Kan',['Kublai','Kublai Khan']],
+  ['¿En qué país actual tuvo lugar la independencia de India del dominio británico?',
+   '¿En qué año obtuvo la India su independencia del Imperio británico?','1947'],
+  ['¿En qué país actual tuvo lugar la proclamación de la República Popular China?',
+   '¿Qué dirigente comunista proclamó la República Popular China en 1949?','Mao Zedong',['Mao','Mao Tse-tung','Mao Zedong']],
+  ['¿Qué padre de Áyax Telamonio participó en la primera expedición contra Troya con Heracles?',
+   '¿Qué héroe fue padre del guerrero Áyax y acompañó a Heracles en una expedición contra Troya?','Telamón',['Telamon']],
+  ['¿Qué hermano de Casandra posee también un don profético y se llama Héleno?',
+   '¿Qué príncipe troyano, hermano de Casandra, poseía también dotes proféticas?','Héleno',['Heleno']],
+  ['¿Cómo se llama la tierra de los lotófagos que hace olvidar el regreso a quienes comen su fruto?',
+   '¿Qué pueblo de la Odisea ofrecía un fruto que hacía olvidar a los viajeros el deseo de regresar?','Lotófagos',['Los lotófagos']],
+  ['¿En qué película interpreta Cillian Murphy a J. Robert Oppenheimer?',
+   '¿Qué actor interpreta al físico J. Robert Oppenheimer en la película biográfica de Christopher Nolan (2023)?','Cillian Murphy',['Murphy']],
+  ['¿En qué película interpreta Kirsten Dunst a María Antonieta, en su versión de 2006?',
+   '¿Qué actriz interpreta a María Antonieta en la película de Sofia Coppola de 2006?','Kirsten Dunst',['Dunst']],
+  ['¿En qué película interpreta Sandra Escacena a Verónica, en su versión de 2017?',
+   '¿Qué actriz protagoniza la película española de terror «Verónica» (2017), de Paco Plaza?','Sandra Escacena',['Escacena']],
+  ['¿En qué película se ve a Keanu Reeves interpretando a John Constantine, en su versión de 2005?',
+   '¿Qué actor encarnó al exorcista John Constantine en la adaptación cinematográfica de 2005?','Keanu Reeves',['Reeves']],
+  ['¿En qué película se ve a Joseph Gordon-Levitt interpretando a Edward Snowden?',
+   '¿Qué actor interpreta a Edward Snowden en el drama biográfico de Oliver Stone (2016)?','Joseph Gordon-Levitt',['Gordon-Levitt','Gordon Levitt']],
+  ['¿En qué película se ve a Keira Knightley interpretando a Anna Karenina, en su versión de 2012?',
+   '¿Qué actriz interpretó a Anna Karenina en la adaptación cinematográfica estrenada en 2012?','Keira Knightley',['Knightley']],
+  ['¿En qué película se ve a Jennifer Lawrence interpretando a la madre?',
+   '¿Qué actriz protagoniza el thriller psicológico «¡Madre!» (2017), de Darren Aronofsky?','Jennifer Lawrence',['Lawrence']],
+  ['¿En qué película se ve a Denzel Washington interpretando a Malcolm X, en su versión de 1992?',
+   '¿Qué actor encarna a Malcolm X en la película biográfica de Spike Lee (1992)?','Denzel Washington',['Washington']],
+  ['¿En qué película se ve a Charlton Heston interpretando a Judá Ben-Hur, en su versión de 1959?',
+   '¿Qué actor protagoniza «Ben-Hur» (1959) interpretando a Judá Ben-Hur?','Charlton Heston',['Heston']],
+  ['¿En qué película se ve a Meryl Streep interpretando a Karen Silkwood?',
+   '¿Qué actriz protagoniza «Silkwood» (1983), drama inspirado en una activista sindical estadounidense?','Meryl Streep',['Streep']],
+  ['¿Qué película estrenada en 2023 enfrenta el mundo de las muñecas Barbieland con las convenciones de la sociedad real?',
+   '¿Qué drama de Wim Wenders (2023) retrata la vida cotidiana de un limpiador de baños públicos en Tokio?','Días perfectos',['Perfect Days']],
+  ['¿Qué película estrenada en 2023 cuenta el matrimonio de Elvis Presley desde la perspectiva de Priscilla?',
+   '¿Qué actriz interpreta a Priscilla Presley en la película de Sofia Coppola de 2023?','Cailee Spaeny',['Spaeny']],
+  ['¿Qué película muestra a dos mujeres que se reencuentran tras emigrar una de ellas de Corea a Estados Unidos?',
+   '¿Qué película de 2023 narra el reencuentro en Nueva York de una mujer coreana emigrada y un amigo de la infancia?','Vidas pasadas',['Past Lives']],
+  ['¿Qué acontecimiento histórico relacionado con Hammurabi se produjo hacia 1750 a. C.?',
+   '¿Qué cuerpo legal babilónico se recopiló hacia 1750 a. C. y se conserva en una famosa estela?','Código de Hammurabi',['Código de Hamurabi']],
+  ['¿Qué acontecimiento histórico relacionado con Caracalla se produjo en 212?',
+   '¿Qué edicto del año 212 concedió la ciudadanía romana a casi todos los habitantes libres del Imperio?','Constitutio Antoniniana',['Edicto de Caracalla']],
+  ['¿Qué movimiento liderado por Gandhi promovió la independencia india mediante la desobediencia civil?',
+   '¿Qué concepto de Gandhi designa la resistencia no violenta basada en la fuerza de la verdad?','Satyagraha',['Satia graha','Satya graha']]
+ ];
+ const repairsMap=new Map(repairs.map(([key,...v])=>[key,v]));
+ const shorter=new Map([
+  ['¿Sueñan los androides con ovejas eléctricas?','Sueñan los androides'],
+  ['Las venas abiertas de América Latina','Las venas abiertas'],
+  ['La cama construida alrededor de un olivo','Lecho de olivo'],
+  ['Mujeres al borde de un ataque de nervios','Mujeres al borde'],
+  ['Los Tenenbaums. Una familia de genios','Los Tenenbaums'],
+  ['Millennium: Los hombres que no amaban a las mujeres','Millennium'],
+  ['La Virgen, el Niño Jesús y santa Ana','Santa Ana, la Virgen y el Niño'],
+  ['Descendimiento de la capilla Capponi','Descendimiento de Pontormo'],
+  ['Marquesina histórica de la estación de Atocha','Marquesina de Atocha'],
+  ['Leonor de Toledo con su hijo Giovanni','Leonor de Toledo'],
+  ['Efectos del Buen Gobierno en la ciudad','Efectos del Buen Gobierno'],
+  ['La última cena de San Giorgio Maggiore','Última cena de Tintoretto'],
+  ['Psique reanimada por el beso del Amor','Psique reanimada por el amor'],
+  ['Formas únicas de continuidad en el espacio','Formas únicas de continuidad'],
+  ['Pantocrátor de San Clemente de Taüll','Pantocrátor de Taüll'],
+  ['Sala Labrouste de la Biblioteca Nacional de Francia','Sala Labrouste'],
+  ['Magdalena penitente de Pedro de Mena','Magdalena penitente'],
+  ['Puerta sur del Baptisterio de Florencia','Puerta sur del Baptisterio'],
+  ['Edificio original del Museo del Prado','Museo del Prado'],
+  ['Puerta de la Justicia de la Alhambra','Puerta de la Justicia'],
+  ['Capilla de Notre-Dame du Haut de Ronchamp','Capilla de Ronchamp'],
+  ['La última cena de Santa Maria delle Grazie','Última cena de Leonardo']
+ ]);
+ const recorded={rewritten:0,abbreviated:0};
+ for(const q of bank){
+  if(!Array.isArray(q)||typeof q[2]!=='string'||typeof q[3]!=='string'||q[8]?.special_choice)continue;
+  if(!Array.isArray(q[4]))q[4]=[];
+  const fix=repairsMap.get(q[2]);
+  if(fix){
+    q[2]=fix[0];q[3]=fix[1];q[4]=fix[2]||[];
+    recorded.rewritten++;
+  }else if(shorter.has(q[3])){
+    const original=q[3];
+    q[3]=shorter.get(original);
+    q[4].push(original);
+    recorded.abbreviated++;
+  }
+  q[4]=[...new Set(q[4].filter(a=>typeof a==='string'&&normalize(a)!==normalize(q[3])))];
+ }
+ window.TRIVIA_FINAL_EDITORIAL_AUDIT=recorded;
+})();
+
 const BANK = (window.GAME_BANK || []).concat(window.TRIVIA_BONUS_QUIZ || []);
 
 /* CLARIDAD_DE_ENUNCIADOS_2026_11
