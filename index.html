@@ -766,7 +766,7 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
 <script src="./geo_extra_ciudades.js?v=20261104-auditoria-final-2"></script>
 <script src="./geo_extra_espana.js?v=sync-20261102-vsfix14"></script>
 <script src="./geo_extra_conceptos.js?v=sync-20261102-vsfix14"></script>
-<script src="./literatura_facil.js?v=20261104-auditoria-final-2"></script>
+<script src="./literatura_facil.js?v=20261104-auditoria-final-5"></script>
 <script src="./politica_espana_instituciones.js?v=sync-20261102-vsfix14"></script>
 <script src="./politica_espana_partidos.js?v=sync-20261102-vsfix14"></script>
 <script src="./politica_europa.js?v=sync-20261102-vsfix14"></script>
@@ -1723,7 +1723,7 @@ setupCounters();restoreGame();
 
 window.TRIVIA_MATCH = match;
 </script>
-<script src="./solo.js?v=20261104-auditoria-final-3"></script>
+<script src="./solo.js?v=20261104-auditoria-final-5"></script>
 
 <div id="onlineRoot" class="online-root" hidden aria-live="polite">
   <div class="online-toolbar"><div class="online-logo">🌐 TRIVIA<span>·</span>SEIS <small style="font-size:11px;color:#9ce6e9">ONLINE</small></div><div style="display:flex;gap:6px"><button id="onlineSwitchRoom" class="online-exit" type="button" hidden>Otra sala (borra)</button><button id="onlineExit" class="online-exit" type="button">Salir</button></div></div>
@@ -2693,14 +2693,18 @@ function vsPickRound(r){
   id=surpriseId;r.surpriseSeen=true;
  }
  if(id<0&&rapid){
-  const pool=vsShuffle(byCat[cat].filter(i=>Array.isArray(BANK[i])&&typeof BANK[i][2]==='string'&&typeof BANK[i][3]==='string'&&!r.used?.[i]&&!BANK[i][8]&&String(BANK[i][2]||'').length<=125&&String(BANK[i][3]||'').length<=50));
+  const rawPool=byCat[cat].filter(i=>Array.isArray(BANK[i])&&typeof BANK[i][2]==='string'&&typeof BANK[i][3]==='string'&&!r.used?.[i]&&!BANK[i][8]&&String(BANK[i][2]||'').length<=125&&String(BANK[i][3]||'').length<=50);
+  const novelPool=rawPool.filter(i=>vsNewTopicAllowed(r,i));
+  const pool=vsShuffle(novelPool.length?novelPool:rawPool);
   for(const candidate of pool.slice(0,35)){
    const possible=vsCreateChoices(BANK[candidate],2);
    if(possible.length===2){id=candidate;choices=possible;format='rapid';break}
   }
  }
  if(id<0&&!rapid&&Math.random()<.24){
-  const special=byCat[cat].filter(i=>Array.isArray(BANK[i])&&typeof BANK[i][2]==='string'&&typeof BANK[i][3]==='string'&&!r.used?.[i]&&BANK[i][8]?.special_choice);
+  const eligibleSpecial=byCat[cat].filter(i=>Array.isArray(BANK[i])&&typeof BANK[i][2]==='string'&&typeof BANK[i][3]==='string'&&!r.used?.[i]&&BANK[i][8]?.special_choice);
+  const freshSpecial=eligibleSpecial.filter(i=>vsNewTopicAllowed(r,i));
+  const special=freshSpecial.length?freshSpecial:eligibleSpecial;
   if(special.length){
    const candidate=special[Math.floor(Math.random()*special.length)];
    const possible=vsCreateChoices(BANK[candidate],4);
