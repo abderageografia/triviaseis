@@ -307,9 +307,42 @@ function render(){
  }
  screen(main);if(state.stage==='wheel')paintWheel(wheelRotation);if(state.stage==='question'){loadPhoto();startTimer()}
 }
+// Historial persistente: una partida nueva no debe reciclar preguntas que el jugador ya ha visto.
+// En Cine, distintas formulaciones sobre la misma película se consideran el mismo tema.
+const SOLO_QUESTION_HISTORY_KEY='triviaSeisSoloQuestionsSeenV1';
+const soloNorm=v=>String(v??'').toLocaleLowerCase('es').normalize('NFD')
+ .replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+function soloQuestionTopic(q){
+ if(!q)return '';
+ const prompt=soloNorm(q[2]),answer=soloNorm(q[3]);
+ if(q[0]==='cine'){
+  if(/\bnader y simin\b|\buna separacion\b/.test(prompt+' '+answer))return 'cine:pelicula:nader-simin';
+  if(/^(que pelicula|cual pelicula|en que pelicula|que filme|cual filme|que cinta|cual cinta|que largometraje|como se titula la pelicula)/.test(prompt)
+     && answer.length>=6 && !/^\d+$/.test(answer))return 'cine:pelicula:'+answer;
+  const title=String(q[2]).match(/«([^»]+)»/);
+  if(title&&soloNorm(title[1]).length>=10)return 'cine:pelicula:'+soloNorm(title[1]);
+ }
+ return 'pregunta:'+prompt;
+}
+function soloReadQuestionHistory(){
+ try{const data=JSON.parse(localStorage.getItem(SOLO_QUESTION_HISTORY_KEY)||'[]');
+  return Array.isArray(data)?data.filter(v=>typeof v==='string'&&v.length<240).slice(-12000):[];
+ }catch{return []}
+}
+const soloQuestionHistory=new Set(soloReadQuestionHistory());
+function soloRememberQuestion(q){
+ const key=soloQuestionTopic(q);
+ if(!key)return;
+ soloQuestionHistory.delete(key);soloQuestionHistory.add(key);
+ while(soloQuestionHistory.size>12000)soloQuestionHistory.delete(soloQuestionHistory.values().next().value);
+ try{localStorage.setItem(SOLO_QUESTION_HISTORY_KEY,JSON.stringify([...soloQuestionHistory]))}catch{}
+}
 function candidates(cat,level){
- const eligible=state.mode==='classic'?i=>state.pips[i]<3:()=>true;
- const pool=BANK.map((q,i)=>(q[0]===byCat[cat]&&!q[8]?.surprise&&!state.used.includes(i)&&(!q[8]?.geo_visual)&&(!q[8]||!!q[8].src||!!q[8].wiki||!!q[8].mythology||!!q[8].special_choice)&&(!level||level==='both'||q[1]===level))?i:-1).filter(i=>i>=0);
+ const seenTopics=new Set(state.used.map(i=>soloQuestionTopic(BANK[i])));
+ const pool=BANK.map((q,i)=>(q[0]===byCat[cat]&&!q[8]?.surprise&&!state.used.includes(i)
+  &&!seenTopics.has(soloQuestionTopic(q))&&!q[8]?.geo_visual
+  &&(!q[8]||!!q[8].src||!!q[8].wiki||!!q[8].mythology||!!q[8].special_choice)
+  &&(!level||level==='both'||q[1]===level))?i:-1).filter(i=>i>=0);
  return pool;
 }
 function createSoloOptions(q){
@@ -317,8 +350,12 @@ function createSoloOptions(q){
 }
 function startQuestion(){
  let pool=candidates(state.cat,state.risk?'dificil':state.diff);
- if(!pool.length){state.used=[];pool=candidates(state.cat,state.diff)}
+ if(!pool.length&&state.risk)pool=candidates(state.cat,state.diff);
+ if(!pool.length)pool=candidates(state.cat,'both');
  if(!pool.length){state.stage='wheel';save();render();return}
+ // Priorizar contenidos inéditos entre partidas; si se agotan, usar otros no vistos en ESTA partida.
+ const fresh=pool.filter(i=>!soloQuestionHistory.has(soloQuestionTopic(BANK[i])));
+ if(fresh.length)pool=fresh;
  const specials=pool.filter(i=>BANK[i]?.[8]?.special_choice);
  const surpriseId=!state.risk?(window.TRIVIA_SURPRISE_PICK?.(state.used,!!state.surpriseSeen)??-1):-1;
  const regular=pool.filter(i=>!BANK[i]?.[8]?.special_choice);
@@ -326,7 +363,7 @@ function startQuestion(){
  const showSpecial=specials.length>0&&(!regular.length||Math.random()<.12);
  const id=surpriseId>=0?surpriseId:(showSpecial?take(specials):take(regular.length?regular:specials));
  if(surpriseId>=0)state.surpriseSeen=true;
- state.qid=id;state.used.push(id);state.asked++;state.stage='question';state.seconds=state.mode==='sprint'?35:BANK[id][1]==='dificil'?60:45;state.deadline=Date.now()+state.seconds*1000;
+ state.qid=id;state.used.push(id);soloRememberQuestion(BANK[id]);state.asked++;state.stage='question';state.seconds=state.mode==='sprint'?35:BANK[id][1]==='dificil'?60:45;state.deadline=Date.now()+state.seconds*1000;
  // La respuesta escrita es la regla. Las elecciones son una excepción difícil.
  const question=BANK[id];
  state.options=question[8]?.surprise?[]:(question[8]?.special_choice||(question[1]==='dificil'&&Math.random()<.17)?createSoloOptions(question):[]);
