@@ -1,5 +1,103 @@
 (function SoloGame() {
 'use strict';
+
+/* EDITORIAL_GLOBAL_20261104 — Correcciones compartidas por todos los modos.
+   El banco original es mutable y se conserva el orden/ID de cada pregunta.
+   Los enunciados editados y alias correctos se usan en clásico, individual,
+   VS y online. No se elimina ningún registro ni se cambian identificadores. */
+(function() {
+ const bank=(window.GAME_BANK||[]).concat(window.TRIVIA_BONUS_QUIZ||[]);
+ const norm=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+   .toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+ const updated={questions:0,shortAnswers:0,country:0,aliasesRemoved:0,options:0};
+ const rewrites=[
+  ['¿Qué capital europea acogió la cumbre del clima de 2015 donde se adoptó el Acuerdo de París?','¿En qué capital europea se adoptó el acuerdo internacional sobre el clima de diciembre de 2015?','París'],
+  ['¿Qué material incorporaron Picasso y Braque a algunas obras cubistas mediante papeles pegados?','¿Qué material cotidiano, recortado y pegado, utilizaron Picasso y Braque para crear collages cubistas?','Papel'],
+  ['¿Qué película de 2015 muestra al astronauta Mark Watney cultivando patatas en Marte?','¿Qué película de 2015 narra la supervivencia de Mark Watney, un astronauta abandonado en el planeta rojo?','Marte',['El marciano','The Martian']],
+  ['¿Qué filme de George A. Romero presenta zombis en un centro comercial de Pensilvania?','¿Qué película de 1978 dirigida por George A. Romero transcurre en un centro comercial asediado por muertos vivientes?','Zombi',['Dawn of the Dead']],
+  ['¿Qué pueblo de Malí construyó la Gran Mezquita de Djenné con adobe?','¿Qué material de construcción tradicional predomina en la Gran Mezquita de Djenné, en Malí?','Adobe'],
+  ['¿Qué es una ciudad dormitorio?','¿Cómo se llama una localidad residencial cuyos habitantes trabajan mayoritariamente fuera de ella?','Ciudad dormitorio'],
+  ['¿Qué criterio de Gaussen identifica un mes seco en un climograma?','¿Qué criterio de aridez considera seco un mes cuando la precipitación no supera el doble de la temperatura?','Gaussen',['Índice de Gaussen','Criterio de Gaussen']],
+  ['¿A qué se refiere la expresión «transición demográfica»?','¿Cómo se denomina el paso histórico de tasas altas de natalidad y mortalidad a otras bajas?','Transición demográfica'],
+  ['¿Qué mecanismo explica la formación de la brisa marina durante el día?','¿Qué viento local sopla de mar hacia tierra durante el día por la diferencia de calentamiento?','Brisa marina'],
+  ['¿Qué se entiende por población activa?','¿Cómo se denomina el conjunto de personas ocupadas y desempleadas que buscan trabajo?','Población activa'],
+  ['¿En qué obra literaria aparece el personaje de Nemo?','¿Qué novela de Julio Verne narra la supervivencia de cinco náufragos en una isla del Pacífico?','La isla misteriosa',['La isla misteriosa de Julio Verne']],
+  ['¿En qué novela de Julio Verne aparece el submarino Nautilus?','¿Qué submarino ficticio capitanea Nemo en las novelas de Julio Verne?','Nautilus',['El Nautilus']],
+  ['¿En qué novela de Verne aparece el capitán Nemo?','¿En qué novela de Julio Verne aparece por primera vez el capitán Nemo?','Veinte mil leguas',['Veinte mil leguas de viaje submarino']],
+  ['¿Qué obra de Horacio Quiroga incluye relatos como «La gallina degollada»?','¿Qué escritor uruguayo es autor del célebre cuento «La gallina degollada»?','Horacio Quiroga',['Quiroga']],
+  ['¿Qué novela de Yuri Herrera imagina un viaje entre México y Estados Unidos con resonancias míticas?','¿Qué escritor mexicano publicó «Señales que precederán al fin del mundo», novela sobre migración y mitología?','Yuri Herrera',['Herrera']],
+  ['¿Qué novela de Ocean Vuong está escrita como una carta dirigida a una madre que no sabe leer?','¿Qué escritor de origen vietnamita publicó una novela epistolar dirigida a su madre que no sabe leer?','Ocean Vuong',['Vuong']],
+  ['¿Qué novela de Becky Chambers inaugura la serie Wayfarers con una tripulación espacial diversa?','¿Qué escritora inició la saga de ciencia ficción Wayfarers, centrada en una tripulación espacial diversa?','Becky Chambers',['Chambers']]
+ ];
+ const map=new Map(rewrites.map(([before,...rest])=>[before,rest]));
+ const shorter=new Map([
+  ['Antemio de Tralles e Isidoro de Mileto','Antemio e Isidoro'],
+  ['Movimiento de independencia de la India','Movimiento independentista indio'],
+  ['Sindicato Democrático de Estudiantes','Sindicato Democrático'],
+  ['Comisaría General de Abastecimientos y Transportes','Comisaría de Abastecimientos'],
+  ['Tribunal Penal Internacional para la ex Yugoslavia','TPIY'],
+  ['Declaración de los Derechos del Hombre y del Ciudadano','Declaración de Derechos del Hombre'],
+  ['Ley de Sucesión en la Jefatura del Estado','Ley de Sucesión'],
+  ['María Cristina de Borbón-Dos Sicilias','María Cristina'],
+  ['La lección de anatomía del doctor Tulp','La lección de anatomía'],
+  ['Bodegón con limones, naranjas y una rosa','Bodegón de Zurbarán'],
+  ['Los cuatro libros de la arquitectura','Los cuatro libros'],
+  ['marco convertible de Bosnia y Herzegovina','Marco convertible'],
+  ['dírham de los Emiratos Árabes Unidos','Dírham'],
+  ['Línea internacional de cambio de fecha','Línea de cambio de fecha'],
+  ['La vida invisible de Eurídice Gusmão','La vida invisible'],
+  ['La llegada de un tren a la estación de La Ciotat','Llegada de un tren'],
+  ['La chica que saltaba a través del tiempo','La chica que saltaba en el tiempo'],
+  ['El tío Boonmee recuerda sus vidas pasadas','El tío Boonmee'],
+  ['Vivir es fácil con los ojos cerrados','Vivir es fácil'],
+  ['Los trabajos de Persiles y Sigismunda','Persiles y Sigismunda'],
+  ['Las aventuras de Priscilla, reina del desierto','Priscilla, reina del desierto'],
+  ['The Real Housewives of Salt Lake City','Real Housewives of Salt Lake City']
+ ]);
+ for(const q of bank){
+  if(!Array.isArray(q)||typeof q[2]!=='string'||typeof q[3]!=='string')continue;
+  if(!Array.isArray(q[4]))q[4]=[];
+  const edit=map.get(q[2]);
+  if(edit){
+    const [prompt,answer,aliases]=edit;
+    q[2]=prompt;
+    q[3]=answer;
+    if(aliases)q[4].push(...aliases);
+    // La solución antigua puede referirse a otra pregunta: no copiarla a ciegas.
+    updated.questions++;
+  }
+  if(!q[8]?.special_choice && shorter.has(q[3])){
+    const original=q[3],short=shorter.get(original);
+    q[3]=short;q[4].push(original);
+    updated.shortAnswers++;
+  }
+  if(q[0]==='historia'){
+    if(q[3]==='Macedonios'&&/pueblo del norte de Grecia/.test(q[2])){
+      const n=q[4].length;q[4]=q[4].filter(a=>norm(a)!=='macedonia');updated.aliasesRemoved+=n-q[4].length;
+    }
+    if(q[3]==='Normandos'&&/casa nobiliaria normanda/.test(q[2])){
+      const n=q[4].length;q[4]=q[4].filter(a=>norm(a)!=='normandia');updated.aliasesRemoved+=n-q[4].length;
+    }
+  }
+  if(q[0]==='geo'){
+   const old=q[2];
+   q[2]=q[2].replace(/^¿Qué Estado (?:insular|independiente|báltico|europeo)\b/i,(s)=>s.replace('Estado','país'))
+      .replace(/^¿Qué estado (insular|independiente|báltico|europeo)\b/i,(s)=>s.replace('estado','país'))
+      .replace(/^¿Qué Estado aparece representado\b/,'¿Qué país aparece representado');
+   if(old!==q[2])updated.country++;
+  }
+  if(q[0]==='cine'){
+   // Evitar el genérico «actor o actriz» cuando se pregunta por una persona.
+   const old=q[2];
+   q[2]=q[2].replace(/^¿Qué actor o actriz interpreta a /,'¿Quién interpreta a ')
+     .replace(/^¿Qué actor o actriz da vida a /,'¿Quién da vida a ');
+   if(old!==q[2])updated.questions++;
+  }
+  q[4]=[...new Set(q[4].filter(v=>typeof v==='string'&&v.trim()&&norm(v)!==norm(q[3])))];
+ }
+ window.TRIVIA_GLOBAL_QUALITY_AUDIT=updated;
+})();
+
 const BANK = (window.GAME_BANK || []).concat(window.TRIVIA_BONUS_QUIZ || []);
 
 /* CLARIDAD_DE_ENUNCIADOS_2026_11
