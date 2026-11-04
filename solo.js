@@ -1,6 +1,119 @@
 (function SoloGame() {
 'use strict';
 const BANK = (window.GAME_BANK || []).concat(window.TRIVIA_BONUS_QUIZ || []);
+
+/* CLARIDAD_DE_ENUNCIADOS_2026_11
+ * Corrige el banco que comparten los modos de juego, sin alterar respuestas ni puntajes.
+ * En especial, evita confundir Estado con país, admite países constituyentes
+ * del Reino Unido cuando corresponda y contextualiza referencias poco conocidas.
+ */
+(function mejorarEnunciadosDelBanco() {
+ const norm = v => String(v ?? '').toLowerCase().normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+ const countryAnswers = new Set([
+  'reino unido','francia','alemania','italia','espana','portugal','paises bajos',
+  'belgica','suiza','austria','irlanda','grecia','polonia','noruega','suecia',
+  'dinamarca','finlandia','islandia','rusia','ucrania','turquia','canada',
+  'estados unidos','mexico','brasil','argentina','chile','colombia','peru',
+  'japon','china','india','australia','nueva zelanda','egipto','marruecos'
+ ]);
+ const ukCities = [
+  ['newcastle upon tyne', 'Inglaterra'],
+  ['cambridge', 'Inglaterra'], ['oxford', 'Inglaterra'],
+  ['manchester', 'Inglaterra'], ['liverpool', 'Inglaterra'],
+  ['bristol', 'Inglaterra'], ['durham', 'Inglaterra'],
+  ['york', 'Inglaterra'], ['londres', 'Inglaterra'],
+  ['london', 'Inglaterra'], ['glasgow', 'Escocia'],
+  ['edimburgo', 'Escocia'], ['edinburgh', 'Escocia'],
+  ['cardiff', 'Gales'], ['belfast', 'Irlanda del Norte']
+ ];
+ const yearByFilm = new Map();
+ function registerYear(title, year) {
+  if(!title || !year)return;
+  const key = norm(title);
+  if(!key)return;
+  if(!yearByFilm.has(key))yearByFilm.set(key, String(year));
+  else if(yearByFilm.get(key)!==String(year))yearByFilm.set(key, null);
+ }
+ for(const q of BANK) {
+  if(!Array.isArray(q))continue;
+  const prompt=String(q[2] ?? ''), answer=String(q[3] ?? '');
+  if(q[0]==='geo' && /(?:en qué país|a qué país|en cuál país)/i.test(prompt))countryAnswers.add(norm(answer));
+  if(q[0]!=='cine')continue;
+  const title=prompt.match(/«([^»]+)»/);
+  if(title && /^\d{4}$/.test(answer) && /(?:qué año|año se estrenó|año fue estrenada)/i.test(prompt))registerYear(title[1], answer);
+  const filmYear=prompt.match(/¿Qué película de ((?:19|20)\d{2})\b/i);
+  if(filmYear)registerYear(answer, filmYear[1]);
+ }
+ const artPeriod = {
+  'Grecia':'obra de la Grecia antigua',
+  'Roma':'obra de la Roma antigua',
+  'Bizancio':'obra del arte bizantino',
+  'Al-Ándalus':'obra del arte andalusí',
+  'Románico':'obra del románico (siglos XI-XII)',
+  'Gótico':'obra del gótico medieval',
+  'Trecento':'obra del Trecento italiano (siglo XIV)',
+  'Quattrocento':'obra del Renacimiento italiano del siglo XV',
+  'Cinquecento':'obra del Renacimiento italiano del siglo XVI',
+  'Manierismo':'obra manierista del siglo XVI',
+  'Barroco europeo':'obra del Barroco europeo',
+  'Barroco español':'obra del Barroco español',
+  'Siglo XVIII':'obra del siglo XVIII',
+  'Goya':'obra española de finales del XVIII o comienzos del XIX',
+  'Hierro y vidrio':'obra de arquitectura e ingeniería del siglo XIX',
+  '1900-1950':'obra de la primera mitad del siglo XX',
+  '1950-2000':'obra de la segunda mitad del siglo XX'
+ };
+ for(const q of BANK) {
+  if(!Array.isArray(q) || typeof q[2]!=='string')continue;
+  let prompt=q[2], answer=String(q[3] ?? '');
+  if(q[0]==='geo') {
+   // «Estado» (país soberano) no debe confundirse con estado federado.
+   if(/^¿En qué Estado (?:está|se encuentra|queda|se sitúa|se ubica)\b/i.test(prompt)
+      && countryAnswers.has(norm(answer))) {
+    prompt=prompt.replace(/^¿En qué Estado\b/i, '¿En qué país');
+   }
+   // Inglaterra, Escocia, Gales e Irlanda del Norte también son países.
+   if(norm(answer)==='reino unido' && /(?:país|Estado)/i.test(prompt)) {
+    const np=norm(prompt);
+    for(const [city, constituent] of ukCities) {
+     if(new RegExp('(?:^| )'+city+'(?: |$)').test(np)) {
+      if(!Array.isArray(q[4]))q[4]=[];
+      if(!q[4].some(a=>norm(a)===norm(constituent)))q[4].push(constituent);
+      break;
+     }
+    }
+   }
+  }
+  if(q[0]==='cine') {
+   if(/Deirdre\s+Beaub/i.test(prompt) && /Jamie Lee Curtis/i.test(answer)) {
+    prompt='En «Todo a la vez en todas partes» (2022), ¿qué actriz interpreta a Deirdre Beaubeirdre, la inspectora de Hacienda que revisa las cuentas de la familia protagonista?';
+   } else if(/señora O['’]Brien/i.test(prompt) && /Jessica Chastain/i.test(answer)
+          && !/\(2011\)/.test(prompt)) {
+    prompt='En «El árbol de la vida» (2011), ¿qué actriz interpreta a la señora O’Brien, madre de los tres hermanos y esposa del personaje de Brad Pitt?';
+   } else if(/(?:interpreta|encarna|dio vida|da vida)/i.test(prompt)) {
+    const match=prompt.match(/«([^»]+)»/);
+    if(match && !/\((?:19|20)\d{2}\)/.test(prompt)) {
+     const year=yearByFilm.get(norm(match[1]));
+     if(year)prompt=prompt.replace(match[0], match[0]+' ('+year+')');
+    }
+   }
+  }
+  if(q[0]==='arte') {
+   if(/Retrato de un joven con medalla/i.test(prompt) && /Botticelli/i.test(answer)
+       && /(?:quién|pintó|autor|artista)/i.test(prompt)) {
+    prompt='¿Quién pintó «Retrato de un joven con medalla» (h. 1475), retrato del Renacimiento florentino conservado en los Uffizi cuyo protagonista sostiene una medalla de Cosme de Médici?';
+   } else if(q[7]==='autor' && /^arte:ampliación /i.test(String(q[6] ?? ''))
+       && /«[^»]+»\?$/.test(prompt) && !/siglo|renacim|barroco|románic|gótic/i.test(prompt)) {
+    const period=String(q[6]).replace(/^arte:ampliación /i, '');
+    const hint=artPeriod[period];
+    if(hint)prompt=prompt.replace(/»\?$/, '», '+hint+'?');
+   }
+  }
+  q[2]=prompt;
+ }
+})();
+
 const byCat = ['historia','arte','geo','cine','lit','mix'];
 const names = ['Historia','Arte','Geografía','Cine','Literatura y política','Miscelánea'];
 const icons = ['🏛️','🎨','🌍','🎬','📚','🎤'];
