@@ -114,6 +114,53 @@ const BANK = (window.GAME_BANK || []).concat(window.TRIVIA_BONUS_QUIZ || []);
  }
 })();
 
+
+/* REFERENCIAS_ARTISTICAS_2026_11_04
+ * Aporta siglo y estilo a las preguntas originales sobre atribuciones
+ * y ubicaciones de obras, reutilizando metadatos de arte_datos.js.
+ * No da pistas de época en preguntas que precisamente evalúan la época.
+ */
+(function contextualizarObrasOriginales(){
+ const entries=window.TRIVIA_ART_WORKS;
+ if(!entries||typeof entries!=='object')return;
+ const normalize=s=>String(s??'').normalize('NFD')
+  .replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+ const works=new Map();
+ for(const list of Object.values(entries)){
+  if(!Array.isArray(list))continue;
+  for(const work of list){
+   if(!Array.isArray(work)||!work[0])continue;
+   const key=normalize(work[0]);
+   if(!works.has(key))works.set(key,work);
+  }
+ }
+ let count=0;
+ for(const q of BANK){
+  if(!Array.isArray(q)||q[0]!=='arte'||typeof q[2]!=='string')continue;
+  const text=q[2],title=text.match(/«([^»]+)»/);
+  if(!title || text.length>127 || /[,;] obra del |obra vinculada|siglo (?:[IVX]+|\d+)|estilo (?:rom[aá]nico|g[oó]tico|barroco|renacentista)/i.test(text))continue;
+  // Contexto solo para autoría y ubicación. El resto podría revelar la solución.
+  const authorship=/¿(?:qui[eé]n|quienes|qu[eé] pintor|qu[eé] artista|qu[eé] escultor|qu[eé] arquitecto)|autor(?:es)? de|pint[oó]|esculpi[oó]|diseñ[oó]/i.test(text);
+  const location=/¿(?:en qu[eé] ciudad|d[oó]nde|en qu[eé] museo|en qu[eé] localidad|en qu[eé] pa[ií]s)/i.test(text);
+  if(!authorship && !location)continue;
+  const work=works.get(normalize(title[1]));
+  if(!work)continue;
+  const century=String(work[3]||'').match(/^([IVXLCDM]+)\s*(a\.\s*C\.|d\.\s*C\.)$/i);
+  const style=String(work[5]||'').trim();
+  let hint='';
+  if(century)hint='obra del siglo '+century[1]+(/a\./i.test(century[2])?' a. C.':'');
+  if(style && normalize(style)!==normalize(q[3])){
+   // Etiquetas históricas, sin revelar la respuesta esperada.
+   if(hint)hint+=' ('+style.toLowerCase()+')';
+   else hint='obra de '+style.toLowerCase();
+  }
+  if(!hint || normalize(hint).includes(normalize(q[3])) && normalize(q[3]).length>9)continue;
+  const rewritten=text.replace(/»\?$/,'», '+hint+'?');
+  if(rewritten!==text&&rewritten.length<=170){q[2]=rewritten;count++}
+ }
+ window.TRIVIA_ART_CLUES_ADDED=count;
+})();
+
 const byCat = ['historia','arte','geo','cine','lit','mix'];
 const names = ['Historia','Arte','Geografía','Cine','Literatura y política','Miscelánea'];
 const icons = ['🏛️','🎨','🌍','🎬','📚','🎤'];
