@@ -559,6 +559,14 @@ header .topbtn{background:#202f54aa;border:1px solid #7890b477;border-radius:14p
  .online-root.vs-playing .vs-live-meta .vs-special{padding:2px}
 }
 
+/* Formulario escrito junto a la pregunta, sin zona de lectura vacía. */
+.online-root.vs-playing .vs-live-card:not(.vs-has-options){flex:0 1 auto;max-height:100%}
+.online-root.vs-playing .vs-live-card:not(.vs-has-options) .vs-question-scroll{
+ flex:0 1 auto;max-height:min(43dvh,360px);overflow-y:auto;
+}
+.online-root.vs-playing .vs-live-card:not(.vs-has-options) .vs-answer-dock{flex:0 0 auto}
+.online-root.vs-playing .vs-live-card:not(.vs-has-options) .online-question{margin-bottom:4px}
+.vs-cheese-delta{font-size:12px;color:#ffe1a2;font-weight:800;margin:5px 0}
 /* Triviaseis: reparto flexible del espacio entre pregunta y respuestas en VS */
 .online-root.vs-playing .vs-live-card.vs-has-options .vs-question-scroll{
   flex:0 1 auto;
@@ -984,6 +992,12 @@ function match(input,q){
  const expected=N(q[3]);
  if(shortAnswerAliases[expected]?.some(alias=>N(alias)===response))return true;
  const compact=response.replace(/\s+/g,'');
+ // Cuando se pide un estilo, «bizantino» vale por «arte bizantino».
+ if(/\b(estilo|corriente|movimiento)\b/.test(N(q[2])) && expected.startsWith('arte ')){
+  const shortStyle=expected.slice(5).replace(/\s+/g,'');
+  if(compact===shortStyle||(compact.length>=6&&shortStyle.length>=6&&
+    Math.abs(compact.length-shortStyle.length)<=1&&distance(compact,shortStyle)<=1))return true;
+ }
  const isPerson=asksForPerson(q);
  const dateInput=fullDate(input);
  for(const option of [q[3],...(q[4]||[])]){
@@ -2183,7 +2197,7 @@ function onlineResultHaptic(prev,next,who){
    const ans=next.vsAnswers?.[who];
    onlineVibrate(ans?.correct?(Number(next.vsStreaks?.[who]||0)>=3?'streak':'correct'):'wrong');
   }else if(prev.phase==='vsReview'&&next.phase==='vsFinished'){
-   const mine=Number(next.vsScores?.[who]||0),rival=Number(next.vsScores?.[other(who)]||0);
+   const mine=vsTotalScore(next,who),rival=vsTotalScore(next,other(who));
    onlineVibrate(mine>rival?'win':mine<rival?'loss':'tap');
   }
   return;
@@ -2497,6 +2511,9 @@ function vsOwnedCheeses(r,w){
  // RTDB puede devolver un mapa numérico en vez de un array si hay huecos.
  return Object.entries(r.vsCheeses||{}).filter(([cat,owner])=>owner===w&&/^[0-5]$/.test(cat)).map(([cat])=>Number(cat)).sort((a,b)=>a-b);
 }
+const VS_CHEESE_POINTS=1000;
+const vsTotalScore=(r,w)=>Math.max(0,Number(r.vsScores?.[w]||0))+vsOwnedCheeses(r,w).length*VS_CHEESE_POINTS;
+const vsPts=n=>Number(n||0).toLocaleString('es-ES');
 function vsModifyScore(r,w,delta){
  const previous=Math.max(0,Number(r.vsScores?.[w]||0));
  const next=Math.max(0,previous+delta);
@@ -2546,8 +2563,8 @@ const vsAnswered=(r,who)=>!!r.vsAnswers?.[who];
 function vsScoreboard(r){
  return '<div class="vs-scoreboard">'+vsWho.map(w=>{
   const owned=vsOwnedCheeses(r,w);
-  return '<div class="vs-player '+(w===role?'self':'')+'"><div class="vs-name">'+esc(vsName(w))+(w===role?' · TÚ':'')+'</div><div class="vs-points">'+Number(r.vsScores?.[w]||0)+'</div>'+
-   '<div class="vs-cheese-score">🧀 '+owned.length+'/6 quesitos</div><div class="vs-cheese-icons" title="Categorías conquistadas">'+(owned.length?owned.map(i=>emojis[i]).join(' '):'—')+'</div>'+
+  return '<div class="vs-player '+(w===role?'self':'')+'"><div class="vs-name">'+esc(vsName(w))+(w===role?' · TÚ':'')+'</div><div class="vs-points">'+vsPts(vsTotalScore(r,w))+'</div>'+
+   '<div class="vs-cheese-score">🧀 '+owned.length+'/6 · +'+vsPts(owned.length*VS_CHEESE_POINTS)+' pts</div><div class="vs-cheese-icons" title="Categorías conquistadas">'+(owned.length?owned.map(i=>emojis[i]).join(' '):'—')+'</div>'+
    '<div class="vs-streak">🔥 Racha: '+Number(r.vsStreaks?.[w]||0)+' · '+(r.phase==='vsQuestion'?(vsAnswered(r,w)?'✅ Enviada':'✍️ Respondiendo'):'PUNTOS')+'</div></div>';
  }).join('')+'</div>';
 }
@@ -2556,7 +2573,7 @@ function vsHeader(r){
  return '<div class="online-card '+(live?'vs-live-header':'')+'" style="padding:12px"><div class="online-flex"><span class="online-kicker">⚔️ VS · SALA '+esc(roomCode)+'</span><button class="online-exit" data-action="share">Compartir código</button></div>'+vsScoreboard(r)+'<div class="vs-round-badge">'+(r.vsRound?'RONDA '+r.vsRound+(r.vsRound>vsTotal(r)?' · MUERTE SÚBITA':' / '+vsTotal(r)):'DUELO SIMULTÁNEO')+'</div></div>';
 }
 function vsTwistBanner(r){
- if(r.vsRaidActive)return '<div class="vs-twist-banner raid">⚔️ ASALTO DE QUESITOS<small>El ganador roba un quesito del rival si tiene alguno. Si no tiene, recibe +120 puntos y puede conquistar una categoría libre.</small></div>';
+ if(r.vsRaidActive)return '<div class="vs-twist-banner raid">⚔️ ASALTO DE QUESITOS<small>El ganador roba un quesito del rival: +1.000 puntos por el quesito y −1.000 para su dueño anterior. Si el rival no tiene ninguno, recibe +120 puntos y puede conquistar la categoría de la ronda si está libre.</small></div>';
  if(r.vsPenaltyActive)return '<div class="vs-twist-banner penalty">💥 RONDA DE PENALIZACIÓN<small>Quien falle o no responda pierde hasta 100 puntos. Si ambos fallan, ambos pierden.</small></div>';
  return '';
 }
@@ -2595,11 +2612,13 @@ function vsClockHTML(r){
 function vsResultCell(r,w){
  const a=r.vsAnswers?.[w],good=!!a?.correct;
  const answer=a?.text||'Tiempo agotado';
- const points=Number(r.vsGains?.[w]||0);
+ const cheeseDelta=Number(r.vsCheeseDeltas?.[w]||0);
+ const points=Number(r.vsGains?.[w]||0)+cheeseDelta;
+ const cheeseNote=cheeseDelta?'<div class="vs-cheese-delta">🧀 '+(cheeseDelta>0?'+':'')+vsPts(cheeseDelta)+' pts por quesitos</div>':'';
  const fast=r.vsFirst===w&&good?'<div class="vs-speed-winner">⚡ RESPONDIÓ ANTES · +'+Number(r.vsSpeedBonus?.[w]||0)+' pts de rapidez</div>':'';
  const time=Number(vsElapsedMs(r,a));
  const timing=a&&Number.isFinite(time)?'<div class="vs-answer-timing">⏱ '+(time/1000).toFixed(1)+' s desde el inicio</div>':'';
- return '<div class="vs-result-player"><div style="font-size:12px;color:#c2cfee">'+esc(vsName(w))+'</div><strong class="'+(good?'vs-correct':'vs-wrong')+'">'+(good?'✓ ACERTÓ':'✕ FALLÓ')+'</strong><div class="vs-answer-text">'+esc(answer)+'</div>'+timing+fast+'<strong>'+(points>=0?'+':'')+points+' pts</strong></div>';
+ return '<div class="vs-result-player"><div style="font-size:12px;color:#c2cfee">'+esc(vsName(w))+'</div><strong class="'+(good?'vs-correct':'vs-wrong')+'">'+(good?'✓ ACERTÓ':'✕ FALLÓ')+'</strong><div class="vs-answer-text">'+esc(answer)+'</div>'+timing+fast+cheeseNote+'<strong>'+(points>=0?'+':'')+vsPts(points)+' pts</strong></div>';
 }
 function showVsRoom(r){
  root.classList.toggle('vs-playing',r.phase==='vsQuestion');
@@ -2611,11 +2630,11 @@ function showVsRoom(r){
   const chooser=role==='host'?'<div class="vs-round-badge" style="margin:14px 0 8px">ELIGE EL NÚMERO DE PREGUNTAS</div><div class="vs-power-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">'+[10,15,20].map(n=>'<button type="button" class="vs-power '+(total===n?'active':'')+'" data-action="vsLength" data-count="'+n+'" style="min-height:52px;font-size:20px">'+n+'</button>').join('')+'</div>':
     '<p class="vs-ready-state">📋 '+total+' preguntas seleccionadas. Esperando a que el anfitrión confirme.</p>';
   html+='<div class="vs-mode-card"><div class="vs-title">⚔️ DUELO DE SABERES</div><p class="vs-subtitle">Misma pregunta, mismo momento. '+total+' rondas para decidir quién gana.</p>'+chooser+
-  '<div class="vs-rules-grid"><div class="vs-rule"><strong>🧀 Conquista quesitos</strong>La primera victoria en una categoría da su quesito y +90 puntos. Si ambos aciertan, cuenta la rapidez.</div>'+
-  '<div class="vs-rule"><strong>⚔️ Asalto</strong>El vencedor roba un quesito del rival y gana +120 puntos; el rival pierde hasta 100. Si no tiene, gana un botín.</div>'+
+  '<div class="vs-rules-grid"><div class="vs-rule"><strong>🧀 Conquista quesitos</strong>La primera victoria en una categoría sin dueño da su quesito, que vale 1.000 puntos. Si ambos aciertan, gana el más rápido.</div>'+
+  '<div class="vs-rule"><strong>⚔️ Asalto</strong>El vencedor roba un quesito del rival (1.000 puntos que cambian de dueño), gana +120 puntos y el rival pierde hasta 100. Si no hay quesitos que robar, recibe un botín.</div>'+
   '<div class="vs-rule"><strong>💥 Penalización</strong>En rondas anunciadas, fallar o no contestar resta hasta 100 puntos.</div>'+
   '<div class="vs-rule"><strong>⚡ Doble ráfaga</strong>Dos rondas rápidas seguidas: 9 segundos, dos opciones, puntos x2.</div></div>'+
-  '<p class="vs-legend">🏆 Gana quien sume más puntos. También hay apuestas, bombas, rachas x2, pistas y muerte súbita. Los quesitos se pueden robar en asaltos.</p>'+
+  '<p class="vs-legend">🏆 El marcador suma puntos por respuestas y +1.000 por cada quesito que conserves. Si te lo roban, pierdes esos 1.000 puntos. También hay apuestas, bombas, rachas x2, pistas y muerte súbita.</p>'+
   (role==='host'?'<button class="online-btn" data-action="vsStart">EMPEZAR '+total+' PREGUNTAS →</button>':'<p class="vs-ready-state">Esperando a que el anfitrión empiece…</p>')+'</div>';
  }else if(r.phase==='vsCountdown'){
   const remains=Math.max(0,Math.ceil((Number(r.vsStartAt)-serverNow())/1000));
@@ -2642,7 +2661,7 @@ function showVsRoom(r){
    '</div></div>';
  }else if(r.phase==='vsReview'){
   const mine=r.vsAnswers?.[role],ready=r.vsReady?.[role]===true;
-  const tie=Number(r.vsScores?.host||0)===Number(r.vsScores?.guest||0);
+  const tie=vsTotalScore(r,'host')===vsTotalScore(r,'guest');
   html+='<div class="vs-mode-card"><div class="vs-round-badge">RESULTADO · RONDA '+r.vsRound+'</div>'+vsBonusBanner(r)+vsTwistBanner(r)+vsFormatBanner(r)+
   '<h2 class="online-question">'+esc(vsRoomQuestion(r)?.[2]||'Pregunta sin datos sincronizados')+'</h2><p class="vs-subtitle">Respuesta correcta: <b style="color:#ffe29a">'+esc(vsRoomQuestion(r)?.[3]||'No verificable')+'</b></p>'+
   vsPowerBanner(r)+'<div class="vs-result-row">'+vsResultCell(r,'host')+vsResultCell(r,'guest')+'</div>'+vsImpactHtml(r)+
@@ -2651,7 +2670,7 @@ function showVsRoom(r){
   (ready?'<p class="vs-ready-state">✅ Listo. Esperando al rival…</p>':'<button class="online-btn" data-action="vsReady">LISTO PARA LA SIGUIENTE →</button>')+
   '<p class="vs-legend">La siguiente ronda empieza cuando ambos estéis preparados.</p></div>';
  }else if(r.phase==='vsFinished'){
-  const host=Number(r.vsScores?.host||0),guest=Number(r.vsScores?.guest||0);
+  const host=vsTotalScore(r,'host'),guest=vsTotalScore(r,'guest');
   const winner=host===guest?null:host>guest?'host':'guest';
   const mine=r.vsRematch?.[role]===true,rival=r.vsRematch?.[other(role)]===true;
   html+='<div class="vs-mode-card" style="text-align:center"><div style="font-size:65px">🏆</div><h2 class="vs-title">'+(winner?'¡GANA '+esc(vsName(winner)).toUpperCase()+'!':'¡EMPATE!')+'</h2><p class="vs-subtitle">Final tras '+r.vsRound+' rondas</p>'+vsScoreboard(r)+
@@ -2679,7 +2698,7 @@ function vsPickRound(r){
  r.vsCurseActive=false;r.vsCurseTarget=null;
  r.vsRaidActive=!!r.vsTwists?.raids?.[round];r.vsPenaltyActive=!!r.vsTwists?.penalties?.[round];r.vsEffects=[];
  if(round===Number(r.vsCurseRound||0)){
-  const leader=Number(r.vsScores?.host||0)>Number(r.vsScores?.guest||0)?'host':Number(r.vsScores?.guest||0)>Number(r.vsScores?.host||0)?'guest':vsShuffle(vsWho)[0];
+  const leader=vsTotalScore(r,'host')>vsTotalScore(r,'guest')?'host':vsTotalScore(r,'guest')>vsTotalScore(r,'host')?'guest':vsShuffle(vsWho)[0];
   const stats=r.vsCategoryStats?.[leader]||{};
   const rated=[0,1,2,3,4,5].map(c=>({cat:c,rate:stats[c]?.attempts?stats[c].correct/stats[c].attempts:0.5,played:stats[c]?.attempts||0}));
   rated.sort((a,b)=>a.rate-b.rate||b.played-a.played||Math.random()-.5);
@@ -2735,7 +2754,7 @@ function vsPickRound(r){
  r.vsStartAt=serverNow()+4500;
  r.vsDeadline=r.vsStartAt+1000*r.vsSeconds;
  r.vsAnswers={};r.vsBoost={host:false,guest:false};r.vsHints={host:false,guest:false};r.vsReady={host:false,guest:false};
- r.vsGains={host:0,guest:0};r.vsSpeedBonus={host:0,guest:0};r.vsFirst=null;r.vsBombActive=!!r.vsBombSchedule?.[round];r.vsEffects=[];
+ r.vsGains={host:0,guest:0};r.vsCheeseDeltas={host:0,guest:0};r.vsSpeedBonus={host:0,guest:0};r.vsFirst=null;r.vsBombActive=!!r.vsBombSchedule?.[round];r.vsEffects=[];
  r.phase='vsCountdown';
  return true;
 }
@@ -2759,6 +2778,7 @@ function vsGain(r,w,answer,streak){
 }
 function vsSettle(r){
  if(r.phase!=='vsQuestion'||!vsRoomQuestion(r))return false;
+ const cheesesBefore={host:vsOwnedCheeses(r,'host').length,guest:vsOwnedCheeses(r,'guest').length};
  r.vsGains={host:0,guest:0};
  r.vsSpeedBonus={host:0,guest:0};
  r.vsFirst=null;
@@ -2811,19 +2831,18 @@ function vsSettle(r){
      r.vsCheeses[stolen]=winner;
      const gain=vsModifyScore(r,winner,120);
      const taken=-vsModifyScore(r,rival,-100);
-     r.vsEffects.push({kind:'raid',text:'⚔️ '+vsName(winner)+' roba el quesito de '+labels[stolen]+' a '+vsName(rival)+' · +'+gain+' / −'+taken+' puntos'});
+     r.vsEffects.push({kind:'raid',text:'⚔️ '+vsName(winner)+' roba el quesito de '+labels[stolen]+' a '+vsName(rival)+' · 🧀 +1.000/−1.000 puntos · premio +'+gain+' / −'+taken+' puntos'});
     }else{
      const reward=vsModifyScore(r,winner,120);
      r.vsEffects.push({kind:'raid',text:'⚔️ '+vsName(winner)+' gana el asalto. Sin quesitos para robar: botín de +'+reward+' puntos'});
      if(!r.vsCheeses[r.cat]){
       r.vsCheeses[r.cat]=winner;
-      r.vsEffects.push({kind:'cheese',text:'🧀 '+vsName(winner)+' conquista '+labels[r.cat]});
+      r.vsEffects.push({kind:'cheese',text:'🧀 '+vsName(winner)+' conquista '+labels[r.cat]+' · +1.000 puntos'});
      }
     }
    }else if(!r.vsCheeses[r.cat]){
     r.vsCheeses[r.cat]=winner;
-    const reward=vsModifyScore(r,winner,90);
-    r.vsEffects.push({kind:'cheese',text:'🧀 '+vsName(winner)+' conquista '+labels[r.cat]+' · +'+reward+' puntos'});
+    r.vsEffects.push({kind:'cheese',text:'🧀 '+vsName(winner)+' conquista '+labels[r.cat]+' · +1.000 puntos'});
    }
   }
   if(r.vsPenaltyActive){
@@ -2835,6 +2854,10 @@ function vsSettle(r){
    }
   }
  }
+ r.vsCheeseDeltas={
+  host:(vsOwnedCheeses(r,'host').length-cheesesBefore.host)*VS_CHEESE_POINTS,
+  guest:(vsOwnedCheeses(r,'guest').length-cheesesBefore.guest)*VS_CHEESE_POINTS
+ };
  for(const who of vsWho){
   const stats=((r.vsCategoryStats??={host:{},guest:{}})[who]??={});
   const entry=(stats[r.cat]??={correct:0,attempts:0});
@@ -2871,7 +2894,7 @@ function vsResetMatch(r){
  r.vsBombSchedule=vsNewBombSchedule(total);r.vsPowerSchedule=vsNewPowerSchedule(total,r.vsBombSchedule);r.vsRapidSchedule=vsNewRapidSchedule(total,r.vsPowerSchedule,r.vsBombSchedule);r.vsCurseRound=vsCurseTurn(total,r.vsBombSchedule,r.vsPowerSchedule,r.vsRapidSchedule);r.vsTwists=vsNewTwistSchedule(total,r.vsBombSchedule,r.vsPowerSchedule,r.vsRapidSchedule,r.vsCurseRound);r.vsCategoryStats={host:{},guest:{}};r.vsCheeses={};r.vsEffects=[];r.vsRaidActive=false;r.vsPenaltyActive=false;r.vsHistory=[];r.vsRematch={host:false,guest:false};
  r.vsReady={host:false,guest:false};r.vsAnswers={};
  r.vsBoost={host:false,guest:false};r.vsHints={host:false,guest:false};
- r.vsGains={host:0,guest:0};r.vsPriorStreaks={host:0,guest:0};
+ r.vsGains={host:0,guest:0};r.vsCheeseDeltas={host:0,guest:0};r.vsPriorStreaks={host:0,guest:0};
  r.vsStartAt=null;r.vsDeadline=null;r.vsSeconds=null;r.vsQuestion=null;r.vsChoices=[];
  // Volvemos al selector: se pueden elegir otras 10, 15 o 20 preguntas sin crear sala.
  return r;
@@ -2940,7 +2963,7 @@ async function vsReady(){
   if(r.mode!=='versus'||r.phase!=='vsReview'||r.vsReady?.[role])return;
   (r.vsReady??={})[role]=true;
   if(r.vsReady.host&&r.vsReady.guest){
-   const a=Number(r.vsScores?.host||0),b=Number(r.vsScores?.guest||0);
+   const a=vsTotalScore(r,'host'),b=vsTotalScore(r,'guest');
    if(r.vsRound>=vsTotal(r)&&a!==b){r.phase='vsFinished';r.status='finished';r.winner=a>b?'host':'guest'}
    else vsPickRound(r);
   }
