@@ -5,9 +5,13 @@ const out=[];const sources=new Set();
 for(const line of artists.split('\n')){
  const p=line.indexOf('|');if(p<0)continue;const artist=line.slice(0,p),songs=line.slice(p+1).split(';');
  for(const song of songs){const key=normalize(song);if(!key||sources.has(key))continue;sources.add(key);
-  const stem=['¿Qué artista o grupo grabó «'+song+'»?','¿Quién canta el éxito «'+song+'»?','¿De quién es el sencillo «'+song+'»?','¿Qué intérprete popularizó «'+song+'»?'][out.length%4];
+  const stem=(artist==='Nicki Nicole'&&normalize(song)==='otra noche')?
+   '¿Qué cantante argentina colaboró con el grupo mexicano Los Ángeles Azules en la cumbia «Otra noche», lanzada en 2021?':
+   ['¿Qué artista o grupo grabó «'+song+'»?','¿Quién canta el éxito «'+song+'»?','¿De quién es el sencillo «'+song+'»?','¿Qué intérprete popularizó «'+song+'»?'][out.length%4];
   if(existing.has(normalize(stem)))continue;
-  out.push(['mix',out.length%6===0?'dificil':'media',stem,artist,[],'','mix:pop-ampliacion-2026','musica-interprete']);
+  out.push(['mix',out.length%6===0?'dificil':'media',stem,artist,
+   artist==='Nicki Nicole'&&normalize(song)==='otra noche'?['Niki Nicole','Nicki']:[],
+   '','mix:pop-ampliacion-2026','musica-interprete']);
  }
 }
 window.TRIVIA_NEW_MIX_QUESTIONS??=[];window.TRIVIA_NEW_MIX_QUESTIONS.push(...out);
