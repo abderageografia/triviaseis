@@ -606,7 +606,10 @@ function cancelWheelAnimation(){
 const save=()=>{if(state)try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}};
 function load(){try{
  let old=JSON.parse(localStorage.getItem(KEY)||'null');
- if(old?.v===2&&Array.isArray(old.pips)&&Array.isArray(old.used)&&old.stage!=='finished'){
+ if(old?.v===2&&Array.isArray(old.pips)&&Array.isArray(old.used)&&(
+  old.stage!=='finished'||(!old.lastCorrect&&!old.lastExpired&&BANK[old.qid]&&
+   old.lastQText===BANK[old.qid][2]&&
+   window.TRIVIA_MATCH?.(old.lastUserAnswer,BANK[old.qid])))){
   // Compatibilidad con partidas que ya habían gastado pistas en la versión antigua.
   if(!Array.isArray(old.hintPositions)){
    old.hintPositions=[];
@@ -628,7 +631,46 @@ function close(){
  window.TRIVIA_FX?.cancel?.();
  resetSave();state=null;root.hidden=true;document.body.style.overflow='';
 }
-function open(){root.hidden=false;document.body.style.overflow='hidden';state=load();if(state&&state.stage==='question'&&Date.now()>Number(state.deadline))grade('',true);else render()}
+// Solo reevalúa el ÚLTIMO fallo guardado cuando el corrector lo reconoce como acierto.
+function regradeSavedSoloAnswer(){
+ if(!state||!['result','finished'].includes(state.stage)||state.lastCorrect||state.lastExpired)return;
+ const q=BANK[state.qid];
+ if(!q||q[2]!==state.lastQText||q[3]!==state.lastAnswer||
+    !state.lastUserAnswer||!window.TRIVIA_MATCH?.(state.lastUserAnswer,q))return;
+ const lostLives=Math.max(0,Number(state.lastChange?.livesBefore??state.lives)-Number(state.lives||0));
+ const usedShields=Math.max(0,Number(state.lastChange?.shieldsBefore??state.shields)-Number(state.shields||0));
+ state.lives=Math.max(Number(state.lives||0),Number(state.lastChange?.livesBefore||0));
+ state.shields=Math.max(Number(state.shields||0),Number(state.lastChange?.shieldsBefore||0));
+ state.streak=Math.max(1,Number(state.lastChange?.streakBefore||0)+1);
+ state.bestStreak=Math.max(Number(state.bestStreak||0),state.streak);
+ state.correct=Number(state.correct||0)+1;
+ const wasRisk=/penalizaci[oó]n del reto/i.test(state.lastMessage||'');
+ const wasBomb=/pregunta bomba/i.test(state.lastMessage||'');
+ const bonus=(wasRisk||q[8]?.surprise||wasBomb)?2:1;
+ const fire=state.streak>=3?2:1;
+ const gained=(q[8]?.surprise?500+Math.min(100,state.streak*10):
+  (q[1]==='dificil'?150:100)*bonus+Math.min(100,state.streak*10))*fire+(wasBomb?200:0);
+ state.points=Number(state.points||0)+gained;
+ if(state.mode==='classic'){
+  state.pips[state.cat]=Math.min(3,Number(state.pips[state.cat]||0)+bonus);
+  state.stars=state.pips.filter(n=>n===3).length;
+ }
+ state.lastCorrect=true;
+ state.lastMessage='✅ CORRECCIÓN AUTOMÁTICA · Tu respuesta era válida. +'+gained+
+  ' puntos. '+(lostLives?'Recuperas '+lostLives+' vida'+(lostLives===1?'':'s')+'. ':'')+
+  (usedShields?'Recuperas '+usedShields+' escudo'+(usedShields===1?'':'s')+'. ':'')+
+  'La partida continúa con el resultado corregido.';
+ state.lastEffects=[];
+ state.endReason='';
+ state.stage='result';
+ save();
+}
+function open(){
+ root.hidden=false;document.body.style.overflow='hidden';state=load();
+ regradeSavedSoloAnswer();
+ if(state&&state.stage==='question'&&Date.now()>Number(state.deadline))grade('',true);
+ else render();
+}
 const currentCat=()=>state?.cat??0;
 const playerQuestion=()=>BANK[state?.qid]||null;
 function screen(content){
@@ -906,7 +948,7 @@ function grade(answer,expired=false){
  if(state.lives>beforeFx.lives)add('life-gain','lifeEarned','❤️','VIDA RECUPERADA','+1 vida recuperada',state.lives+' vidas disponibles');
  if(state.stars>beforeFx.stars)add('crown-gain','crown','👑','¡CORONA CONSEGUIDA!','+1 corona',state.stars+' de 6 categorías conquistadas');
  state.lastEffects=events;
- state.lastChange={livesBefore:beforeFx.lives,shieldsBefore:beforeFx.shields};
+ state.lastChange={livesBefore:beforeFx.lives,shieldsBefore:beforeFx.shields,streakBefore:beforeFx.streak};
  state.stage='result';state.risk=false;state.bomb=false;
  save();render();
  if(state.lives<beforeFx.lives)soloVibrate('life');
