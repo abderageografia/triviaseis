@@ -47,7 +47,7 @@ window.TRIVIA_SURPRISE_QUESTIONS=[
     "mix",
     "dificil",
     "¿Cuáles son los apellidos de Camino, la madre del DJ, showman e influencer Jaime Barreales?",
-    "López Velera",
+    "López Valera",
     [],
     "",
     "sorpresa personalizada",
@@ -127,6 +127,8 @@ window.TRIVIA_SURPRISE_QUESTIONS=[
   if(!given)return false;
   if(/^\d{4}$/.test(correct))return given===correct || given==='en '+correct || given==='en el '+correct;
   if(given===correct)return true;
+  // También acepta escribir su nombre completo, aunque se pidan los apellidos.
+  if(q[8]?.surpriseId==='personal-4'&&given===normalize('Camino '+q[3]))return true;
   const a=given.replace(/\s+/g,''),b=correct.replace(/\s+/g,'');
   const limit=b.length<7?1:b.length<14?2:3;
   return editDistance(a,b,limit)<=limit;
