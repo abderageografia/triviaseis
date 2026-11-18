@@ -1101,7 +1101,7 @@ root.addEventListener('click',e=>{
    state.lastMessage=String(state.lastMessage||'').replace(/ No te quedan vidas\./,'').replace(/ Te quedan \d+ vidas?\./,'')+' ❤️ Canjeados 1000 puntos por 1 vida. Ahora tienes '+state.lives+'.';
   }
   save();render();soloVibrate('lifeGain');
-  window.TRIVIA_FX?.show('lifeEarned','❤️','VIDA RECUPERADA','−250 puntos · '+state.lives+' vidas disponibles');
+  window.TRIVIA_FX?.show('lifeEarned','❤️','VIDA RECUPERADA','−1000 puntos · '+state.lives+' vidas disponibles');
   return;
  }
  if(cmd==='rescue'&&state.stage==='result'&&state.lives===0&&!state.rescueUsed){
