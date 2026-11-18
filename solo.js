@@ -543,6 +543,19 @@ css.textContent = `
 .solo-hud.compact .solo-pip-icon{font-size:19px}
 .solo-hud.compact .solo-circles{margin-top:3px}
 .solo-game-panel{margin-top:8px;text-align:center}
+/* Especiales: borde de oro luminoso y un único título discreto. */
+.solo-question-panel.solo-special-panel{
+ border:2px solid transparent;
+ background:radial-gradient(ellipse at 50% 0%,#664b2f74,transparent 60%) padding-box,
+ linear-gradient(145deg,#243452,#14203a) padding-box,
+ linear-gradient(120deg,#e2a839,#fff2b6 28%,#c28b2f 52%,#ffe5a0 78%,#d69d34) border-box;
+ box-shadow:0 0 0 1px #fff1b047,0 0 26px #e8b54b70,inset 0 1px 13px #ffda7530;
+}
+.solo-surprise-heading{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;column-gap:9px;row-gap:2px;color:#ffe49c;font-size:clamp(11px,3vw,13px);font-weight:900;letter-spacing:.6px;line-height:1.3;margin:0 0 7px}
+.solo-surprise-heading span{font-size:clamp(10px,2.7vw,11px);font-weight:750;letter-spacing:.25px;color:#f6dda5}
+.solo-special-panel #soloCountdown{font-size:11px;letter-spacing:.7px}
+.solo-special-panel .solo-time{margin:6px 0 10px}
+.solo-special-panel .solo-question{margin:13px auto 16px}
 .solo-wheel-panel{background:radial-gradient(circle at 50% 33%,#293e67,#192743 65%,#141e36)}
 .solo-wheel-wrap{width:clamp(185px,min(78vw,37dvh),338px);height:auto;aspect-ratio:1;position:relative;margin:10px auto 16px;isolation:isolate;filter:drop-shadow(0 10px 21px #000a)}
 .solo-wheel-wrap:before{content:'';position:absolute;inset:-3%;z-index:-1;background:conic-gradient(#ef718655,#f2bf6255,#42c8be55,#6a9efa55,#b99aff55,#67d08755,#ef718655);border-radius:50%;filter:blur(12px)}
@@ -770,7 +783,7 @@ function render(){
  }else if(state.stage==='question'){
   const q=playerQuestion(); if(!q){state.stage='wheel';save();render();return}
   let seconds=Math.max(0,Math.ceil((state.deadline-Date.now())/1000));
-  main+='<div class="solo-panel solo-game-panel solo-question-panel">'+(q[8]?.surprise?'<div class="solo-kicker" style="color:#ffe59c;font-size:16px;margin-bottom:10px">🎁 ¡PREGUNTA SORPRESA! · 500 PUNTOS · AVANCE DOBLE</div>':'')+'<div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+(state.bomb?' · 💣 PREGUNTA BOMBA':'')+(q[8]?.mythology?' · 🏺 MITOLOGÍA':'')+'</div><div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div>'+(state.options?.length===4?'<div class="solo-quiz-type">'+(q[8]?.special_choice?((q[8]?.variant==='intruso'||q[8]?.variant==='asociacion-falsa')?'🚫 ENCUENTRA EL INTRUSO':'🎯 PREGUNTA ESPECIAL · 4 OPCIONES'):'🎯 RONDA ESPECIAL · 4 OPCIONES')+'</div>':'')+'<div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(!canUseSoloHint()?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0||state.shields>=2?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint">'+htmlEscape(soloHintText())+'</p></div>';
+  main+='<div class="solo-panel solo-game-panel solo-question-panel'+(q[8]?.surprise||q[8]?.special_choice?' solo-special-panel':'')+'">'+(q[8]?.surprise?'<div class="solo-surprise-heading">🎁 SORPRESA <span>500 PUNTOS · AVANCE DOBLE</span></div>':'<div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+(state.bomb?' · 💣 PREGUNTA BOMBA':'')+(q[8]?.mythology?' · 🏺 MITOLOGÍA':'')+'</div>')+'<div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div>'+(state.options?.length===4?'<div class="solo-quiz-type">'+(q[8]?.special_choice?((q[8]?.variant==='intruso'||q[8]?.variant==='asociacion-falsa')?'🚫 ENCUENTRA EL INTRUSO':'🎯 PREGUNTA ESPECIAL · 4 OPCIONES'):'🎯 RONDA ESPECIAL · 4 OPCIONES')+'</div>':'')+'<div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(!canUseSoloHint()?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0||state.shields>=2?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint">'+htmlEscape(soloHintText())+'</p></div>';
  }else if(state.stage==='result'){
   const entered=String(state.lastUserAnswer??'').trim();
   const own=entered?htmlEscape(entered):'<span class="solo-empty">'+(state.lastExpired?'Sin responder (tiempo agotado)':'Sin respuesta')+'</span>';
@@ -907,7 +920,8 @@ function grade(answer,expired=false){
  const q=playerQuestion();
  if(!q)return;
  const typed=String(answer??'').trim();
- const correct=!expired&&!!typed&&!!window.TRIVIA_MATCH?.(typed,q);
+ const surpriseMatch=window.TRIVIA_SURPRISE_MATCH?.(typed,q);
+ const correct=!expired&&!!typed&&(surpriseMatch==null?!!window.TRIVIA_MATCH?.(typed,q):surpriseMatch);
  const beforeFx={lives:state.lives,shields:state.shields,stars:state.stars,points:state.points,streak:state.streak};
  state.lastCorrect=correct;
  state.lastQText=q[2];
