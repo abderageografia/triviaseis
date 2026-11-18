@@ -630,7 +630,7 @@ function cancelWheelAnimation(){
 function soloMaxLives(mode=state?.mode){return mode==='classic'?6:mode==='sprint'?5:4}
 const SOLO_HEAL_COST=250;
 function soloHealActions(){
- if(!state||!['wheel','result'].includes(state.stage)||state.lives>=soloMaxLives())return '';
+ if(!state||!['wheel','result'].includes(state.stage)||state.lives>=soloMaxLives()||(state.stage==='result'&&state.lastWasRescue&&state.lives===0))return '';
  const missing=Math.max(0,SOLO_HEAL_COST-state.points);
  return '<div class="solo-heal-actions"><button type="button" data-solo="heal" class="solo-heal-btn" '+(missing?'disabled':'')+'>❤️ Recuperar 1 vida · '+SOLO_HEAL_COST+' puntos</button><span class="solo-heal-progress">'+(missing?'Te faltan '+missing+' puntos':'Puedes recuperar una vida ahora')+'</span></div>';
 }
@@ -816,7 +816,7 @@ function render(){
     '<div class="solo-result-answers"><div class="solo-answer-row '+(state.lastCorrect?'':'user-wrong')+'"><span class="solo-answer-label">Tu respuesta</span><strong class="solo-answer-value">'+own+'</strong></div>'+
     '<div class="solo-answer-row correct"><span class="solo-answer-label">Respuesta correcta</span><strong class="solo-answer-value">'+htmlEscape(state.lastAnswer)+'</strong></div></div>'+
     (events?'<div class="solo-effect-log" aria-label="Cambios de vidas, escudos y coronas">'+events+'</div>':'')+
-    '<p class="solo-note">'+htmlEscape(state.lastMessage)+'</p>'+soloHealActions()+soloRescueActions()+actionButton('next',state.lives===0?'TERMINAR PARTIDA →':'CONTINUAR →')+'</div>';
+    '<p class="solo-note">'+htmlEscape(state.lastMessage)+'</p>'+soloRescueActions()+soloHealActions()+actionButton('next',state.lives===0?'TERMINAR PARTIDA →':'CONTINUAR →')+'</div>';
  }else if(state.stage==='finished'){
   main+='<div class="solo-panel solo-game-panel solo-result-panel"><div class="solo-kicker">🏆 FIN DEL RETO</div><h2>'+htmlEscape(state.endReason||'Partida terminada')+'</h2><p class="solo-note">Has conseguido <b>'+state.points+' puntos</b> con '+state.correct+' aciertos en '+state.asked+' preguntas. Máxima racha: '+state.bestStreak+'. '+(state.mode==='classic'?'Coronas: '+state.stars+'/6. ':'')+'Logros: '+(state.medals?.length||0)+'. Récord del modo: '+Number(soloRecords()[state.mode]?.points||0)+' puntos.</p>'+actionButton('again','VOLVER A JUGAR ↻')+'</div>';
  }
@@ -1091,7 +1091,7 @@ root.addEventListener('click',e=>{
   save();render();return;
  }
  if(!state)return;
- if(cmd==='heal'&&['wheel','result'].includes(state.stage)&&!spinning&&state.points>=SOLO_HEAL_COST&&state.lives<soloMaxLives()){
+ if(cmd==='heal'&&['wheel','result'].includes(state.stage)&&!spinning&&state.points>=SOLO_HEAL_COST&&state.lives<soloMaxLives()&&!(state.stage==='result'&&state.lastWasRescue&&state.lives===0)){
   const prev=state.lives;
   state.points-=SOLO_HEAL_COST;
   state.lives++;
