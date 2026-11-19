@@ -278,6 +278,28 @@ window.TRIVIA_QUESTION_TOPIC=function triviaQuestionTopic(q){
 };
 
 const BANK = (window.GAME_BANK || []).concat(window.TRIVIA_BONUS_QUIZ || []);
+/* Tolerancia editorial: corregir preguntas ambiguas y aceptar equivalencias. */
+(function revisarConceptosAmbiguos(){
+ const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+ let revisadas=0;
+ for(const q of BANK){
+  if(!Array.isArray(q))continue;
+  const t=norm(q[2]),a=norm(q[3]);
+  if(t.includes('participacion electoral')&&/significa|define|entiende|consiste|concepto/.test(t)){
+   q[2]='En unas elecciones, ¿cómo se denomina el porcentaje de personas inscritas en el censo que acuden a votar?';
+   q[3]='Participación electoral';
+   q[4]=['Tasa de participación','Participación','Índice de participación electoral','Porcentaje de participación electoral'];
+   q[1]='media';revisadas++;
+  }
+  if((t.includes('conjunto de casas agrupadas')||t.includes('viviendas agrupadas en un nucleo'))&&/poblamiento concentrado|habitat concentrado/.test(a)){
+   q[2]='¿Qué tipo de poblamiento presenta las viviendas agrupadas en un único núcleo, en lugar de dispersas por el territorio?';
+   q[3]='Poblamiento concentrado';
+   q[4]=[...new Set([...(Array.isArray(q[4])?q[4]:[]),'Hábitat concentrado','Hábitat agrupado','Poblamiento agrupado','Núcleo concentrado'])];
+   revisadas++;
+  }
+ }
+ window.TRIVIA_CONCEPTOS_REVISADOS=revisadas;
+})();
 
 /* CLARIDAD_DE_ENUNCIADOS_2026_11
  * Corrige el banco que comparten los modos de juego, sin alterar respuestas ni puntajes.
@@ -544,7 +566,7 @@ css.textContent = `
 .solo-hud.compact .solo-circles{margin-top:3px}
 .solo-game-panel{margin-top:8px;text-align:center}
 /* Especiales: borde de oro luminoso y un único título discreto. */
-.solo-question-panel.solo-special-panel{
+.solo-question-panel.solo-special-panel,.solo-result-panel.solo-special-panel{
  border:2px solid transparent;
  background:radial-gradient(ellipse at 50% 0%,#664b2f74,transparent 60%) padding-box,
  linear-gradient(145deg,#243452,#14203a) padding-box,
@@ -806,12 +828,12 @@ function render(){
  }else if(state.stage==='question'){
   const q=playerQuestion(); if(!q){state.stage='wheel';save();render();return}
   let seconds=Math.max(0,Math.ceil((state.deadline-Date.now())/1000));
-  main+='<div class="solo-panel solo-game-panel solo-question-panel'+(state.rescueActive||q[8]?.surprise||q[8]?.special_choice?' solo-special-panel':'')+'">'+(state.rescueActive?'<div class="solo-rescue-heading">🆘 PREGUNTA DE RESCATE · +2 VIDAS</div>':q[8]?.surprise?'<div class="solo-surprise-heading">🎁 SORPRESA <span>500 PUNTOS · AVANCE DOBLE</span></div>':'<div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+(state.bomb?' · 💣 BONUS +200':'')+(q[8]?.mythology?' · 🏺 MITOLOGÍA':'')+'</div>')+'<div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div>'+(state.options?.length===4?'<div class="solo-quiz-type">'+(q[8]?.special_choice?((q[8]?.variant==='intruso'||q[8]?.variant==='asociacion-falsa')?'🚫 ENCUENTRA EL INTRUSO':'🎯 PREGUNTA ESPECIAL · 4 OPCIONES'):'🎯 RONDA ESPECIAL · 4 OPCIONES')+'</div>':'')+'<div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(!canUseSoloHint()?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0||state.shields>=2?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint">'+htmlEscape(soloHintText())+'</p></div>';
+  main+='<div class="solo-panel solo-game-panel solo-question-panel'+(state.rescueActive||q[8]?.surprise||q[8]?.special_choice||q[1]==='dificil'?' solo-special-panel':'')+'">'+(state.rescueActive?'<div class="solo-rescue-heading">🆘 PREGUNTA DE RESCATE · +2 VIDAS</div>':q[8]?.surprise?'<div class="solo-surprise-heading">🎁 SORPRESA <span>500 PUNTOS · AVANCE DOBLE</span></div>':'<div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+(state.bomb?' · 💣 BONUS +200':'')+(q[8]?.mythology?' · 🏺 MITOLOGÍA':'')+'</div>')+'<div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div>'+(state.options?.length===4?'<div class="solo-quiz-type">'+(q[8]?.special_choice?((q[8]?.variant==='intruso'||q[8]?.variant==='asociacion-falsa')?'🚫 ENCUENTRA EL INTRUSO':'🎯 PREGUNTA ESPECIAL · 4 OPCIONES'):'🎯 RONDA ESPECIAL · 4 OPCIONES')+'</div>':'')+'<div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(!canUseSoloHint()?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap===0?'disabled':'')+'>🔄 Cambiar · '+state.aids.swap+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0||state.shields>=2?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint">'+htmlEscape(soloHintText())+'</p></div>';
  }else if(state.stage==='result'){
   const entered=String(state.lastUserAnswer??'').trim();
   const own=entered?htmlEscape(entered):'<span class="solo-empty">'+(state.lastExpired?'Sin responder (tiempo agotado)':'Sin respuesta')+'</span>';
   const events=(state.lastEffects||[]).map(item=>'<span class="solo-effect-tag '+htmlEscape(item.kind)+'">'+htmlEscape(item.symbol)+' '+htmlEscape(item.short)+'</span>').join('');
-  main+='<div class="solo-panel solo-game-panel solo-result-panel"><div class="solo-kicker">'+(state.lastCorrect?'RESPUESTA CORRECTA':'RESPUESTA INCORRECTA')+'</div><h2>'+htmlEscape(state.lastQText)+'</h2>'+
+  main+='<div class="solo-panel solo-game-panel solo-result-panel'+(state.lastQDifficulty==='dificil'?' solo-special-panel':'')+'"><div class="solo-kicker">'+(state.lastCorrect?'RESPUESTA CORRECTA':'RESPUESTA INCORRECTA')+'</div><h2>'+htmlEscape(state.lastQText)+'</h2>'+
     '<div class="'+(state.lastCorrect?'solo-ok':'solo-no')+'">'+(state.lastCorrect?'✓ ¡ACERTASTE!':'✕ FALLO')+'</div>'+
     '<div class="solo-result-answers"><div class="solo-answer-row '+(state.lastCorrect?'':'user-wrong')+'"><span class="solo-answer-label">Tu respuesta</span><strong class="solo-answer-value">'+own+'</strong></div>'+
     '<div class="solo-answer-row correct"><span class="solo-answer-label">Respuesta correcta</span><strong class="solo-answer-value">'+htmlEscape(state.lastAnswer)+'</strong></div></div>'+
@@ -948,6 +970,7 @@ function grade(answer,expired=false){
  const beforeFx={lives:state.lives,shields:state.shields,stars:state.stars,points:state.points,streak:state.streak};
  state.lastCorrect=correct;
  state.lastQText=q[2];
+ state.lastQDifficulty=q[1];
  state.lastAnswer=q[3];
  state.lastUserAnswer=typed;
  state.lastExpired=!!expired;
