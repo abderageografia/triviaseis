@@ -709,6 +709,13 @@ function load(){try{
     old.hintPositions=indices.slice(0,Math.min(indices.length-1,old.hintUses+1));
    }
   }
+  // Las preguntas de intruso que estaban en curso no deben conservar el oro anterior.
+  if(['question','result'].includes(old.stage)&&BANK[old.qid]){
+   const meta=BANK[old.qid][8]||{};
+   old.lastQSpecial=!!meta.surprise;
+   old.lastQIntruder=meta.variant==='intruso'||meta.variant==='asociacion-falsa';
+  }
+  if(!Array.isArray(old.checkpointsClaimed))old.checkpointsClaimed=[];
   return old;
  }
  }catch{}return null}
