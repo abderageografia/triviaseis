@@ -630,6 +630,7 @@ css.textContent += "\n/* Preguntas móviles: tipografía protagonista y respuest
 css.textContent += "\n/* Preguntas sorpresa: dorado. Intrusos: turquesa. Difíciles normales: violeta. */\n#soloRoot .solo-question-panel.solo-intruder-panel,\n#soloRoot .solo-result-panel.solo-intruder-panel{\n border:2px solid transparent;\n background:linear-gradient(150deg,#213452,#162641) padding-box,\n linear-gradient(115deg,#46d6cf,#8ceaf1,#418ee4,#61c7f2) border-box;\n box-shadow:0 0 17px #4dcac14b,inset 0 0 13px #5be5d41b;\n}\n#soloRoot .solo-question-panel.solo-intruder-panel .solo-tag{color:#8cece9!important}\n";
 css.textContent += "\n#soloRoot.solo-live .solo-checkpoint-panel,#soloRoot.solo-live .solo-offer-panel{\n display:flex;flex-direction:column;align-items:stretch;justify-content:center;\n gap:clamp(9px,2dvh,16px);padding:clamp(14px,3dvh,22px)!important;overflow:hidden;\n}\n#soloRoot.solo-live .solo-checkpoint-panel h2,#soloRoot.solo-live .solo-offer-panel h2{font-size:clamp(22px,5.9vw,32px);line-height:1.15;margin:0}\n#soloRoot.solo-live .solo-checkpoint-panel .solo-kicker{font-size:clamp(12px,3.5vw,16px);color:#96e6db}\n#soloRoot.solo-live .solo-checkpoint-panel .solo-note,#soloRoot.solo-live .solo-offer-panel .solo-note{font-size:clamp(13px,3.6vw,16px);line-height:1.35;margin:0}\n#soloRoot .solo-checkpoint-options{display:grid;grid-template-columns:minmax(0,1fr);gap:9px;width:100%;margin:6px 0}\n#soloRoot .solo-checkpoint-choice{\n display:flex;flex-direction:column;text-align:left;align-items:flex-start;\n gap:3px;width:100%;min-height:77px;padding:13px 15px;\n border:1px solid #8a9dd1;border-radius:15px;\n color:#fff;background:linear-gradient(120deg,#2b3d67,#1a2d4c);font:inherit;cursor:pointer;\n}\n#soloRoot .solo-checkpoint-choice b{font-size:clamp(15px,4.2vw,19px);line-height:1.2}\n#soloRoot .solo-checkpoint-choice span{font-size:clamp(11px,3vw,13px);color:#c9dafa;line-height:1.2}\n#soloRoot .solo-checkpoint-choice:disabled{opacity:.38;cursor:not-allowed}\n#soloRoot .solo-checkpoint-foot{font-size:11px;color:#b3c4de;text-align:center;margin:0}\n#soloRoot.solo-live .solo-sprint-mini{\n display:flex;flex-wrap:wrap;justify-content:center;align-items:center;column-gap:12px;row-gap:4px;\n width:100%;margin-top:auto;padding:8px 10px;border-radius:10px;\n background:#152a49;border:1px solid #42678b;color:#b7e3e9;\n font-size:clamp(11px,3vw,13px);line-height:1.2;font-weight:750;\n}\n#soloRoot.solo-live .solo-sprint-mini span{color:#ffe2a3}\n#soloRoot.solo-live.solo-keyboard .solo-sprint-mini{display:none}\n#soloRoot.solo-live.solo-tight .solo-checkpoint-panel,#soloRoot.solo-live.solo-tight .solo-offer-panel{gap:8px;padding:10px!important}\n#soloRoot.solo-live.solo-tight .solo-checkpoint-choice{min-height:62px;padding:9px 11px}\n";
 css.textContent += "\n/* Pantalla de resultado: pregunta, evaluación y respuestas se muestran juntas arriba. */\n#soloRoot.solo-live .solo-result-panel{\n justify-content:flex-start!important;\n align-items:stretch;\n gap:clamp(6px,1.2dvh,11px)!important;\n}\n#soloRoot.solo-live .solo-result-panel h2{\n display:block!important;\n flex:0 1 auto!important;\n align-self:stretch;\n min-height:0!important;\n height:auto!important;\n max-height:min(28dvh,240px);\n margin:clamp(7px,1.6dvh,16px) 0 clamp(8px,1.5dvh,14px)!important;\n padding:0 4px;\n font-size:clamp(20px,5.5vw,28px)!important;\n line-height:1.2!important;\n text-align:center;\n text-wrap:balance;\n overflow:hidden;\n}\n#soloRoot.solo-live .solo-result-panel .solo-ok,\n#soloRoot.solo-live .solo-result-panel .solo-no{margin:0!important}\n#soloRoot.solo-live .solo-result-panel .solo-result-answers{margin:0!important}\n#soloRoot.solo-live .solo-result-panel .solo-effect-log{margin:0!important}\n#soloRoot.solo-live .solo-result-panel .solo-note{\n margin:0!important;\n font-size:clamp(12px,3.2vw,14px)!important;\n line-height:1.35!important;\n}\n#soloRoot.solo-live .solo-result-panel .solo-cta{\n margin:clamp(6px,1.2dvh,12px) 0 0!important;\n}\n#soloRoot.solo-live.solo-tight .solo-result-panel h2{\n font-size:clamp(18px,5vw,25px)!important;margin:3px 0 6px!important\n}\n#soloRoot.solo-live .solo-result-panel.solo-cramped h2{\n max-height:20dvh;font-size:clamp(16px,4.5vw,21px)!important;\n margin:2px 0 5px!important;\n}\n";
+css.textContent += "\n#soloRoot.solo-live .solo-result-panel .solo-hint-cost{\n width:100%;padding:7px 10px;border-radius:9px;\n color:#ffe7a9;background:#403520;\n border:1px solid #94754c;\n font-size:clamp(11px,3vw,13px);font-weight:800;\n line-height:1.25;text-align:center;\n}\n#soloRoot.solo-live .solo-question-panel [data-solo=\"hint\"]{\n white-space:normal;line-height:1.12;\n}\n";
 document.head.appendChild(css);
 let state = null, tick = 0, spinning = false, wheelRotation = 0, mediaTicket = 0, chosenMode = 'classic', chosenLevel = 'both';
 const HAPTIC_KEY='triviaSeisSoloHaptics';
@@ -660,6 +661,13 @@ function cancelWheelAnimation(){
 // La dificultad de las preguntas no cambia: solo hay más oportunidades de remontar.
 function soloMaxLives(mode=state?.mode){return mode==='classic'?6:mode==='sprint'?5:4}
 const SOLO_HEAL_COST=1000;
+const SOLO_HINT_PENALTY=50;
+function soloHintCount(){
+ if(!state)return 0;
+ return state.options?.length===4?Math.ceil((state.hiddenChoices?.length||0)/2):Math.max(0,Number(state.hintUses)||0);
+}
+function soloHintPenalty(){return soloHintCount()*SOLO_HINT_PENALTY;}
+
 function soloHealActions(){
  if(!state||!['wheel','result'].includes(state.stage)||state.lives>=soloMaxLives()||(state.stage==='result'&&state.lastWasRescue&&state.lives===0))return '';
  const missing=Math.max(0,SOLO_HEAL_COST-state.points);
@@ -767,13 +775,16 @@ function regradeSavedSoloAnswer(){
  const fire=state.streak>=3?2:1;
  const gained=(q[8]?.surprise?500+Math.min(100,state.streak*10):
   (q[1]==='dificil'?150:100)*bonus+Math.min(100,state.streak*10))*fire+(wasBomb?200:0);
- state.points=Number(state.points||0)+gained;
+ const hintPenalty=Math.min(gained,soloHintPenalty());
+ const awarded=Math.max(0,gained-hintPenalty);
+ state.lastHintPenalty=hintPenalty;
+ state.points=Number(state.points||0)+awarded;
  if(state.mode==='classic'){
   state.pips[state.cat]=Math.min(3,Number(state.pips[state.cat]||0)+bonus);
   state.stars=state.pips.filter(n=>n===3).length;
  }
  state.lastCorrect=true;
- state.lastMessage='✅ CORRECCIÓN AUTOMÁTICA · Tu respuesta era válida. +'+gained+
+ state.lastMessage='✅ CORRECCIÓN AUTOMÁTICA · Tu respuesta era válida. +'+awarded+
   ' puntos. '+(lostLives?'Recuperas '+lostLives+' vida'+(lostLives===1?'':'s')+'. ':'')+
   (usedShields?'Recuperas '+usedShields+' escudo'+(usedShields===1?'':'s')+'. ':'')+
   'La partida continúa con el resultado corregido.';
@@ -862,7 +873,7 @@ function canUseSoloHint(){
 }
 function soloHintText(){
  if(state.options?.length===4)return (state.hiddenChoices?.length||0)>=2?'Comodín 50:50: eliminadas dos opciones incorrectas.':'';
- return soloHintParts().shown?'Pista: «'+soloHintParts().mask+'» · Cada uso revela el 15 % de las letras, en posiciones aleatorias.':'';
+ return soloHintParts().shown?'Pista: «'+soloHintParts().mask+'» · −'+soloHintPenalty()+' puntos de este premio por pistas.':'';
 }
 function summary(){
  const compact=true; // mismo alto de marcador en ruleta, pregunta y resultado
@@ -938,7 +949,7 @@ function render(){
  }else if(state.stage==='question'){
   const q=playerQuestion(); if(!q){state.stage='wheel';save();render();return}
   let seconds=Math.max(0,Math.ceil((state.deadline-Date.now())/1000));
-  main+='<div class="solo-panel solo-game-panel solo-question-panel'+(q[8]?.surprise?' solo-special-panel':q[8]?.variant==='intruso'||q[8]?.variant==='asociacion-falsa'?' solo-intruder-panel':q[1]==='dificil'?' solo-hard-panel':state.rescueActive?' solo-rescue-panel':'')+'">'+(state.rescueActive?'<div class="solo-rescue-heading">🆘 PREGUNTA DE RESCATE · +2 VIDAS</div>':q[8]?.surprise?'<div class="solo-surprise-heading">🎁 SORPRESA <span>500 PUNTOS · AVANCE DOBLE</span></div>':'<div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+(state.bomb?' · 💣 BONUS +200':'')+(q[8]?.mythology?' · 🏺 MITOLOGÍA':'')+'</div>')+'<div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div>'+(state.options?.length===4?'<div class="solo-quiz-type">'+(q[8]?.special_choice?((q[8]?.variant==='intruso'||q[8]?.variant==='asociacion-falsa')?'🚫 ENCUENTRA EL INTRUSO':'🎯 PREGUNTA ESPECIAL · 4 OPCIONES'):'🎯 RONDA ESPECIAL · 4 OPCIONES')+'</div>':'')+'<div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(!canUseSoloHint()?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap>0||state.points>=500?'':'disabled')+' title="'+(state.aids.swap>0?'Usar cambio gratuito':'Cambiar de pregunta: cuesta 500 puntos')+'">'+(state.aids.swap>0?'🔄 Cambiar · '+state.aids.swap:'🔄 Cambiar · 500 pts')+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0||state.shields>=2?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint">'+htmlEscape(soloHintText())+'</p>'+soloSprintMilestone()+'</div>';
+  main+='<div class="solo-panel solo-game-panel solo-question-panel'+(q[8]?.surprise?' solo-special-panel':q[8]?.variant==='intruso'||q[8]?.variant==='asociacion-falsa'?' solo-intruder-panel':q[1]==='dificil'?' solo-hard-panel':state.rescueActive?' solo-rescue-panel':'')+'">'+(state.rescueActive?'<div class="solo-rescue-heading">🆘 PREGUNTA DE RESCATE · +2 VIDAS</div>':q[8]?.surprise?'<div class="solo-surprise-heading">🎁 SORPRESA <span>500 PUNTOS · AVANCE DOBLE</span></div>':'<div class="solo-tag" style="color:'+colors[state.cat]+'">'+icons[state.cat]+' '+names[state.cat].toUpperCase()+' · '+(q[1]==='dificil'?'DIFÍCIL':'MEDIA')+(state.risk?' · ⚡ RETO':'')+(state.bomb?' · 💣 BONUS +200':'')+(q[8]?.mythology?' · 🏺 MITOLOGÍA':'')+'</div>')+'<div class="solo-kicker" id="soloCountdown">⏳ '+seconds+' SEGUNDOS</div><div class="solo-time"><div id="soloBar" style="width:'+Math.max(0,seconds/state.seconds*100)+'%"></div></div><div class="solo-question">'+htmlEscape(q[2])+'</div>'+(state.options?.length===4?'<div class="solo-quiz-type">'+(q[8]?.special_choice?((q[8]?.variant==='intruso'||q[8]?.variant==='asociacion-falsa')?'🚫 ENCUENTRA EL INTRUSO':'🎯 PREGUNTA ESPECIAL · 4 OPCIONES'):'🎯 RONDA ESPECIAL · 4 OPCIONES')+'</div>':'')+'<div id="soloMedia"></div>'+(state.options?.length===4?'<div class="solo-options">'+state.options.map((answer,i)=>'<button class="solo-option" type="button" data-solo="option" data-idx="'+i+'" '+(state.hiddenChoices?.includes(i)?'disabled':'')+'>'+htmlEscape(answer)+'</button>').join('')+'</div>':'<form id="soloAnswerForm"><input class="solo-field" id="soloAnswer" autocomplete="off" maxlength="120" placeholder="Escribe tu respuesta" required>'+actionButton('submit','COMPROBAR ✓')+'</form>')+'<div class="solo-powers"><button class="solo-pill" data-solo="hint" '+(!canUseSoloHint()?'disabled':'')+'>'+(state.options?.length===4?'💡 50:50':'💡 Pista')+' (−50 pts) · '+state.aids.hint+'</button><button class="solo-pill" data-solo="swap" '+(state.aids.swap>0||state.points>=500?'':'disabled')+' title="'+(state.aids.swap>0?'Usar cambio gratuito':'Cambiar de pregunta: cuesta 500 puntos')+'">'+(state.aids.swap>0?'🔄 Cambiar · '+state.aids.swap:'🔄 Cambiar · 500 pts')+'</button><button class="solo-pill" data-solo="shield" '+(state.aids.shield===0||state.shields>=2?'disabled':'')+'>🛡️ Escudo · '+state.aids.shield+'</button></div><p class="solo-note" id="soloHint">'+htmlEscape(soloHintText())+'</p>'+soloSprintMilestone()+'</div>';
  }else if(state.stage==='result'){
   const entered=String(state.lastUserAnswer??'').trim();
   const own=entered?htmlEscape(entered):'<span class="solo-empty">'+(state.lastExpired?'Sin responder (tiempo agotado)':'Sin respuesta')+'</span>';
@@ -947,6 +958,7 @@ function render(){
     '<div class="'+(state.lastCorrect?'solo-ok':'solo-no')+'">'+(state.lastCorrect?'✓ ¡ACERTASTE!':'✕ FALLO')+'</div>'+
     '<div class="solo-result-answers"><div class="solo-answer-row '+(state.lastCorrect?'':'user-wrong')+'"><span class="solo-answer-label">Tu respuesta</span><strong class="solo-answer-value">'+own+'</strong></div>'+
     '<div class="solo-answer-row correct"><span class="solo-answer-label">Respuesta correcta</span><strong class="solo-answer-value">'+htmlEscape(state.lastAnswer)+'</strong></div></div>'+
+    (state.lastCorrect&&state.lastHintPenalty?'<div class="solo-hint-cost">💡 Pistas utilizadas: −'+state.lastHintPenalty+' puntos de esta respuesta</div>':'')+
     (events?'<div class="solo-effect-log" aria-label="Cambios de vidas, escudos y coronas">'+events+'</div>':'')+
     '<p class="solo-note">'+htmlEscape(state.lastMessage)+'</p>'+soloRescueActions()+soloHealActions()+actionButton('next',state.lives===0?'TERMINAR PARTIDA →':'CONTINUAR →')+'</div>';
  }else if(state.stage==='finished'){
@@ -1016,7 +1028,7 @@ function startQuestion(){
  // La respuesta escrita es la regla. Las elecciones son una excepción difícil.
  const question=BANK[id];
  state.options=question[8]?.surprise?[]:(question[8]?.special_choice||(question[1]==='dificil'&&Math.random()<.17)?createSoloOptions(question):[]);
- state.hiddenChoices=[];state.hintUses=0;state.hintPositions=[];
+ state.hiddenChoices=[];state.hintUses=0;state.hintPositions=[];state.lastHintPenalty=0;
  save();render();
 }
 function spin(){
@@ -1110,9 +1122,14 @@ function grade(answer,expired=false){
   const bonus=(state.risk||q[8]?.surprise||state.bomb)?2:1;
   const fire=state.streak>=3?2:1;
   const gain=(q[8]?.surprise?500+Math.min(100,state.streak*10):(q[1]==='dificil'?150:100)*bonus+Math.min(100,state.streak*10))*fire+(state.bomb?200:0);
-  state.points+=gain+(state.flashActive?350:0);
+  const grossGain=gain+(state.flashActive?350:0);
+  const hintPenalty=Math.min(grossGain,soloHintPenalty());
+  const netGain=grossGain-hintPenalty;
+  state.lastHintPenalty=hintPenalty;
+  state.points+=netGain;
   if(state.mode==='classic'){state.pips[state.cat]=Math.min(3,state.pips[state.cat]+bonus);state.stars=state.pips.filter(n=>n===3).length}
-  const messages=['+'+gain+' puntos'+(state.risk||q[8]?.surprise||state.bomb?' y avance doble':'')+(fire===2?' · 🔥 RACHA x2':'')];
+  const messages=['+'+netGain+' puntos'+(state.risk||q[8]?.surprise||state.bomb?' y avance doble':'')+(fire===2?' · 🔥 RACHA x2':'')];
+  if(hintPenalty)messages.push('💡 '+soloHintCount()+' pista'+(soloHintCount()===1?'':'s')+': −'+hintPenalty+' puntos (premio antes de pistas: '+grossGain+')');
   if(state.lastProgressBonus)messages.push('🔥 +'+state.lastProgressBonus+' aciertos extra por 3 seguidas');
   if(eventAdvance)messages.push('⚡ +1 avance por '+(state.flashActive?'ronda relámpago':'doble o nada'));
   if(state.flashActive)messages.push('⏱️ +350 puntos por acertar en 25 segundos');
@@ -1126,6 +1143,7 @@ function grade(answer,expired=false){
   if(state.realCorrect>=50)soloMedal('correct50','Cincuenta respuestas acertadas');
  }else{
   state.lastProgressBonus=0;
+  state.lastHintPenalty=0;
   if(state.rescueActive){
    state.streak=0;
    state.lastMessage=(expired?'Se ha agotado el tiempo. ':'')+'No has superado el rescate. No quedan vidas.';
@@ -1327,7 +1345,7 @@ root.addEventListener('click',e=>{
   const hint=root.querySelector('#soloHint');
   if(hint)hint.textContent=soloHintText();
   const b=root.querySelector('[data-solo="hint"]');
-  if(b){b.textContent=(state.options?.length===4?'💡 50:50 · ':'💡 Pista · ')+state.aids.hint;b.disabled=!canUseSoloHint()}
+  if(b){b.textContent=(state.options?.length===4?'💡 50:50':'💡 Pista')+' (−50 pts) · '+state.aids.hint;b.disabled=!canUseSoloHint()}
   return;
  }
  if(cmd==='swap')return swapQuestion();
