@@ -1004,7 +1004,7 @@ function startQuestion(){
  const showSpecial=specials.length>0&&(!regular.length||Math.random()<.12);
  const id=surpriseId>=0?surpriseId:(showSpecial?take(specials):take(regular.length?regular:specials));
  if(surpriseId>=0)state.surpriseSeen=true;
- state.qid=id;state.used.push(id);soloRememberQuestion(BANK[id]);state.asked++;state.stage='question';state.seconds=state.rescueActive?65:state.mode==='sprint'?50:BANK[id][1]==='dificil'?65:55;state.deadline=Date.now()+state.seconds*1000;
+ state.qid=id;state.used.push(id);soloRememberQuestion(BANK[id]);state.asked++;state.stage='question';state.seconds=state.rescueActive?65:state.flashActive?25:state.mode==='sprint'?50:BANK[id][1]==='dificil'?65:55;state.deadline=Date.now()+state.seconds*1000;
  // La respuesta escrita es la regla. Las elecciones son una excepción difícil.
  const question=BANK[id];
  state.options=question[8]?.surprise?[]:(question[8]?.special_choice||(question[1]==='dificil'&&Math.random()<.17)?createSoloOptions(question):[]);
@@ -1053,8 +1053,9 @@ function spin(){
   landingTimer=setTimeout(()=>{
    landingTimer=0;
    if(token!==wheelToken||root.hidden||!state||state.stage!=='wheel')return;
-   spinning=false;state.cat=selected;state.risk=false;state.bomb=Math.random()<.12;
-   state.stage=state.bomb?'question':state.lives>1&&Math.random()<.18?'offer':'question';
+   spinning=false;state.cat=selected;state.risk=false;state.flashActive=false;state.bomb=Math.random()<.12;
+   state.stage=state.bomb?'question':state.lives>1&&Math.random()<(state.mode==='sprint'?.27:.18)?'offer':'question';
+    state.offerKind=state.stage==='offer'&&state.mode==='sprint'&&Math.random()<.55?'flash':'risk';
    if(state.stage==='question')startQuestion();
    else{save();render()}
   },380);
@@ -1092,13 +1093,21 @@ function grade(answer,expired=false){
    state.bonusCorrect=Number(state.bonusCorrect||0)+state.lastProgressBonus;
   }
   if(state.mode==='sprint')state.correct=Math.min(state.goal,state.correct);
+  const eventAdvance=state.mode==='sprint'&&(state.risk||state.flashActive)?
+   Math.max(0,Math.min(1,Number(state.goal)-state.correct)):0;
+  if(eventAdvance){
+   state.correct+=eventAdvance;
+   state.bonusCorrect=Number(state.bonusCorrect||0)+eventAdvance;
+  }
   const bonus=(state.risk||q[8]?.surprise||state.bomb)?2:1;
   const fire=state.streak>=3?2:1;
   const gain=(q[8]?.surprise?500+Math.min(100,state.streak*10):(q[1]==='dificil'?150:100)*bonus+Math.min(100,state.streak*10))*fire+(state.bomb?200:0);
-  state.points+=gain;
+  state.points+=gain+(state.flashActive?350:0);
   if(state.mode==='classic'){state.pips[state.cat]=Math.min(3,state.pips[state.cat]+bonus);state.stars=state.pips.filter(n=>n===3).length}
   const messages=['+'+gain+' puntos'+(state.risk||q[8]?.surprise||state.bomb?' y avance doble':'')+(fire===2?' · 🔥 RACHA x2':'')];
   if(state.lastProgressBonus)messages.push('🔥 +'+state.lastProgressBonus+' aciertos extra por 3 seguidas');
+  if(eventAdvance)messages.push('⚡ +1 avance por '+(state.flashActive?'ronda relámpago':'doble o nada'));
+  if(state.flashActive)messages.push('⏱️ +350 puntos por acertar en 25 segundos');
   if(state.streak%3===0&&state.shields<2){state.shields++;messages.push('🛡️ Recuperas un escudo por 3 aciertos seguidos')}
   if(state.rescueActive){state.lives=Math.min(soloMaxLives(),state.lives+2);messages.push('🆘 Rescate superado: recuperas 2 vidas')}
   if(state.realCorrect%3===0&&state.lives<soloMaxLives()){state.lives++;messages.push('❤️ Recuperas 1 vida por 3 aciertos acumulados')}
@@ -1127,6 +1136,7 @@ function grade(answer,expired=false){
  }
  state.lastWasRescue=!!state.rescueActive;
  state.rescueActive=false;
+ state.flashActive=false;
  const events=[];
  const add=(kind,type,symbol,title,short,description)=>events.push({kind,type,symbol,title,short,description});
  if(state.lastProgressBonus>0)add('streak-bonus','round','🔥','¡RACHA PREMIADA!','+'+state.lastProgressBonus+' aciertos extra','Tres respuestas seguidas aportan dos avances extra');
@@ -1160,6 +1170,8 @@ function advance(){
  if(!state.lives){end('Te has quedado sin vidas');return}
  if(state.mode==='classic'&&state.pips.every(n=>n===3)){end('¡Has conseguido los seis quesitos!');return}
  if(state.mode==='sprint'&&state.correct>=state.goal){end('¡Has conseguido 15 aciertos!');return}
+ const checkpoint=soloPendingCheckpoint();
+ if(checkpoint){state.checkpoint=checkpoint;state.stage='checkpoint';save();render();return}
  state.stage='wheel';save();render();
 }
 function startTimer(){
@@ -1234,7 +1246,7 @@ root.addEventListener('click',e=>{
  if(cmd==='start'||cmd==='again'){
   chosenLevel=root.querySelector('#soloDifficulty')?.value||chosenLevel;
   cancelWheelAnimation();wheelRotation=0;
-  state={v:2,mode:chosenMode,diff:chosenLevel,points:0,lives:soloMaxLives(chosenMode),streak:0,bestStreak:0,shields:0,aids:{hint:3,swap:2,shield:1},correct:0,realCorrect:0,bonusCorrect:0,asked:0,goal:15,stars:0,pips:[0,0,0,0,0,0],used:[],surpriseSeen:false,rescueUsed:false,rescueActive:false,stage:'wheel',risk:false,bomb:false,medals:[],cat:0,qid:-1};
+  state={v:2,mode:chosenMode,diff:chosenLevel,points:0,lives:soloMaxLives(chosenMode),streak:0,bestStreak:0,shields:0,aids:{hint:3,swap:2,shield:1},correct:0,realCorrect:0,bonusCorrect:0,asked:0,goal:15,stars:0,pips:[0,0,0,0,0,0],used:[],surpriseSeen:false,rescueUsed:false,rescueActive:false,checkpointsClaimed:[],checkpoint:0,offerKind:'risk',flashActive:false,stage:'wheel',risk:false,bomb:false,medals:[],cat:0,qid:-1};
   save();render();return;
  }
  if(!state)return;
@@ -1257,9 +1269,28 @@ root.addEventListener('click',e=>{
   startQuestion();
   return;
  }
+ if(cmd.startsWith('checkpoint')&&state.stage==='checkpoint'&&state.mode==='sprint'){
+  const milestone=Number(state.checkpoint||soloPendingCheckpoint());
+  if(![5,10].includes(milestone)||state.correct<milestone||(state.checkpointsClaimed||[]).includes(milestone))return;
+  if(cmd==='checkpointLife'&&state.lives>=soloMaxLives())return;
+  if(!['checkpointLife','checkpointShield','checkpointPoints'].includes(cmd))return;
+  (state.checkpointsClaimed??=[]).push(milestone);
+  if(cmd==='checkpointLife')state.lives=Math.min(soloMaxLives(),state.lives+1);
+  if(cmd==='checkpointShield'){
+   if(state.shields>=2)state.aids.hint=(state.aids.hint||0)+2;
+   else {state.shields++;state.aids.hint=(state.aids.hint||0)+1}
+  }
+  if(cmd==='checkpointPoints'){state.points+=350;state.aids.swap=(state.aids.swap||0)+1}
+  state.checkpoint=0;state.stage='wheel';save();render();soloVibrate('lifeGain');
+  window.TRIVIA_FX?.show('round','🎁','¡RECOMPENSA CONSEGUIDA!',cmd==='checkpointLife'?'+1 vida':cmd==='checkpointShield'?'Escudo y/o pistas extra':'+350 puntos y 1 cambio');
+  return;
+ }
  if(cmd==='spin')return spin();
- if(cmd==='risk'){soloVibrate('tap');state.risk=true;startQuestion();return}
- if(cmd==='normal'){soloVibrate('tap');state.risk=false;startQuestion();return}
+ if(cmd==='risk'&&state.stage==='offer'){soloVibrate('tap');state.risk=true;state.flashActive=false;startQuestion();return}
+ if(cmd==='flash'&&state.stage==='offer'&&state.mode==='sprint'&&state.offerKind==='flash'){
+  soloVibrate('tap');state.risk=false;state.flashActive=true;startQuestion();return;
+ }
+ if(cmd==='normal'&&state.stage==='offer'){soloVibrate('tap');state.risk=false;state.flashActive=false;startQuestion();return}
  if(cmd==='next'){soloVibrate('tap');return advance()}
  if(cmd==='option'&&state.stage==='question'&&state.options?.length===4){const i=Number(btn.dataset.idx);if(Number.isInteger(i)&&i>=0&&i<4&&!state.hiddenChoices?.includes(i))grade(state.options[i]);return}
  if(cmd==='mediaFail'&&state.stage==='question'){state.used.pop();state.asked=Math.max(0,state.asked-1);startQuestion();return}
