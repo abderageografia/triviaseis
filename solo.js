@@ -776,11 +776,12 @@ function syncSoloViewport(){
   if(!panel||!title)return;
   // Reducir texto antes de ocultar contenidos, incluso en resultados con vidas extra.
   panel.classList.remove('solo-cramped');
+  title.style.removeProperty('font-size');
   for(let n=0;n<12;n++){
    if(panel.scrollHeight<=panel.clientHeight+2&&title.scrollHeight<=title.clientHeight+2)break;
    const size=parseFloat(getComputedStyle(title).fontSize);
    if(size<=13.5)break;
-   title.style.fontSize=(size-1)+'px';
+   title.style.setProperty('font-size',(size-1)+'px','important');
   }
   if(panel.scrollHeight>panel.clientHeight+2){
    panel.classList.add('solo-cramped');
@@ -788,7 +789,7 @@ function syncSoloViewport(){
     if(panel.scrollHeight<=panel.clientHeight+2&&title.scrollHeight<=title.clientHeight+2)break;
     const size=parseFloat(getComputedStyle(title).fontSize);
     if(size<=13.5)break;
-    title.style.fontSize=(size-1)+'px';
+    title.style.setProperty('font-size',(size-1)+'px','important');
    }
   }
  });
