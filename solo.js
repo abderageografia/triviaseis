@@ -694,8 +694,17 @@ function close(){
 function regradeSavedSoloAnswer(){
  if(!state||!['result','finished'].includes(state.stage)||state.lastCorrect||state.lastExpired)return;
  const q=BANK[state.qid];
- if(!q||q[2]!==state.lastQText||q[3]!==state.lastAnswer||
-    !state.lastUserAnswer||!window.TRIVIA_MATCH?.(state.lastUserAnswer,q))return;
+ const original=String(state.lastQText||'');
+ const typed=String(state.lastUserAnswer||'');
+ const simple=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+ const sameQuestion=q?.[2]===state.lastQText&&q?.[3]===state.lastAnswer;
+ // Corregir automáticamente el último fallo si la actualización ha reparado una pregunta ambigua.
+ const fixedHabitat=/conjunto de casas agrupadas en un n[uú]cleo [uú]nico/i.test(original)
+   &&simple(typed)==='habitat concentrado'&&simple(q?.[3])==='poblamiento concentrado';
+ const fixedAquifer=/dep[oó]sito subterr[aá]neo de agua.*materiales impermeables/i.test(original)
+   &&simple(typed)==='acuifero'&&simple(q?.[3])==='acuifero confinado';
+ if(!q||!typed||!(sameQuestion||fixedHabitat||fixedAquifer)||
+    !(fixedHabitat||fixedAquifer||window.TRIVIA_MATCH?.(typed,q)))return;
  const lostLives=Math.max(0,Number(state.lastChange?.livesBefore??state.lives)-Number(state.lives||0));
  const usedShields=Math.max(0,Number(state.lastChange?.shieldsBefore??state.shields)-Number(state.shields||0));
  state.lives=Math.max(Number(state.lives||0),Number(state.lastChange?.livesBefore||0));
