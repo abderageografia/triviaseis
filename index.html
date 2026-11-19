@@ -1011,6 +1011,15 @@ function match(input,q){
  };
  const expected=N(q[3]);
  if(shortAnswerAliases[expected]?.some(alias=>N(alias)===response))return true;
+ // Un título sigue siendo el mismo con o sin artículo inicial:
+ // «Un cuento de Navidad» = «Cuento de Navidad».
+ const titleQuestion=/novela|obra|libro|cuento|relato|pel[ií]cula|film|canci[oó]n|[aá]lbum|disco|poema|t[ií]tulo|serie|novelista|autor[a]?|composici[oó]n/i.test(String(q[2]||''));
+ if(titleQuestion){
+  const removeInitialArticle=value=>value.replace(/^(?:un|una|unos|unas|el|la|los|las|the|a|an)\s+/,'');
+  const articleFreeExpected=removeInitialArticle(expected);
+  const articleFreeResponse=removeInitialArticle(response);
+  if(articleFreeExpected.split(' ').length>=2&&articleFreeExpected===articleFreeResponse)return true;
+ }
  const compact=response.replace(/\s+/g,'');
  // Cuando se pide un estilo, «bizantino» vale por «arte bizantino».
  if(/\b(estilo|corriente|movimiento)\b/.test(N(q[2])) && expected.startsWith('arte ')){
@@ -1762,7 +1771,7 @@ setupCounters();restoreGame();
 
 window.TRIVIA_MATCH = match;
 </script>
-<script src="./solo.js?v=20261119-premios-d15-marcos-v2"></script>
+<script src="./solo.js?v=20261119-pistas15-articulos-v1"></script>
 
 <div id="onlineRoot" class="online-root" hidden aria-live="polite">
   <div class="online-toolbar"><div class="online-logo">🌐 TRIVIA<span>·</span>SEIS <small style="font-size:11px;color:#9ce6e9">ONLINE</small></div><div style="display:flex;gap:6px"><button id="onlineSwitchRoom" class="online-exit" type="button" hidden>Otra sala (borra)</button><button id="onlineExit" class="online-exit" type="button">Salir</button></div></div>
