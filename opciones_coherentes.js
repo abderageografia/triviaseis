@@ -45,6 +45,25 @@ function semantic(q){
  if(/¿qu[eé] (?:instituci[oó]n|organismo|tribunal|empresa|plataforma)/.test(t))return 'organizacion';
  return null;
 }
+function politicalRegion(question){
+ const t=String(question?.[2]||'').toLocaleLowerCase('es');
+ if(/franc[eé]s|francesa|francia|jacques chirac|mitterr?and|sarkozy|hollande|macron/.test(t))return 'francia';
+ if(/estadounidense|estados unidos|norteamerican[oa]|ee\.?\s*uu\.?/.test(t))return 'estados unidos';
+ if(/brit[aá]nic[oa]|reino unido|ingl[eé]s|downing street/.test(t))return 'reino unido';
+ if(/alem[aá]n|alemania/.test(t))return 'alemania';
+ if(/espa[nñ]ol|espa[nñ]a/.test(t))return 'españa';
+ if(/italian[oa]|italia/.test(t))return 'italia';
+ if(/argentin[oa]|argentina/.test(t))return 'argentina';
+ if(/mexican[oa]|m[eé]xico/.test(t))return 'méxico';
+ if(/brasile[nñ][oa]|brasil/.test(t))return 'brasil';
+ return '';
+}
+function politicalOffice(question){
+ const t=String(question?.[2]||'').toLocaleLowerCase('es');
+ if(/president[ea]/.test(t))return 'presidencia';
+ if(/primer[oa]? ministr[oa]?|jefe de gobierno/.test(t))return 'jefatura de gobierno';
+ return '';
+}
 function domain(q){
  const t=clean(q[2]).toLocaleLowerCase('es');
  const tag=clean(q[7]).toLocaleLowerCase('es');
@@ -73,6 +92,12 @@ const housePlaces=[...houseCities,...houseStates,'Orange County','Cheshire'];
 function choose(q,bank,amount=4,validFn=null){
  if(!q||![2,4].includes(amount))return [];
  const a=clean(q[3]);if(!a)return [];
+ // En una elección francesa no son distractores válidos presidentes de EE. UU.
+ if(/presidente franc[eé]s.*2007.*jacques chirac/i.test(q[2])&&N(a)===N('Nicolas Sarkozy')){
+  const names=['Nicolas Sarkozy','Ségolène Royal','François Bayrou','Jean-Marie Le Pen'];
+  for(let i=names.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[names[i],names[j]]=[names[j],names[i]]}
+  return amount===2?[a,names.find(x=>N(x)!==N(a))]:names;
+ }
  const normal=Array.isArray(q[8]?.options)&&q[8]?.special_choice;
  if(normal){
   const options=q[8].options.map(clean);
@@ -94,6 +119,8 @@ function choose(q,bank,amount=4,validFn=null){
  const topic = /bravo:/.test(kind)?'bravo':/^(?:interprete-musical|cancion|album|grupo)$/.test(kind)?'musica':/^(?:presentador|actor|programa)$/.test(kind)?'tv':null;
  const personKinds=new Set(['persona','actor','presentador','interprete-musical','bravo:persona']);
  const requestDomain=domain(q);
+ const requestedRegion=requestDomain==='politica'?politicalRegion(q):'';
+ const requestedOffice=requestDomain==='politica'?politicalOffice(q):'';
  const sameTopic=p=>{
   const k=semantic(p);
   if(!k)return false;
@@ -101,6 +128,10 @@ function choose(q,bank,amount=4,validFn=null){
   if(personKinds.has(kind)){
    if(topic==='bravo')return k===kind;
    if(!requestDomain||domain(p)!==requestDomain)return false;
+   if(requestDomain==='politica'){
+    if(requestedRegion&&politicalRegion(p)!==requestedRegion)return false;
+    if(requestedOffice&&politicalOffice(p)!==requestedOffice)return false;
+   }
    if(k===kind)return true;
    // En el mismo ámbito se permite un perfil parecido, nunca otra temática.
    return family(k)===family(kind)&&family(kind)==='persona'&&requestDomain!=='politica';
