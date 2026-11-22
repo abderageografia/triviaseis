@@ -7,4 +7,5 @@ window.TRIVIA_DAILY_20261116={expected:120,added:added.filter(q=>q[6]==='diarias
 window.TRIVIA_DAILY_20261117={expected:120,added:added.filter(q=>q[6]==='diarias:2026-11-17').length,byCategory:Object.fromEntries(['historia','arte','geo','cine','lit','mix'].map(k=>[k,added.filter(q=>q[0]===k&&q[6]==='diarias:2026-11-17').length]))};
 window.TRIVIA_DAILY_20261118={expected:120,added:added.filter(q=>q[6]==='diarias:2026-11-18').length,byCategory:Object.fromEntries(['historia','arte','geo','cine','lit','mix'].map(k=>[k,added.filter(q=>q[0]===k&&q[6]==='diarias:2026-11-18').length]))};
 window.TRIVIA_DAILY_20261119={expected:120,added:added.filter(q=>q[6]==='diarias:2026-11-19').length,byCategory:Object.fromEntries(['historia','arte','geo','cine','lit','mix'].map(k=>[k,added.filter(q=>q[0]===k&&q[6]==='diarias:2026-11-19').length]))};
+window.TRIVIA_DAILY_20261120={expected:120,added:added.filter(q=>q[6]==='diarias:2026-11-20').length,byCategory:Object.fromEntries(['historia','arte','geo','cine','lit','mix'].map(k=>[k,added.filter(q=>q[0]===k&&q[6]==='diarias:2026-11-20').length]))};
 })();
